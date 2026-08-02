@@ -20,8 +20,14 @@ public abstract class BaseEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(name = "created_by", updatable = false)
+    private UUID createdBy;
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    @Column(name = "updated_by")
+    private UUID updatedBy;
 
     @Version
     @Column(name = "version", nullable = false)
@@ -42,6 +48,15 @@ public abstract class BaseEntity {
         updatedAt = Instant.now();
     }
 
+    protected void initializeAudit(UUID actorId) {
+        createdBy = actorId;
+        updatedBy = actorId;
+    }
+
+    protected void markUpdatedBy(UUID actorId) {
+        updatedBy = actorId;
+    }
+
     public UUID getId() {
         return id;
     }
@@ -52,6 +67,14 @@ public abstract class BaseEntity {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public UUID getCreatedBy() {
+        return createdBy;
+    }
+
+    public UUID getUpdatedBy() {
+        return updatedBy;
     }
 
     public long getVersion() {
