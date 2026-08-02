@@ -1,0 +1,2 @@
+package bo.com.ganadero.animales.api; import bo.com.ganadero.animales.domain.CategoriaAnimal; import java.util.UUID;
+public record CategoriaAnimalResponse(UUID id,String codigo,String nombre,String sexoAplicable,Integer edadMinMeses,Integer edadMaxMeses,String descripcion){public static CategoriaAnimalResponse from(CategoriaAnimal c){return new CategoriaAnimalResponse(c.id(),c.codigo(),c.nombre(),c.sexoAplicable(),c.edadMinMeses(),c.edadMaxMeses(),c.descripcion());}}

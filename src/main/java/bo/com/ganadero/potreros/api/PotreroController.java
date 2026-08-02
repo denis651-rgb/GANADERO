@@ -1,0 +1,9 @@
+package bo.com.ganadero.potreros.api; import bo.com.ganadero.potreros.application.PotreroService; import bo.com.ganadero.potreros.domain.EstadoPotrero; import bo.com.ganadero.shared.api.ApiResponse; import bo.com.ganadero.shared.web.CorrelationIdFilter;
+import jakarta.servlet.http.HttpServletRequest; import jakarta.validation.Valid; import org.springframework.web.bind.annotation.*; import java.util.*;
+@RestController @RequestMapping("/api/v1") public class PotreroController {private final PotreroService service;public PotreroController(PotreroService s){service=s;}
+ @GetMapping("/tipos-pasto") ApiResponse<List<TipoPastoResponse>> grasses(HttpServletRequest r){return ok(service.grasses().stream().map(TipoPastoResponse::from).toList(),r);}
+ @GetMapping("/potreros") ApiResponse<List<PotreroResponse>> list(@RequestParam(required=false) UUID propiedadId,@RequestParam(required=false) EstadoPotrero estado,@RequestParam(required=false) UUID sectorId,HttpServletRequest r){return ok(service.list(propiedadId,estado,sectorId).stream().map(PotreroResponse::from).toList(),r);}
+ @PostMapping("/potreros") ApiResponse<PotreroResponse> create(@Valid @RequestBody CrearPotreroRequest b,HttpServletRequest r){return ok(PotreroResponse.from(service.create(b.command())),r);}
+ @GetMapping("/potreros/{id}") ApiResponse<PotreroResponse> get(@PathVariable UUID id,HttpServletRequest r){return ok(PotreroResponse.from(service.get(id)),r);}
+ @PatchMapping("/potreros/{id}") ApiResponse<PotreroResponse> update(@PathVariable UUID id,@Valid @RequestBody ActualizarPotreroRequest b,HttpServletRequest r){return ok(PotreroResponse.from(service.update(id,b.command())),r);}
+ private <T> ApiResponse<T> ok(T d,HttpServletRequest r){Object c=r.getAttribute(CorrelationIdFilter.ATTRIBUTE);return ApiResponse.success(d,c==null?"unknown":c.toString());}}

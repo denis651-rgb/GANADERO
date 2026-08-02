@@ -1,0 +1,15 @@
+package bo.com.ganadero.seguridad.api;
+import bo.com.ganadero.seguridad.application.*;import bo.com.ganadero.shared.api.ApiResponse;import bo.com.ganadero.shared.web.CorrelationIdFilter;
+import jakarta.servlet.http.HttpServletRequest;import jakarta.validation.Valid;import org.springframework.web.bind.annotation.*;import java.util.*;
+@RestController @RequestMapping("/api/v1/usuarios") public class UsuariosController{
+ private final ListarMiembrosEmpresaUseCase list;private final ConsultarMiembroUseCase get;private final CrearMiembroEmpresaUseCase create;private final ActualizarMiembroEmpresaUseCase update;private final BloquearMiembroUseCase block;private final ActivarMiembroUseCase activate;private final AsignarRolUseCase assignRoles;private final AsignarPropiedadesUseCase assignProperties;
+ public UsuariosController(ListarMiembrosEmpresaUseCase list,ConsultarMiembroUseCase get,CrearMiembroEmpresaUseCase create,ActualizarMiembroEmpresaUseCase update,BloquearMiembroUseCase block,ActivarMiembroUseCase activate,AsignarRolUseCase assignRoles,AsignarPropiedadesUseCase assignProperties){this.list=list;this.get=get;this.create=create;this.update=update;this.block=block;this.activate=activate;this.assignRoles=assignRoles;this.assignProperties=assignProperties;}
+ @GetMapping public ApiResponse<List<MiembroResponse>> list(HttpServletRequest r){return ok(list.execute().stream().map(MiembroResponse::from).toList(),r);}
+ @PostMapping public ApiResponse<MiembroResponse> create(@Valid @RequestBody CrearMiembroRequest b,HttpServletRequest r){return ok(MiembroResponse.from(create.execute(b.toCommand())),r);}
+ @GetMapping("/{id}")public ApiResponse<MiembroResponse> get(@PathVariable UUID id,HttpServletRequest r){return ok(MiembroResponse.from(get.execute(id)),r);}
+ @PatchMapping("/{id}")public ApiResponse<MiembroResponse> update(@PathVariable UUID id,@Valid @RequestBody ActualizarMiembroRequest b,HttpServletRequest r){return ok(MiembroResponse.from(update.execute(id,b.toCommand())),r);}
+ @PostMapping("/{id}/bloquear")public ApiResponse<MiembroResponse> block(@PathVariable UUID id,@Valid @RequestBody VersionRequest b,HttpServletRequest r){return ok(MiembroResponse.from(block.execute(id,b.version())),r);}
+ @PostMapping("/{id}/activar")public ApiResponse<MiembroResponse> activate(@PathVariable UUID id,@Valid @RequestBody VersionRequest b,HttpServletRequest r){return ok(MiembroResponse.from(activate.execute(id,b.version())),r);}
+ @PutMapping("/{id}/roles")public ApiResponse<MiembroResponse> roles(@PathVariable UUID id,@Valid @RequestBody IdsRequest b,HttpServletRequest r){return ok(MiembroResponse.from(assignRoles.execute(id,b.ids(),b.version())),r);}
+ @PutMapping("/{id}/propiedades")public ApiResponse<MiembroResponse> properties(@PathVariable UUID id,@Valid @RequestBody IdsRequest b,HttpServletRequest r){return ok(MiembroResponse.from(assignProperties.execute(id,b.ids(),b.version())),r);}
+ private <T>ApiResponse<T> ok(T data,HttpServletRequest r){Object v=r.getAttribute(CorrelationIdFilter.ATTRIBUTE);return ApiResponse.success(data,v==null?"unknown":v.toString());}}

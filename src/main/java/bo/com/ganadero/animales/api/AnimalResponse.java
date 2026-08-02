@@ -1,0 +1,5 @@
+package bo.com.ganadero.animales.api; import bo.com.ganadero.animales.domain.*; import java.math.BigDecimal; import java.time.LocalDate; import java.util.UUID;
+public record AnimalResponse(UUID id,String codigo,String nombre,SexoAnimal sexo,LocalDate fechaNacimiento,boolean fechaNacimientoEstimada,
+ UUID razaPrincipalId,UUID categoriaActualId,String color,PropositoAnimal proposito,OrigenAnimal origen,UUID propiedadActualId,
+ UUID potreroActualId,UUID loteActualId,EstadoAnimal estado,LocalDate fechaIngreso,BigDecimal precioAdquisicion,
+ BigDecimal pesoNacimientoKg,BigDecimal condicionCorporalActual,String fotoPrincipalPath,String observaciones,long version){public static AnimalResponse from(Animal a){return new AnimalResponse(a.id(),a.codigo(),a.nombre(),a.sexo(),a.fechaNacimiento(),a.fechaNacimientoEstimada(),a.razaPrincipalId(),a.categoriaActualId(),a.color(),a.proposito(),a.origen(),a.propiedadActualId(),a.potreroActualId(),a.loteActualId(),a.estado(),a.fechaIngreso(),a.precioAdquisicion(),a.pesoNacimientoKg(),a.condicionCorporalActual(),a.fotoPrincipalPath(),a.observaciones(),a.version());}}

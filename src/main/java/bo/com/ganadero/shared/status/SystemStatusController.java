@@ -26,7 +26,7 @@ public class SystemStatusController {
         return ApiResponse.success(Map.of(
                 "application", "GANADERO",
                 "architecture", "MODULAR_MONOLITH",
-                "phase", "FASE_0",
+                "phase", "FASE_1_F1_5",
                 "moduleCount", MODULES.size(),
                 "modules", MODULES
         ), correlationId(request));
