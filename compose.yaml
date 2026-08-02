@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: ganadero-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ganadero
+      POSTGRES_USER: ganadero
+      POSTGRES_PASSWORD: ganadero_local_change_me
+      TZ: America/La_Paz
+    ports:
+      - "55432:5432"
+    volumes:
+      - ganadero_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ganadero -d ganadero"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  ganadero_postgres_data:

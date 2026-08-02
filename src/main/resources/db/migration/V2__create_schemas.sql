@@ -1,0 +1,16 @@
+create schema if not exists core;
+create schema if not exists seguridad;
+create schema if not exists ganado;
+create schema if not exists campo;
+create schema if not exists produccion;
+create schema if not exists reproduccion;
+create schema if not exists sanidad;
+create schema if not exists inventario;
+create schema if not exists alimentacion;
+create schema if not exists comercial;
+create schema if not exists finanzas;
+create schema if not exists alertas;
+create schema if not exists archivos;
+create schema if not exists sync;
+create schema if not exists auditoria;
+create schema if not exists integracion;
