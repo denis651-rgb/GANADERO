@@ -1,112 +1,89 @@
-# GANADERO Backend — Fase 1
+# GANADERO
 
-Proyecto base de Spring Boot para construir GANADERO como **monolito modular**.
+GANADERO es una aplicación de gestión ganadera organizada como monorepositorio. Conserva un backend modular Spring Boot, un frontend React y PostgreSQL/PostGIS, con integración de Supabase Auth y Storage.
 
-## Tecnologías
-
-- Java 21
-- Spring Boot 4.1.0
-- Spring Modulith 2.1.0
-- PostgreSQL + PostGIS
-- Flyway
-- Spring Security Resource Server
-- Actuator
-- Docker Compose
-
-## Ejecutar localmente
-
-### 1. Levantar PostgreSQL/PostGIS
-
-```powershell
-docker compose up -d
-```
-
-### 2. Abrir en IntelliJ
-
-- Abrir la carpeta como proyecto Maven.
-- Seleccionar JDK 21.
-- Ejecutar `bo.com.ganadero.GanaderoApplication`.
-- El perfil predeterminado es `local`.
-
-### 3. Comprobar
+## Estructura
 
 ```text
-GET http://localhost:8080/actuator/health
-GET http://localhost:8080/api/v1/system/status
+backend/             API Spring Boot y migraciones Flyway
+frontend-web/        aplicación React, TypeScript y Vite
+database/            documentación de base de datos
+infrastructure/      Docker Compose, Render, respaldos y scripts
+docs/                arquitectura, API, manual y documentación por aplicación
+.github/workflows/   CI de backend y frontend
 ```
 
-### 4. Compilar y ejecutar las pruebas
+## Requisitos
 
-No es necesario instalar Maven globalmente. El proyecto incluye Maven Wrapper:
+- Java 21.
+- Node.js en la versión indicada por `frontend-web/.node-version`.
+- Docker.
+- PostgreSQL/PostGIS (incluido en el Compose local).
 
-```powershell
-.\mvnw.cmd test
-```
+## Variables de entorno
 
-En Linux o macOS:
+Use `.env.example` como catálogo y los ejemplos de cada aplicación como punto de partida. Copie únicamente las variables necesarias a archivos locales ignorados. Nunca confirme secretos ni exponga `SUPABASE_SERVICE_ROLE_KEY` en el frontend.
+
+## Ejecución local
+
+Base de datos:
 
 ```bash
-./mvnw test
+docker compose -f infrastructure/compose.yaml up -d
 ```
 
-### 5. Verificar arquitectura modular
+Backend en Linux/macOS:
 
-El comando anterior ejecuta `ModularityTest`. La prueba fallará si se introducen dependencias cíclicas o accesos inválidos entre módulos.
-
-## Estado actual
-
-La Fase 0 está terminada y la Fase 1 se encuentra en desarrollo. Ya están implementados los fundamentos
-transversales, empresa/configuración, seguridad empresarial, propiedades, potreros, animales y sus catálogos.
-
-Endpoints disponibles:
-
-```text
-GET   /api/v1/empresa
-PATCH /api/v1/empresa
-GET   /api/v1/empresa/configuracion
-PATCH /api/v1/empresa/configuracion
-
-GET   /api/v1/auth/me
-GET   /api/v1/auth/permisos
-GET   /api/v1/usuarios
-POST  /api/v1/usuarios
-GET   /api/v1/usuarios/{id}
-PATCH /api/v1/usuarios/{id}
-POST  /api/v1/usuarios/{id}/bloquear
-POST  /api/v1/usuarios/{id}/activar
-PUT   /api/v1/usuarios/{id}/roles
-PUT   /api/v1/usuarios/{id}/propiedades
-
-GET   /api/v1/roles
-POST  /api/v1/roles
-GET   /api/v1/roles/{id}
-PATCH /api/v1/roles/{id}
-PUT   /api/v1/roles/{id}/permisos
-GET   /api/v1/roles/permisos
-
-GET   /api/v1/propiedades
-POST  /api/v1/propiedades
-GET   /api/v1/propiedades/{id}
-PATCH /api/v1/propiedades/{id}
-GET   /api/v1/propiedades/{id}/sectores
-POST  /api/v1/propiedades/{id}/sectores
-PATCH /api/v1/sectores/{id}
-
-GET   /api/v1/tipos-pasto
-GET   /api/v1/potreros
-POST  /api/v1/potreros
-GET   /api/v1/potreros/{id}
-PATCH /api/v1/potreros/{id}
-
-GET   /api/v1/animales
-POST  /api/v1/animales
-GET   /api/v1/animales/{id}
-PATCH /api/v1/animales/{id}
-PATCH /api/v1/animales/{id}/estado
-GET   /api/v1/razas
-GET   /api/v1/categorias-animal
+```bash
+cd backend
+./mvnw spring-boot:run
 ```
 
-El perfil `local` carga una empresa, un propietario y las asignaciones necesarias para desarrollo. Estos datos
-no se incluyen en producción. Las credenciales y sesiones siguen siendo responsabilidad de Supabase Auth;
-el backend solo almacena perfiles empresariales, membresías y autorizaciones.
+Backend en Windows:
+
+```powershell
+cd backend
+.\mvnw.cmd spring-boot:run
+```
+
+Frontend:
+
+```bash
+cd frontend-web
+npm ci
+npm run dev
+```
+
+## Verificación y build
+
+```bash
+cd backend
+./mvnw clean verify
+```
+
+```bash
+cd frontend-web
+npm ci
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+```
+
+## Ramas
+
+- `main`: versión estable.
+- `develop`: integración.
+- `feature/*`: funcionalidades y estabilizaciones.
+- `fix/*`: correcciones.
+
+Los cambios se revisan mediante Pull Request; no se fusionan automáticamente ramas de trabajo.
+
+## Migraciones
+
+Las migraciones ejecutables están en `backend/src/main/resources/db/migration`. Flyway es la autoridad del esquema. No editar ni renombrar migraciones aplicadas. Consulte [database/README.md](database/README.md).
+
+## Documentación
+
+- [Backend](docs/backend/PRIMEROS_PASOS.md)
+- [Frontend](docs/frontend/PRIMEROS_PASOS.md)
