@@ -23,14 +23,29 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health
   endpoint:
     health:
       probes:
         enabled: true
+      show-details: never
   info:
     env:
-      enabled: true
+      enabled: false
+
+app:
+  frontend-url: ${APP_FRONTEND_URL:http://localhost:5173}
+  bootstrap:
+    enabled: ${APP_BOOTSTRAP_ENABLED:false}
+    token: ${APP_BOOTSTRAP_TOKEN:}
+  system-status:
+    enabled: ${APP_SYSTEM_STATUS_ENABLED:false}
+  storage:
+    bucket: ${SUPABASE_STORAGE_BUCKET:ganadero-private}
+    max-bytes: ${APP_STORAGE_MAX_BYTES:5242880}
+    signed-url-ttl: ${APP_STORAGE_SIGNED_URL_TTL:PT10M}
+    allowed-mime-types: image/jpeg,image/png,image/webp
+    allowed-extensions: jpg,jpeg,png,webp
 
 info:
   app:

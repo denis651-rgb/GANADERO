@@ -21,3 +21,17 @@ app:
     enabled: true
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS}
+  bootstrap:
+    enabled: ${APP_BOOTSTRAP_ENABLED:false}
+    token: ${APP_BOOTSTRAP_TOKEN:}
+  system-status:
+    enabled: ${APP_SYSTEM_STATUS_ENABLED:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
