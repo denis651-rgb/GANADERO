@@ -1,0 +1,6 @@
+package bo.com.ganadero.potreros.application;
+import bo.com.ganadero.potreros.domain.*; import bo.com.ganadero.shared.error.*; import bo.com.ganadero.shared.security.*;
+import org.junit.jupiter.api.Test; import java.util.*; import static org.assertj.core.api.Assertions.*; import static org.mockito.Mockito.*;
+class PotreroServiceTest {
+ @Test void rejectsSectorFromAnotherProperty(){UUID company=UUID.randomUUID(),property=UUID.randomUUID(),sector=UUID.randomUUID();PotreroRepository repo=mock(PotreroRepository.class);when(repo.propertyExists(property,company)).thenReturn(true);when(repo.sectorBelongs(sector,property,company)).thenReturn(false);CurrentUser user=new CurrentUser(UUID.randomUUID(),company,UUID.randomUUID(),Set.of(),Set.of("POTRERO_CREAR"),Set.of(),true);PotreroService service=new PotreroService(repo,mock(TipoPastoRepository.class),new UserContext(()->user),event->{});PotreroCommand command=new PotreroCommand(property,sector,"P-1","Potrero",null,null,null,false,null,null,true,0L);assertThatThrownBy(()->service.create(command)).isInstanceOfSatisfying(BusinessException.class,e->assertThat(e.code()).isEqualTo(ErrorCode.SECTOR_NOT_FOUND));verify(repo,never()).create(any(),any());}
+}

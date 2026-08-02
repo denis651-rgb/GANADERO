@@ -1,0 +1,3 @@
+package bo.com.ganadero.potreros.api; import bo.com.ganadero.potreros.domain.*; import java.math.BigDecimal; import java.util.UUID;
+public record PotreroResponse(UUID id,UUID propiedadId,UUID sectorId,String codigo,String nombre,BigDecimal superficieHa,
+ UUID tipoPastoId,BigDecimal capacidadUa,boolean tieneAgua,EstadoPotrero estado,String geometriaWkt,boolean activo,long version){public static PotreroResponse from(Potrero p){return new PotreroResponse(p.id(),p.propiedadId(),p.sectorId(),p.codigo(),p.nombre(),p.superficieHa(),p.tipoPastoId(),p.capacidadUa(),p.tieneAgua(),p.estado(),p.geometriaWkt(),p.activo(),p.version());}}

@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:55432/ganadero}
+    username: ${DATABASE_USERNAME:ganadero}
+    password: ${DATABASE_PASSWORD:ganadero_local_change_me}
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 30000
+  jpa:
+    show-sql: false
+  flyway:
+    locations: classpath:db/migration,classpath:db/local
+
+app:
+  security:
+    enabled: false
+  cors:
+    allowed-origins: http://localhost:5173,http://127.0.0.1:5173

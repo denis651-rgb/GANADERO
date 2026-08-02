@@ -1,22 +1,40 @@
-HELP.md
-target/
-!.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
-
-### IntelliJ IDEA ###
+# IDE
 .idea/
-*.iws
+**/.idea/
 *.iml
+*.iws
 *.ipr
-
-### VS Code ###
 .vscode/
 
-### Environment ###
-.env
-*.local
+# Backend
+**/target/
+*.class
+!backend/.mvn/wrapper/maven-wrapper.jar
 
-### OS ###
+# Frontend
+**/node_modules/
+**/dist/
+**/dev-dist/
+**/.vite/
+**/coverage/
+
+# Variables privadas
+.env
+.env.*
+!**/.env.example
+**/.env.local
+**/.env.*.local
+
+# Logs y temporales
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+
+# Sistema operativo
 .DS_Store
 Thumbs.db
+
+# Java crash files
+hs_err_pid*

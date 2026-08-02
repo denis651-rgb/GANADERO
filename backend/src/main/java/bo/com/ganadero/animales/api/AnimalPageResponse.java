@@ -1,0 +1,2 @@
+package bo.com.ganadero.animales.api; import bo.com.ganadero.animales.domain.AnimalPage; import java.util.List;
+public record AnimalPageResponse(List<AnimalResponse> content,int page,int size,long totalElements,int totalPages){public static AnimalPageResponse from(AnimalPage p){return new AnimalPageResponse(p.content().stream().map(AnimalResponse::from).toList(),p.page(),p.size(),p.totalElements(),p.totalPages());}}
