@@ -3,6 +3,8 @@ import { AppShell } from '@/app/layout/AppShell'
 import { ProtectedRoute } from '@/app/routes/ProtectedRoute'
 import { LoginPage } from '@/auth/pages/LoginPage'
 import { ForgotPasswordPage } from '@/auth/pages/ForgotPasswordPage'
+import { PasswordActionPage } from '@/auth/pages/PasswordActionPage'
+import { PerfilPage } from '@/features/perfil/pages/PerfilPage'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
 import { EmpresaPage } from '@/features/empresa/pages/EmpresaPage'
 import { UsuariosPage } from '@/features/usuarios/pages/UsuariosPage'
@@ -33,11 +35,15 @@ export function AppRouter() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/recuperar-contrasena" element={<ForgotPasswordPage />} />
+      <Route path="/auth/recuperar-contrasena" element={<ForgotPasswordPage />} />
+      <Route path="/auth/restablecer-contrasena" element={<PasswordActionPage />} />
+      <Route path="/auth/aceptar-invitacion" element={<PasswordActionPage invitation />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
           <Route index element={<DashboardPage />} />
           <Route path="empresa" element={<EmpresaPage />} />
+          <Route path="perfil" element={<PerfilPage />} />
           <Route path="usuarios" element={<UsuariosPage />} />
           <Route path="roles" element={<RolesPage />} />
           <Route path="propiedades" element={<PropiedadesPage />} />

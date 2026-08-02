@@ -122,6 +122,9 @@ class JdbcSecurityRepositoryAdapter implements PerfilUsuarioRepository, MiembroE
     @Override
     public void replaceProperties(UUID miembroId, UUID empresaId, Set<UUID> propertyIds, long version, UUID actorId) {
         requireMember(miembroId, empresaId);
+        long valid = propertyIds.isEmpty() ? 0 : jdbc.sql("select count(*) from core.propiedades where id in (:ids) and empresa_id=:empresa and activo")
+                .param("ids", propertyIds).param("empresa", empresaId).query(Long.class).single();
+        if (valid != propertyIds.size()) throw new BusinessException(ErrorCode.PROPERTY_NOT_FOUND);
         jdbc.sql("delete from seguridad.usuario_propiedades where miembro_empresa_id=:id")
                 .param("id", miembroId).update();
         propertyIds.forEach(propertyId -> jdbc.sql("""
