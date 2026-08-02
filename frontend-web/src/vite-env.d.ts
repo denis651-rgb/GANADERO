@@ -24,6 +24,7 @@ interface ImportMetaEnv {
   readonly VITE_API_URL?: string
   readonly VITE_AUTH_MODE?: 'mock' | 'supabase'
   readonly VITE_SUPABASE_URL?: string
+  readonly VITE_SUPABASE_PUBLISHABLE_KEY?: string
   readonly VITE_SUPABASE_ANON_KEY?: string
   readonly VITE_ENFORCE_UI_PERMISSIONS?: string
   readonly VITE_APP_ENV?: string
