@@ -4,4 +4,4 @@ public record CrearAnimalRequest(@NotBlank @Size(max=60) String codigo,@Size(max
  String color,@NotNull PropositoAnimal proposito,@NotNull OrigenAnimal origen,@NotNull UUID propiedadActualId,
  @NotNull UUID potreroActualId,LocalDate fechaIngreso,@PositiveOrZero BigDecimal precioAdquisicion,
  @PositiveOrZero BigDecimal pesoNacimientoKg,@DecimalMin("1.0") @DecimalMax("5.0") BigDecimal condicionCorporalActual,
- String fotoPrincipalPath,String observaciones){AnimalCommand command(){return new AnimalCommand(codigo,nombre,sexo,fechaNacimiento,fechaNacimientoEstimada,razaPrincipalId,categoriaActualId,color,proposito,origen,propiedadActualId,potreroActualId,null,fechaIngreso,precioAdquisicion,pesoNacimientoKg,condicionCorporalActual,fotoPrincipalPath,observaciones,0L);}}
+  String fotoPrincipalPath,String observaciones){AnimalCommand command(){return new AnimalCommand(null,codigo,nombre,sexo,fechaNacimiento,fechaNacimientoEstimada,razaPrincipalId,categoriaActualId,color,proposito,origen,propiedadActualId,potreroActualId,null,fechaIngreso,precioAdquisicion,pesoNacimientoKg,condicionCorporalActual,fotoPrincipalPath,observaciones,0L);}}

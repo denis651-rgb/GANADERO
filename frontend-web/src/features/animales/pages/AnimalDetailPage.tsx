@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, CalendarClock, Edit3, MapPin, RefreshCw } from 'lucide-react'
 import { changeAnimalState, getAnimal, getAnimalHistory, listCategorias, listRazas } from '@/features/animales/api'
+import { GenealogiaTab } from '@/features/animales/components/GenealogiaTab'
+import { IdentificadoresTab } from '@/features/animales/components/IdentificadoresTab'
 import type { AnimalState } from '@/features/animales/types'
 import { listPropiedades } from '@/features/propiedades/api'
 import { listPotreros } from '@/features/potreros/api'
@@ -14,9 +17,11 @@ import { PageHeader } from '@/shared/components/PageHeader'
 import { normalizeApiError } from '@/shared/api/errors'
 
 const states: AnimalState[] = ['ACTIVO', 'VENDIDO', 'MUERTO', 'PERDIDO', 'TRANSFERIDO', 'DESCARTADO']
+type Tab = 'historial' | 'identificadores' | 'genealogia'
 
 export function AnimalDetailPage() {
   const { id = '' } = useParams()
+  const [tab, setTab] = useState<Tab>('historial')
   const client = useQueryClient()
   const animal = useQuery({ queryKey: ['animal', id], queryFn: () => getAnimal(id), enabled: Boolean(id) })
   const history = useQuery({ queryKey: ['animal-history', id], queryFn: () => getAnimalHistory(id), enabled: Boolean(id) })
@@ -58,6 +63,13 @@ export function AnimalDetailPage() {
       <Card><h3><MapPin size={19} /> Ubicación y observaciones</h3><p><strong>{location || 'Ubicación no disponible'}</strong></p><p className="muted">{value.observaciones || 'Sin observaciones registradas.'}</p></Card>
     </div>
     <Card><h3><RefreshCw size={19} /> Cambiar estado</h3><form className="state-form" onSubmit={(event) => { event.preventDefault(); stateMutation.mutate(event.currentTarget) }}><select name="estado" defaultValue="" required><option value="" disabled>Selecciona el nuevo estado…</option>{states.filter((state) => state !== value.estado).map((state) => <option key={state}>{state}</option>)}</select><input name="motivo" required maxLength={1000} placeholder="Motivo del cambio" /><Button type="submit" loading={stateMutation.isPending}>Actualizar estado</Button></form></Card>
-    <Card><h3><CalendarClock size={19} /> Historial</h3>{history.isPending && <LoadingState message="Cargando historial…" />}{history.data?.length === 0 && <EmptyState title="Sin eventos" description="Todavía no existen eventos para este animal." />}{history.data && history.data.length > 0 && <ol className="timeline">{history.data.map((event) => <li key={event.id}><span className="timeline-dot" /><div><strong>{event.tipo.replaceAll('_', ' ')}</strong><time>{new Date(event.fechaEvento).toLocaleString('es-BO')}</time><p>{event.motivo || 'Sin detalle adicional.'}</p>{event.estadoAnterior && event.estadoNuevo && event.estadoAnterior !== event.estadoNuevo && <span className="table-secondary">{event.estadoAnterior} → {event.estadoNuevo}</span>}</div></li>)}</ol>}</Card>
+    <div className="tabs">
+      <button type="button" className={`tab-button ${tab === 'historial' ? 'active' : ''}`} onClick={() => setTab('historial')}><CalendarClock size={17} /> Historial</button>
+      <button type="button" className={`tab-button ${tab === 'identificadores' ? 'active' : ''}`} onClick={() => setTab('identificadores')}>Identificadores</button>
+      <button type="button" className={`tab-button ${tab === 'genealogia' ? 'active' : ''}`} onClick={() => setTab('genealogia')}>Genealogía</button>
+    </div>
+    {tab === 'identificadores' && <IdentificadoresTab animalId={id} />}
+    {tab === 'genealogia' && <GenealogiaTab animalId={id} />}
+    {tab === 'historial' && <Card><h3>Historial</h3>{history.isPending && <LoadingState message="Cargando historial…" />}{history.data?.length === 0 && <EmptyState title="Sin eventos" description="Todavía no existen eventos para este animal." />}{history.data && history.data.length > 0 && <ol className="timeline">{history.data.map((event) => <li key={event.id}><span className="timeline-dot" /><div><strong>{event.titulo ?? event.tipo.replaceAll('_', ' ')}</strong><time>{new Date(event.fechaEvento).toLocaleString('es-BO')}</time>{event.moduloOrigen && <span className="table-secondary">Módulo: {event.moduloOrigen}</span>}<p>{event.descripcion ?? event.motivo ?? 'Sin detalle adicional.'}</p>{event.estadoAnterior && event.estadoNuevo && event.estadoAnterior !== event.estadoNuevo && <span className="table-secondary">{event.estadoAnterior} → {event.estadoNuevo}</span>}</div></li>)}</ol>}</Card>}
   </div>
 }

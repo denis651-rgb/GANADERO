@@ -3,6 +3,7 @@ package bo.com.ganadero.shared.web;
 import bo.com.ganadero.shared.api.ApiError;
 import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
+import bo.com.ganadero.shared.error.SyncConflictException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -26,6 +27,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     ResponseEntity<ApiError> handleBusiness(BusinessException exception, HttpServletRequest request) {
         return error(exception.code(), exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(SyncConflictException.class)
+    ResponseEntity<ApiError> handleSyncConflict(SyncConflictException exception, HttpServletRequest request) {
+        ApiError body = new ApiError(false, exception.code().name(), exception.getMessage(), List.of(),
+                Instant.now(), correlationId(request), exception.localVersion(), exception.serverVersion(),
+                exception.serverData(), exception.conflictingFields(), exception.suggestedAction());
+        return ResponseEntity.status(exception.code().status()).body(body);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

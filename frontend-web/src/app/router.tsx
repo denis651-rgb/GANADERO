@@ -16,9 +16,11 @@ import { NuevoAnimalPage } from '@/features/animales/pages/NuevoAnimalPage'
 import { AnimalDetailPage } from '@/features/animales/pages/AnimalDetailPage'
 import { EditarAnimalPage } from '@/features/animales/pages/EditarAnimalPage'
 import { LotesPage } from '@/features/lotes/pages/LotesPage'
+import { LoteDetailPage } from '@/features/lotes/pages/LoteDetailPage'
 import { MovimientosPage } from '@/features/movimientos/pages/MovimientosPage'
 import { AuditoriaPage } from '@/features/auditoria/pages/AuditoriaPage'
 import { PesajesPage } from '@/features/pesajes/pages/PesajesPage'
+import { PesajeDetailPage } from '@/features/pesajes/pages/PesajeDetailPage'
 import { ReproduccionPage } from '@/features/reproduccion/pages/ReproduccionPage'
 import { SanidadPage } from '@/features/sanidad/pages/SanidadPage'
 import { InventarioPage } from '@/features/inventario/pages/InventarioPage'
@@ -53,9 +55,11 @@ export function AppRouter() {
           <Route path="animales/:id" element={<AnimalDetailPage />} />
           <Route path="animales/:id/editar" element={<EditarAnimalPage />} />
           <Route path="lotes" element={<LotesPage />} />
+          <Route path="lotes/:id" element={<LoteDetailPage />} />
           <Route path="movimientos" element={<MovimientosPage />} />
           <Route path="auditoria" element={<AuditoriaPage />} />
           <Route path="pesajes" element={<PesajesPage />} />
+          <Route path="pesajes/:id" element={<PesajeDetailPage />} />
           <Route path="reproduccion" element={<ReproduccionPage />} />
           <Route path="sanidad" element={<SanidadPage />} />
           <Route path="inventario" element={<InventarioPage />} />

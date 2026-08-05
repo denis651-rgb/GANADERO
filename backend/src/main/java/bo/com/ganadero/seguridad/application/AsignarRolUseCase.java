@@ -9,6 +9,7 @@ import java.time.Instant;import java.util.*;
   if(roleIds.isEmpty())throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION,"Debe asignarse al menos un rol.");
   MiembroEmpresa member=members.findByIdAndEmpresaId(id,actor.empresaId()).orElseThrow(()->new BusinessException(ErrorCode.USER_NOT_FOUND));
   boolean willOwn=roleIds.stream().map(r->roles.findAvailableById(r,actor.empresaId()).orElseThrow(()->new BusinessException(ErrorCode.ROLE_NOT_FOUND))).anyMatch(r->r.codigo().equals("PROPIETARIO"));
+  if(member.isOwner()&&!willOwn&&member.perfil().id().equals(actor.userId())) throw new BusinessException(ErrorCode.CANNOT_REMOVE_OWN_OWNER_ROLE);
   if(member.estado()==EstadoMiembro.ACTIVO&&member.isOwner()&&!willOwn&&members.countActiveOwners(actor.empresaId())<=1)throw new BusinessException(ErrorCode.LAST_ACTIVE_OWNER);
   members.replaceRoles(id,actor.empresaId(),roleIds,version,actor.userId());events.publishEvent(new SeguridadAuditEvent(actor.empresaId(),actor.userId(),"ASIGNAR_ROL","MIEMBRO_EMPRESA",id,Instant.now()));
   return members.findByIdAndEmpresaId(id,actor.empresaId()).orElseThrow();}
