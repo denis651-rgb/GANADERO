@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Ban, ChevronLeft, ChevronRight, Eye, Group, Plus, SlidersHorizontal } from 'lucide-react'
 import { listPesajes } from '@/features/pesajes/api'

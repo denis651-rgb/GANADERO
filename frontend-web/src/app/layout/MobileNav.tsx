@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink } from 'react-router'
 import { Beef, House, MapPinned, RefreshCw } from 'lucide-react'
 import { cn } from '@/shared/utils/cn'
 

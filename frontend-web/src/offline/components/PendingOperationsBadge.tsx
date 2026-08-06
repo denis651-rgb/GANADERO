@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { RefreshCw } from 'lucide-react'
 import { db } from '@/offline/db'
 

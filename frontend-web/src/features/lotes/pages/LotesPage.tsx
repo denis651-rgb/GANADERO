@@ -1,5 +1,5 @@
 import { useDeferredValue, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Eye, Plus, Search } from 'lucide-react'
 import { createLote, listLotes } from '@/features/lotes/api'

@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router'
 import { AppShell } from '@/app/layout/AppShell'
 import { ProtectedRoute } from '@/app/routes/ProtectedRoute'
 import { LoginPage } from '@/auth/pages/LoginPage'

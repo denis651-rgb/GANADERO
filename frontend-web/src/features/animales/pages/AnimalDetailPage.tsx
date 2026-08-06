@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, CalendarClock, Edit3, MapPin, RefreshCw } from 'lucide-react'
 import { changeAnimalState, getAnimal, getAnimalHistory, listCategorias, listRazas } from '@/features/animales/api'

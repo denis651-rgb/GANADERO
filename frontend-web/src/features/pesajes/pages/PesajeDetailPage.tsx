@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Ban, Eye } from 'lucide-react'
 import { getPesaje, getPesajeHistory } from '@/features/pesajes/api'

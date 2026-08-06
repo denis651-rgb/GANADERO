@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink } from 'react-router'
 import { LogOut } from 'lucide-react'
 import { appModules } from '@/app/modules'
 import { useAuth } from '@/auth/auth-context'

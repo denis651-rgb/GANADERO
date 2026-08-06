@@ -1,5 +1,5 @@
 import { CloudOff, RefreshCw } from 'lucide-react'
-import { useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router'
 import { appModules } from '@/app/modules'
 import { PendingOperationsBadge } from '@/offline/components/PendingOperationsBadge'
 import { useOnlineStatus } from '@/shared/hooks/useOnlineStatus'

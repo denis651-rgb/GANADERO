@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet } from 'react-router'
 import { Sidebar } from '@/app/layout/Sidebar'
 import { Header } from '@/app/layout/Header'
 import { MobileNav } from '@/app/layout/MobileNav'

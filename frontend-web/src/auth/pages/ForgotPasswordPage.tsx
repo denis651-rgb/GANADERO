@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { supabase } from '@/auth/supabase'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'

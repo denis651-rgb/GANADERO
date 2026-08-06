@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router'
 import { supabase } from '@/auth/supabase'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'

@@ -1,5 +1,5 @@
 import { useDeferredValue, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Eye, Plus, Search, SlidersHorizontal } from 'lucide-react'
 import { listAnimals, listCategorias } from '@/features/animales/api'
