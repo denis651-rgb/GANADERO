@@ -1,40 +1,100 @@
+﻿# =========================================================
 # IDE
+# =========================================================
 .idea/
 **/.idea/
 *.iml
 *.iws
 *.ipr
 .vscode/
+.classpath
+.project
+.settings/
 
-# Backend
+# =========================================================
+# Backend Java / Maven
+# =========================================================
 **/target/
 *.class
-!backend/.mvn/wrapper/maven-wrapper.jar
+*.war
+*.ear
 
-# Frontend
+# Mantener Maven Wrapper
+!backend/.mvn/
+!backend/.mvn/wrapper/
+!backend/.mvn/wrapper/maven-wrapper.jar
+!backend/.mvn/wrapper/maven-wrapper.properties
+
+# =========================================================
+# Frontend Node / Vite
+# =========================================================
 **/node_modules/
 **/dist/
 **/dev-dist/
 **/.vite/
 **/coverage/
+**/.turbo/
+**/.cache/
+*.tsbuildinfo
 
-# Variables privadas
+# =========================================================
+# Variables y secretos
+# =========================================================
 .env
 .env.*
 !**/.env.example
 **/.env.local
 **/.env.*.local
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
 
+# =========================================================
 # Logs y temporales
+# =========================================================
 *.log
 logs/
+**/logs/
 tmp/
+**/tmp/
 temp/
+**/temp/
 *.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
 
+# =========================================================
+# Pruebas
+# =========================================================
+test-results/
+playwright-report/
+blob-report/
+allure-results/
+allure-report/
+junit-results/
+npm-audit.json
+
+# =========================================================
 # Sistema operativo
+# =========================================================
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Java crash files
+# =========================================================
+# Java crash / heap
+# =========================================================
 hs_err_pid*
+replay_pid*
+*.hprof
+
+# =========================================================
+# Archivos locales del proyecto
+# =========================================================
+git-status-antes-normalizacion.txt
