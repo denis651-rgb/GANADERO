@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="GANADERO">
+  <rect width="96" height="96" rx="24" fill="#1f6a45"/>
+  <path d="M24 39c5-10 14-16 24-16s19 6 24 16l7-6v12c0 18-14 31-31 31S17 63 17 45V33l7 6Z" fill="#fff" opacity=".96"/>
+  <path d="M35 48c0-8 6-14 13-14s13 6 13 14v13H35V48Z" fill="#1f6a45"/>
+  <circle cx="39" cy="44" r="3" fill="#fff"/>
+  <circle cx="57" cy="44" r="3" fill="#fff"/>
+  <path d="M43 55h10" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+</svg>

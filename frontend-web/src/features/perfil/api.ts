@@ -1,0 +1,3 @@
+import { http } from '@/shared/api/http';import type { ApiResponse } from '@/shared/api/types'
+export interface Perfil{usuarioId:string;email:string;nombres:string;apellidos:string;telefono?:string;avatarPath?:string;cargo?:string;estado:string;empresaId:string;empresa:string;roles:string[];permisos:string[];propiedades:string[];ultimoAcceso?:string;version:number}
+export async function getPerfil(){return(await http.get<ApiResponse<Perfil>>('/api/v1/perfil')).data.data}export async function updatePerfil(input:{nombres:string;apellidos:string;telefono?:string;version:number}){return(await http.patch<ApiResponse<Perfil>>('/api/v1/perfil',input,{headers:{'Idempotency-Key':crypto.randomUUID()}})).data.data}

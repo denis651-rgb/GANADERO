@@ -1,22 +1,100 @@
-HELP.md
-target/
-!.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
-
-### IntelliJ IDEA ###
+﻿# =========================================================
+# IDE
+# =========================================================
 .idea/
-*.iws
+**/.idea/
 *.iml
+*.iws
 *.ipr
-
-### VS Code ###
 .vscode/
+.classpath
+.project
+.settings/
 
-### Environment ###
+# =========================================================
+# Backend Java / Maven
+# =========================================================
+**/target/
+*.class
+*.war
+*.ear
+
+# Mantener Maven Wrapper
+!backend/.mvn/
+!backend/.mvn/wrapper/
+!backend/.mvn/wrapper/maven-wrapper.jar
+!backend/.mvn/wrapper/maven-wrapper.properties
+
+# =========================================================
+# Frontend Node / Vite
+# =========================================================
+**/node_modules/
+**/dist/
+**/dev-dist/
+**/.vite/
+**/coverage/
+**/.turbo/
+**/.cache/
+*.tsbuildinfo
+
+# =========================================================
+# Variables y secretos
+# =========================================================
 .env
-*.local
+.env.*
+!**/.env.example
+**/.env.local
+**/.env.*.local
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
 
-### OS ###
+# =========================================================
+# Logs y temporales
+# =========================================================
+*.log
+logs/
+**/logs/
+tmp/
+**/tmp/
+temp/
+**/temp/
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+# =========================================================
+# Pruebas
+# =========================================================
+test-results/
+playwright-report/
+blob-report/
+allure-results/
+allure-report/
+junit-results/
+npm-audit.json
+
+# =========================================================
+# Sistema operativo
+# =========================================================
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# =========================================================
+# Java crash / heap
+# =========================================================
+hs_err_pid*
+replay_pid*
+*.hprof
+
+# =========================================================
+# Archivos locales del proyecto
+# =========================================================
+git-status-antes-normalizacion.txt
