@@ -32,7 +32,7 @@ export function PesajeDetailPage() {
   const pesaje = pesajeQuery.data
   const historyQuery = useQuery({
     queryKey: ['pesaje-history', pesaje?.animalId],
-    queryFn: () => getPesajeHistory(pesaje.animalId),
+    queryFn: () => getPesajeHistory(pesaje?.animalId ?? ''),
     enabled: Boolean(pesaje?.animalId),
   })
   const error = pesajeQuery.error

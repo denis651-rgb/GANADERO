@@ -5,10 +5,10 @@ const backendUuid = (message: string) => z.string().regex(
   message,
 )
 
-const optionalUuid = (message: string) => z.union([z.literal(''), backendUuid(message)])
+const optionalUuid = (message: string) => z.union([z.literal(''), backendUuid(message)]).optional()
   .transform((value) => (value === '' ? undefined : value))
 
-const optionalText = (max: number) => z.union([z.literal(''), z.string().trim().max(max)])
+const optionalText = (max: number) => z.union([z.literal(''), z.string().trim().max(max)]).optional()
   .transform((value) => (value === '' ? undefined : value))
 
 export const registrarPesajeSchema = z.object({
@@ -16,7 +16,7 @@ export const registrarPesajeSchema = z.object({
   fecha: optionalText(10),
   pesoKg: z.coerce.number().positive('El peso debe ser mayor a cero.').max(2000, 'Peso fuera de rango.'),
   tipo: z.enum(['RUTINA', 'NACIMIENTO', 'DESTETE', 'ENTRADA', 'VENTA', 'PESADA_ESPECIAL']),
-  condicionCorporal: z.union([z.literal(''), z.coerce.number().min(1, 'La condición corporal va de 1 a 9.').max(9, 'La condición corporal va de 1 a 9.')])
+  condicionCorporal: z.union([z.literal(''), z.coerce.number().min(1, 'La condición corporal va de 1 a 9.').max(9, 'La condición corporal va de 1 a 9.')]).optional()
     .transform((value) => (value === '' ? undefined : value)),
   bascula: optionalText(50),
   propiedadId: optionalUuid('Selecciona una propiedad.'),
@@ -36,6 +36,8 @@ export const anularPesajeSchema = z.object({
   motivo: z.string().trim().min(3, 'Indica el motivo de anulación.').max(300, 'El motivo es demasiado largo.'),
 })
 
-export type RegistrarPesajeForm = z.infer<typeof registrarPesajeSchema>
-export type PesajeLoteForm = z.infer<typeof pesajeLoteSchema>
+export type RegistrarPesajeFormInput = z.input<typeof registrarPesajeSchema>
+export type RegistrarPesajeForm = z.output<typeof registrarPesajeSchema>
+export type PesajeLoteFormInput = z.input<typeof pesajeLoteSchema>
+export type PesajeLoteForm = z.output<typeof pesajeLoteSchema>
 export type AnularPesajeForm = z.infer<typeof anularPesajeSchema>

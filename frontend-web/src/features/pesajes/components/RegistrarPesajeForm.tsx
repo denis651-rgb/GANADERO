@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useWatch } from 'react-hook-form'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Save, X } from 'lucide-react'
-import { registrarPesajeSchema, type RegistrarPesajeForm } from '@/features/pesajes/schema'
+import { registrarPesajeSchema, type RegistrarPesajeForm, type RegistrarPesajeFormInput } from '@/features/pesajes/schema'
 import { registrarPesaje } from '@/features/pesajes/api'
 import type { AnimalSummary } from '@/features/animales/types'
 import { listLotes } from '@/features/lotes/api'
@@ -17,7 +17,6 @@ import { Card } from '@/shared/components/Card'
 import { Field } from '@/shared/components/Field'
 import { Alert } from '@/shared/components/Alert'
 import { normalizeApiError } from '@/shared/api/errors'
-import type { Page } from '@/shared/api/types'
 import type { Pesaje } from '@/features/pesajes/types'
 
 const tipos = [
@@ -38,7 +37,7 @@ export function RegistrarPesajeForm({ onSaved, onCancel }: RegistrarPesajeFormPr
   const queryClient = useQueryClient()
   const [selected, setSelected] = useState<AnimalSummary | null>(null)
   const [message, setMessage] = useState<{ tone: 'success' | 'info' | 'danger'; text: string } | null>(null)
-  const { register, handleSubmit, control, setValue, reset, formState: { errors, isSubmitting } } = useForm<RegistrarPesajeForm>({
+  const { register, handleSubmit, control, setValue, reset, formState: { errors, isSubmitting } } = useForm<RegistrarPesajeFormInput, unknown, RegistrarPesajeForm>({
     resolver: zodResolver(registrarPesajeSchema),
     defaultValues: { animalId: '', tipo: 'RUTINA' },
   })

@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Save, X } from 'lucide-react'
-import { pesajeLoteSchema, type PesajeLoteForm } from '@/features/pesajes/schema'
+import { pesajeLoteSchema, type PesajeLoteForm, type PesajeLoteFormInput } from '@/features/pesajes/schema'
 import { registrarPesajeLote } from '@/features/pesajes/api'
 import { listLotes } from '@/features/lotes/api'
 import { queueHttpOperation } from '@/offline/operationQueue'
@@ -22,7 +22,7 @@ interface PesajeLoteFormProps {
 export function PesajeLoteForm({ onSaved, onCancel }: PesajeLoteFormProps) {
   const queryClient = useQueryClient()
   const [message, setMessage] = useState<{ tone: 'success' | 'info' | 'danger'; text: string } | null>(null)
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<PesajeLoteForm>({
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<PesajeLoteFormInput, unknown, PesajeLoteForm>({
     resolver: zodResolver(pesajeLoteSchema),
   })
   const lots = useQuery({ queryKey: ['pesaje-lote-lots'], queryFn: () => listLotes({ estado: 'ABIERTO', page: 0, size: 200 }) })
