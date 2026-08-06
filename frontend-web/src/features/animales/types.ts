@@ -55,12 +55,64 @@ export interface UpdateAnimalInput extends Omit<CreateAnimalInput, 'origen'> {
 
 export interface AnimalEvent {
   id: string
-  tipo: 'NACIMIENTO' | 'COMPRA' | 'INGRESO' | 'CAMBIO_ESTADO' | 'ACTUALIZACION'
+  tipo: string
   fechaEvento: string
   estadoAnterior?: AnimalState
   estadoNuevo?: AnimalState
   motivo?: string
-  registradoPor: string
+  registradoPor?: string
+  titulo?: string
+  descripcion?: string
+  moduloOrigen?: string
+  registroOrigen?: string
+  dispositivo?: string
+  metadata?: string
+  createdBy?: string
+}
+
+export type TipoIdentificador = 'ARETE' | 'QR' | 'RFID' | 'TATUAJE' | 'OTRO'
+export type EstadoIdentificador = 'ACTIVO' | 'RETIRADO'
+
+export interface Identificador {
+  id: string
+  animalId: string
+  tipo: TipoIdentificador
+  valor: string
+  principal: boolean
+  estado: EstadoIdentificador
+  fechaAsignacion: string
+  fechaRetiro?: string
+  motivoRetiro?: string
+  observaciones?: string
+  version: number
+}
+
+export interface AsignarIdentificadorInput {
+  tipo: TipoIdentificador
+  valor: string
+  principal?: boolean
+  observaciones?: string
+}
+
+export type TipoParentesco = 'MADRE' | 'PADRE'
+
+export interface Parentesco {
+  id: string
+  animalId: string
+  tipo: TipoParentesco
+  animalPadreId?: string
+  nombreExterno?: string
+  razaExternaId?: string
+  registroGenealogico?: string
+  fechaRegistro: string
+}
+
+export interface CrearParentescoInput {
+  tipo: TipoParentesco
+  animalPadreId?: string
+  nombreExterno?: string
+  razaExternaId?: string
+  registroGenealogico?: string
 }
 
 export interface AnimalFilters {

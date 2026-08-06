@@ -109,7 +109,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     if (!supabase) {
-      console.error('Supabase Auth está habilitado, pero faltan VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY.')
+      console.error('Supabase Auth está habilitado, pero faltan VITE_SUPABASE_URL o una clave publicable de Supabase.')
       return
     }
 

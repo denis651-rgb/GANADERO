@@ -1,0 +1,19 @@
+app:
+  security:
+    enabled: false
+  bootstrap:
+    enabled: true
+    token: test-bootstrap-token
+  system-status:
+    enabled: true
+  cors:
+    allowed-origins: http://localhost:5173
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never

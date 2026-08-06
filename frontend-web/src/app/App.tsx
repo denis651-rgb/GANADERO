@@ -1,4 +1,4 @@
-import { BrowserRouter } from 'react-router-dom'
+import { BrowserRouter } from 'react-router'
 import { AppProviders } from '@/app/providers/AppProviders'
 import { AppRouter } from '@/app/router'
 import { ConnectivityBanner } from '@/offline/components/ConnectivityBanner'

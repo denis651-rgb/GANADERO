@@ -26,7 +26,11 @@ public class LocalCurrentUserProvider implements CurrentUserProvider {
                         "ANIMAL_VER", "ANIMAL_CREAR", "ANIMAL_EDITAR", "ANIMAL_CAMBIAR_ESTADO", "ANIMAL_REGISTRAR_BAJA",
                         "IDENTIFICADOR_VER", "IDENTIFICADOR_ASIGNAR", "IDENTIFICADOR_RETIRAR",
                         "LOTE_VER", "LOTE_CREAR", "LOTE_EDITAR", "LOTE_ASIGNAR_ANIMALES",
-                        "MOVIMIENTO_VER", "MOVIMIENTO_CREAR", "MOVIMIENTO_CONFIRMAR", "MOVIMIENTO_ANULAR", "AUDITORIA_VER"
+                        "MOVIMIENTO_VER", "MOVIMIENTO_CREAR", "MOVIMIENTO_CONFIRMAR", "MOVIMIENTO_ANULAR", "AUDITORIA_VER",
+                        "PESAJE_VER", "PESAJE_REGISTRAR", "PESAJE_ANULAR",
+                        "SINC_DISPOSITIVO_REGISTRAR", "SINC_PUSH", "SINC_PULL", "SINC_BOOTSTRAP",
+                        "DOCUMENTO_VER", "DOCUMENTO_SUBIR", "DOCUMENTO_ELIMINAR", "DASHBOARD_VER",
+                        "SISTEMA_ESTADO_VER"
                 ),
                 Set.of(), true);
     }

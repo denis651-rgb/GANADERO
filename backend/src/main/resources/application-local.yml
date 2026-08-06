@@ -17,3 +17,8 @@ app:
     enabled: false
   cors:
     allowed-origins: http://localhost:5173,http://127.0.0.1:5173
+  bootstrap:
+    enabled: ${APP_BOOTSTRAP_ENABLED:false}
+    token: ${APP_BOOTSTRAP_TOKEN:local-bootstrap-change-me}
+  system-status:
+    enabled: ${APP_SYSTEM_STATUS_ENABLED:true}

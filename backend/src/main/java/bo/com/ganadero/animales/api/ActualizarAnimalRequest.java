@@ -4,4 +4,4 @@ public record ActualizarAnimalRequest(@Size(max=60) String codigo,@Size(max=160)
  PropositoAnimal proposito,UUID propiedadActualId,UUID potreroActualId,LocalDate fechaIngreso,
  @PositiveOrZero BigDecimal precioAdquisicion,@PositiveOrZero BigDecimal pesoNacimientoKg,
  @DecimalMin("1.0") @DecimalMax("5.0") BigDecimal condicionCorporalActual,String fotoPrincipalPath,String observaciones,
- @NotNull Long version){AnimalCommand command(){return new AnimalCommand(codigo,nombre,sexo,fechaNacimiento,fechaNacimientoEstimada,razaPrincipalId,categoriaActualId,color,proposito,null,propiedadActualId,potreroActualId,null,fechaIngreso,precioAdquisicion,pesoNacimientoKg,condicionCorporalActual,fotoPrincipalPath,observaciones,version);}}
+  @NotNull Long version){AnimalCommand command(){return new AnimalCommand(null,codigo,nombre,sexo,fechaNacimiento,fechaNacimientoEstimada,razaPrincipalId,categoriaActualId,color,proposito,null,propiedadActualId,potreroActualId,null,fechaIngreso,precioAdquisicion,pesoNacimientoKg,condicionCorporalActual,fotoPrincipalPath,observaciones,version);}}
