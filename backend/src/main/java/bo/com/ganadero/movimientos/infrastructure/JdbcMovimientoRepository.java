@@ -48,31 +48,70 @@ class JdbcMovimientoRepository implements MovimientoRepository {
     }
 
     @Override
+    public Optional<Movimiento> findByIdForUpdate(UUID id, UUID empresa) {
+        return jdbc.sql("select * from ganado.movimientos where id=:id and empresa_id=:e for update")
+                .param("id", id).param("e", empresa).query(this::map).optional();
+    }
+
+    @Override
+    public Optional<Movimiento> findByOriginal(UUID id, UUID empresa) {
+        return jdbc.sql("select * from ganado.movimientos where movimiento_revertido_id=:id and empresa_id=:e")
+                .param("id", id).param("e", empresa).query(this::map).optional();
+    }
+
+    @Override
     public List<MovimientoDetalle> findDetalles(UUID movimientoId) {
         return jdbc.sql("select * from ganado.movimiento_detalles where movimiento_id=:m")
                 .param("m", movimientoId).query(this::mapDetalle).list();
     }
 
     @Override
-    public Movimiento create(Movimiento movimiento, List<UUID> animalIds, UUID actor) {
+    public Movimiento create(Movimiento movimiento, List<MovimientoAnimal> animales, UUID actor) {
         jdbc.sql("""
-                insert into ganado.movimientos(id,empresa_id,tipo,estado,fecha_movimiento,motivo,
+                insert into ganado.movimientos(id,empresa_id,tipo,estado,fecha_movimiento,motivo,observacion,
                     origen_propiedad_id,origen_potrero_id,origen_lote_id,destino_propiedad_id,destino_potrero_id,
                     destino_lote_id,usuario_crea,created_by,updated_by)
-                values(:id,:e,:tipo,:estado,:fecha,:motivo,:op,:opr,:ol,:dp,:dpotrero,:dl,:actor,:actor,:actor)""")
+                values(:id,:e,:tipo,:estado,:fecha,:motivo,:obs,:op,:opr,:ol,:dp,:dpotrero,:dl,:actor,:actor,:actor)""")
                 .param("id", movimiento.id()).param("e", movimiento.empresaId())
                 .param("tipo", movimiento.tipo().name()).param("estado", movimiento.estado().name())
                 .param("fecha", movimiento.fechaMovimiento()).param("motivo", movimiento.motivo())
+                .param("obs", movimiento.observacion())
                 .param("op", movimiento.origenPropiedadId()).param("opr", movimiento.origenPotreroId())
                 .param("ol", movimiento.origenLoteId()).param("dp", movimiento.destinoPropiedadId())
                 .param("dpotrero", movimiento.destinoPotreroId()).param("dl", movimiento.destinoLoteId())
                 .param("actor", actor).update();
-        for (UUID animalId : animalIds) {
-            jdbc.sql("insert into ganado.movimiento_detalles(id,movimiento_id,animal_id,empresa_id,estado_antes,estado_despues) values(:id,:m,:animal,:e,:antes,:despues)")
-                    .param("id", UUID.randomUUID()).param("m", movimiento.id()).param("animal", animalId)
-                    .param("e", movimiento.empresaId()).param("antes", "ACTIVO").param("despues", "ACTIVO").update();
-        }
+        insertDetalles(movimiento, animales);
         return findById(movimiento.id(), movimiento.empresaId()).orElseThrow();
+    }
+
+    @Override
+    public Movimiento saveConfirmed(Movimiento movimiento, List<MovimientoAnimal> animales, UUID actor) {
+        jdbc.sql("""
+                insert into ganado.movimientos(id,empresa_id,tipo,estado,fecha_movimiento,motivo,observacion,
+                    origen_propiedad_id,origen_potrero_id,origen_lote_id,destino_propiedad_id,destino_potrero_id,
+                    destino_lote_id,usuario_crea,usuario_confirma,fecha_confirmacion,movimiento_revertido_id,
+                    created_by,updated_by)
+                values(:id,:e,:tipo,'CONFIRMADO',:fecha,:motivo,:obs,:op,:opr,:ol,:dp,:dpotrero,:dl,:actor,:actor,
+                    now(),:rev,:actor,:actor)""")
+                .param("id", movimiento.id()).param("e", movimiento.empresaId())
+                .param("tipo", movimiento.tipo().name())
+                .param("fecha", movimiento.fechaMovimiento()).param("motivo", movimiento.motivo())
+                .param("obs", movimiento.observacion())
+                .param("op", movimiento.origenPropiedadId()).param("opr", movimiento.origenPotreroId())
+                .param("ol", movimiento.origenLoteId()).param("dp", movimiento.destinoPropiedadId())
+                .param("dpotrero", movimiento.destinoPotreroId()).param("dl", movimiento.destinoLoteId())
+                .param("rev", movimiento.movimientoRevertidoId()).param("actor", actor).update();
+        insertDetalles(movimiento, animales);
+        return findById(movimiento.id(), movimiento.empresaId()).orElseThrow();
+    }
+
+    private void insertDetalles(Movimiento movimiento, List<MovimientoAnimal> animales) {
+        for (MovimientoAnimal animal : animales) {
+            jdbc.sql("insert into ganado.movimiento_detalles(id,movimiento_id,animal_id,empresa_id,animal_version_esperada,estado_antes,estado_despues) values(:id,:m,:animal,:e,:ave,:antes,:despues)")
+                    .param("id", UUID.randomUUID()).param("m", movimiento.id()).param("animal", animal.animalId())
+                    .param("e", movimiento.empresaId()).param("ave", animal.version())
+                    .param("antes", "ACTIVO").param("despues", "ACTIVO").update();
+        }
     }
 
     @Override
@@ -82,7 +121,7 @@ class JdbcMovimientoRepository implements MovimientoRepository {
                     updated_at=now(),version=version+1
                 where id=:id and empresa_id=:e and version=:version and estado='PENDIENTE'""")
                 .param("actor", actor).param("id", id).param("e", empresa).param("version", version).update();
-        if (changed == 0) throw missingOrConflict(findById(id, empresa).isPresent());
+        if (changed == 0) throw missingOrConflict(id, empresa);
         return findById(id, empresa).orElseThrow();
     }
 
@@ -94,39 +133,57 @@ class JdbcMovimientoRepository implements MovimientoRepository {
                 where id=:id and empresa_id=:e and version=:version and estado='PENDIENTE'""")
                 .param("actor", actor).param("id", id).param("e", empresa).param("version", version)
                 .param("motivo", motivo).update();
-        if (changed == 0) throw missingOrConflict(findById(id, empresa).isPresent());
+        if (changed == 0) throw missingOrConflict(id, empresa);
         return findById(id, empresa).orElseThrow();
     }
 
     @Override
-    public void insertEvent(UUID animalId, Movimiento movimiento, UUID actor) {
-        String tipo = movimiento.tipo() == TipoMovimiento.CUARENTENA ? "CUARENTENA" : "MOVIMIENTO";
-        jdbc.sql("""
-                insert into ganado.eventos_animal(id,empresa_id,animal_id,tipo,titulo,descripcion,modulo_origen,
-                    registro_origen,dispositivo,metadata,registrado_por,created_by,fecha_evento)
-                values(:id,:e,:animal,:tipo,:titulo,:detalle,'MOVIMIENTOS',:registro,null,'{}'::jsonb,:actor,:actor,:fecha)""")
-                .param("id", UUID.randomUUID()).param("e", movimiento.empresaId()).param("animal", animalId)
-                .param("tipo", tipo)
-                .param("titulo", "Movimiento " + movimiento.tipo().name().replace('_', ' ').toLowerCase())
-                .param("detalle", movimiento.motivo())
-                .param("registro", movimiento.id()).param("actor", actor)
-                .param("fecha", java.sql.Timestamp.valueOf(movimiento.fechaMovimiento().atStartOfDay()))
-                .update();
+    public Movimiento markReverted(UUID id, UUID empresa, UUID reversionId, String motivo, long version, UUID actor) {
+        int changed = jdbc.sql("""
+                update ganado.movimientos set estado='REVERTIDO',usuario_revierte=:actor,fecha_reversion=now(),
+                    motivo_reversion=:motivo,movimiento_reversion_id=:rev,updated_at=now(),version=version+1
+                where id=:id and empresa_id=:e and version=:version and estado='CONFIRMADO'""")
+                .param("actor", actor).param("id", id).param("e", empresa).param("version", version)
+                .param("motivo", motivo).param("rev", reversionId).update();
+        if (changed == 0) throw missingOrConflict(id, empresa);
+        return findById(id, empresa).orElseThrow();
+    }
+
+    @Override
+    public void saveDetalleUbicaciones(UUID movimientoId, List<MovimientoDetalle> detalle) {
+        for (MovimientoDetalle d : detalle) {
+            jdbc.sql("""
+                    update ganado.movimiento_detalles set animal_version_esperada=:ave,propiedad_antes=:pa,
+                        potrero_antes=:pr,lote_antes=:la,propiedad_despues=:pd,potrero_despues=:prd,lote_despues=:ld,
+                        estado_resultado=:er,mensaje_resultado=:mr
+                    where id=:id""")
+                    .param("ave", d.animalVersionEsperada())
+                    .param("pa", d.propiedadAntes()).param("pr", d.potreroAntes()).param("la", d.loteAntes())
+                    .param("pd", d.propiedadDespues()).param("prd", d.potreroDespues()).param("ld", d.loteDespues())
+                    .param("er", d.estadoResultado()).param("mr", d.mensajeResultado())
+                    .param("id", d.id()).update();
+        }
     }
 
     private Movimiento map(ResultSet rs, int rowNum) throws SQLException {
         Instant confirmacion = rs.getTimestamp("fecha_confirmacion") == null ? null : rs.getTimestamp("fecha_confirmacion").toInstant();
         Instant anulacion = rs.getTimestamp("fecha_anulacion") == null ? null : rs.getTimestamp("fecha_anulacion").toInstant();
+        Instant reversion = rs.getTimestamp("fecha_reversion") == null ? null : rs.getTimestamp("fecha_reversion").toInstant();
         return new Movimiento(
                 rs.getObject("id", UUID.class), rs.getObject("empresa_id", UUID.class),
                 TipoMovimiento.valueOf(rs.getString("tipo")), EstadoMovimiento.valueOf(rs.getString("estado")),
                 rs.getObject("fecha_movimiento", LocalDate.class), rs.getString("motivo"),
+                rs.getString("observacion"),
                 rs.getObject("origen_propiedad_id", UUID.class), rs.getObject("origen_potrero_id", UUID.class),
                 rs.getObject("origen_lote_id", UUID.class), rs.getObject("destino_propiedad_id", UUID.class),
                 rs.getObject("destino_potrero_id", UUID.class), rs.getObject("destino_lote_id", UUID.class),
                 rs.getObject("usuario_crea", UUID.class), rs.getObject("usuario_confirma", UUID.class),
                 rs.getObject("usuario_anula", UUID.class), confirmacion, anulacion,
-                rs.getString("motivo_anulacion"), rs.getLong("version"));
+                rs.getString("motivo_anulacion"), rs.getObject("usuario_revierte", UUID.class),
+                reversion, rs.getString("motivo_reversion"),
+                rs.getObject("movimiento_revertido_id", UUID.class),
+                rs.getObject("movimiento_reversion_id", UUID.class),
+                rs.getLong("version"));
     }
 
     private MovimientoDetalle mapDetalle(ResultSet rs, int rowNum) throws SQLException {
@@ -134,12 +191,17 @@ class JdbcMovimientoRepository implements MovimientoRepository {
         String despues = rs.getString("estado_despues");
         return new MovimientoDetalle(
                 rs.getObject("id", UUID.class), rs.getObject("movimiento_id", UUID.class),
-                rs.getObject("animal_id", UUID.class),
+                rs.getObject("animal_id", UUID.class), rs.getLong("animal_version_esperada"),
                 antes == null ? null : EstadoAnimal.valueOf(antes),
-                despues == null ? null : EstadoAnimal.valueOf(despues));
+                despues == null ? null : EstadoAnimal.valueOf(despues),
+                rs.getObject("propiedad_antes", UUID.class), rs.getObject("potrero_antes", UUID.class),
+                rs.getObject("lote_antes", UUID.class), rs.getObject("propiedad_despues", UUID.class),
+                rs.getObject("potrero_despues", UUID.class), rs.getObject("lote_despues", UUID.class),
+                rs.getString("estado_resultado"), rs.getString("mensaje_resultado"));
     }
 
-    private BusinessException missingOrConflict(boolean exists) {
-        return new BusinessException(exists ? ErrorCode.VERSION_CONFLICT : ErrorCode.MOVEMENT_NOT_FOUND);
+    private BusinessException missingOrConflict(UUID id, UUID empresa) {
+        boolean exists = findById(id, empresa).isPresent();
+        return new BusinessException(exists ? ErrorCode.MOVEMENT_VERSION_CONFLICT : ErrorCode.MOVEMENT_NOT_FOUND);
     }
 }

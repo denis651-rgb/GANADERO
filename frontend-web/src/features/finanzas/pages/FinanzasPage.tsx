@@ -8,6 +8,7 @@ export function FinanzasPage() {
       description="Gastos, ingresos, pagos y centros de costo."
       phase={5}
       icon={WalletCards}
+      status="PROXIMAMENTE"
       capabilities={[
         "Gastos por categor\u00eda",
         "Ingresos",

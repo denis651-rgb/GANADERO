@@ -7,6 +7,7 @@ export interface AuthContextValue {
   signIn: (input: SignInInput) => Promise<void>
   signOut: () => Promise<void>
   can: (permission: string) => boolean
+  sessionExpired: boolean
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

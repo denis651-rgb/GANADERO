@@ -13,6 +13,6 @@ public record AsignarIdentificadorRequest(
         @Size(max = 1000) String observaciones) {
 
     public IdentificadorCommand command() {
-        return new IdentificadorCommand(null, tipo, valor, principal, observaciones);
+        return new IdentificadorCommand(null, tipo, valor, principal, observaciones, null);
     }
 }

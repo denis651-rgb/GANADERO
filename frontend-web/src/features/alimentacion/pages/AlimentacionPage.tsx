@@ -8,6 +8,7 @@ export function AlimentacionPage() {
       description="Raciones, planes y consumos relacionados con lotes."
       phase={4}
       icon={Sprout}
+      status="EN_DESARROLLO"
       capabilities={[
         "Definir raciones",
         "Planificar alimentaci\u00f3n",

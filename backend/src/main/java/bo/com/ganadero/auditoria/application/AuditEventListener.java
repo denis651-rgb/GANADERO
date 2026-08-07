@@ -3,6 +3,7 @@ package bo.com.ganadero.auditoria.application;
 import bo.com.ganadero.auditoria.domain.AuditoriaRegistro;
 import bo.com.ganadero.auditoria.domain.AuditoriaRepository;
 import bo.com.ganadero.animales.application.AnimalAuditEvent;
+import bo.com.ganadero.archivos.application.ArchivoAuditEvent;
 import bo.com.ganadero.lotes.application.LoteAuditEvent;
 import bo.com.ganadero.movimientos.application.MovimientoAuditEvent;
 import bo.com.ganadero.pesajes.application.PesajeAuditEvent;
@@ -42,7 +43,7 @@ public class AuditEventListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onAnimal(AnimalAuditEvent event) {
-        persist(event.empresaId(), event.usuarioId(), event.accion(), "ANIMALES", event.entidad(), event.entidadId());
+        persist(event.empresaId(), event.usuarioId(), event.accion(), "ANIMALES", event.entidad(), event.entidadId(), event.datos());
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -75,12 +76,21 @@ public class AuditEventListener {
         persist(event.empresaId(), event.usuarioId(), event.accion(), "PESAJE", event.entidad(), event.entidadId());
     }
 
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onArchivo(ArchivoAuditEvent event) {
+        persist(event.empresaId(), event.usuarioId(), event.accion(), "ARCHIVOS", event.entidad(), event.entidadId(), event.datos());
+    }
+
     private void persist(UUID empresaId, UUID usuarioId, String accion, String modulo, String entidad, UUID entidadId) {
+        persist(empresaId, usuarioId, accion, modulo, entidad, entidadId, Map.of());
+    }
+
+    private void persist(UUID empresaId, UUID usuarioId, String accion, String modulo, String entidad, UUID entidadId, Map<String, Object> datos) {
         if (empresaId == null) return;
         RequestInfo request = requestInfo();
         repository.insert(new AuditoriaRegistro(
                 UUID.randomUUID(), empresaId, usuarioId, accion, modulo, entidad, entidadId,
-                request.correlationId(), "EXITO", Map.of(), Map.of(), Map.of(),
+                request.correlationId(), "EXITO", datos, Map.of(), Map.of(),
                 request.dispositivo(), request.ip(), request.userAgent(), Instant.now()));
     }
 

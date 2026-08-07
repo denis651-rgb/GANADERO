@@ -1,4 +1,4 @@
-name: Frontend CI
+﻿name: Frontend CI
 
 on:
   pull_request:
@@ -6,31 +6,47 @@ on:
       - "frontend-web/**"
       - ".github/workflows/frontend-ci.yml"
   push:
-    branches: [main, develop]
+    branches:
+      - main
+      - develop
     paths:
       - "frontend-web/**"
       - ".github/workflows/frontend-ci.yml"
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
     defaults:
       run:
         working-directory: frontend-web
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
         with:
           node-version-file: frontend-web/.node-version
           cache: npm
           cache-dependency-path: frontend-web/package-lock.json
+
       - name: Instalar dependencias
         run: npm ci
+
       - name: Validar TypeScript
         run: npm run typecheck
+
       - name: Ejecutar lint
         run: npm run lint
+
       - name: Ejecutar pruebas
         run: npm run test
+
       - name: Compilar frontend
         run: npm run build

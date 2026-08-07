@@ -1,7 +1,8 @@
 import { http } from '@/shared/api/http'
 import type { ApiResponse, Page } from '@/shared/api/types'
 
-export type EstadoLote = 'ABIERTO' | 'CERRADO'
+export type EstadoLote = 'ACTIVO' | 'CERRADO'
+export type ModoIngreso = 'ATOMICO' | 'PARCIAL'
 
 export interface Lote {
   id: string
@@ -12,6 +13,7 @@ export interface Lote {
   estado: EstadoLote
   fechaApertura: string
   fechaCierre?: string
+  motivoCierre?: string
   version: number
 }
 
@@ -21,7 +23,33 @@ export interface Membresia {
   animalId: string
   fechaIngreso: string
   fechaSalida?: string
+  motivoIngreso?: string
   motivoSalida?: string
+  observacion?: string
+  modo?: string
+  ingresadoPor?: string
+  salidaPor?: string
+  version: number
+}
+
+export interface ResultadoAccion {
+  animalId: string
+  estado: 'OK' | 'ERROR'
+  mensaje: string
+}
+
+export interface IngresoMasivoResultado {
+  ok: boolean
+  procesados: number
+  ingresados: number
+  resultados: ResultadoAccion[]
+}
+
+export interface RetiroMasivoResultado {
+  ok: boolean
+  procesados: number
+  retirados: number
+  resultados: ResultadoAccion[]
 }
 
 export interface CreateLoteInput {
@@ -30,6 +58,30 @@ export interface CreateLoteInput {
   nombre: string
   descripcion?: string
   fechaApertura?: string
+}
+
+export interface IngresoLoteInput {
+  animalIds: string[]
+  modo?: ModoIngreso
+  fechaIngreso?: string
+  motivo?: string
+  observacion?: string
+}
+
+export interface RetiroLoteInput {
+  animalIds: string[]
+  fechaSalida?: string
+  motivo?: string
+}
+
+export interface HistorialLoteParams {
+  animalId?: string
+  desde?: string
+  hasta?: string
+  motivoIngreso?: string
+  motivoSalida?: string
+  page: number
+  size: number
 }
 
 export async function listLotes(filters: { estado?: EstadoLote | ''; search?: string; page: number; size: number }) {
@@ -48,18 +100,22 @@ export async function updateLote(id: string, input: Partial<CreateLoteInput> & {
   return (await http.patch<ApiResponse<Lote>>(`/api/v1/lotes/${id}`, input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
 }
 
-export async function cerrarLote(id: string, version: number) {
-  return (await http.post<ApiResponse<Lote>>(`/api/v1/lotes/${id}/cerrar`, { version }, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
+export async function cerrarLote(id: string, version: number, motivo?: string, fechaCierre?: string) {
+  return (await http.post<ApiResponse<Lote>>(`/api/v1/lotes/${id}/cerrar`, { version, motivo, fechaCierre }, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
 }
 
 export async function listMembresias(loteId: string, activos = true) {
   return (await http.get<ApiResponse<Membresia[]>>(`/api/v1/lotes/${loteId}/animales`, { params: { activos } })).data.data
 }
 
-export async function addAnimales(loteId: string, animalIds: string[]) {
-  return (await http.post<ApiResponse<Membresia[]>>(`/api/v1/lotes/${loteId}/animales`, { animalIds }, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
+export async function addAnimales(loteId: string, input: IngresoLoteInput) {
+  return (await http.post<ApiResponse<IngresoMasivoResultado>>(`/api/v1/lotes/${loteId}/animales`, input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
 }
 
-export async function retirarAnimales(loteId: string, animalIds: string[], motivo?: string) {
-  return (await http.post<ApiResponse<Membresia[]>>(`/api/v1/lotes/${loteId}/retirar-animales`, { animalIds, motivo }, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
+export async function retirarAnimales(loteId: string, input: RetiroLoteInput) {
+  return (await http.post<ApiResponse<RetiroMasivoResultado>>(`/api/v1/lotes/${loteId}/retirar-animales`, input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
+}
+
+export async function historialLote(loteId: string, params: HistorialLoteParams) {
+  return (await http.get<ApiResponse<Page<Membresia>>>(`/api/v1/lotes/${loteId}/historial`, { params })).data.data
 }

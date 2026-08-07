@@ -15,17 +15,26 @@ import bo.com.ganadero.shared.security.CurrentUser;
 import bo.com.ganadero.shared.security.UserContext;
 import bo.com.ganadero.sync.api.*;
 import bo.com.ganadero.sync.domain.*;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class SyncService {
+    private static final int MAX_ATTEMPTS = 6;
+    private static final int MAX_MENSAJE_LEN = 500;
+    private static final int MAX_ERROR_LEN = 2000;
+
     private final SyncRepository sync;
     private final AnimalService animales;
     private final IdentificadorService identificadores;
@@ -33,10 +42,12 @@ public class SyncService {
     private final MovimientoService movimientos;
     private final UserContext context;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate tx;
+    private final TransactionTemplate retryTx;
 
     public SyncService(SyncRepository sync, AnimalService animales, IdentificadorService identificadores,
                        PesajeService pesajes, MovimientoService movimientos, UserContext context,
-                       ObjectMapper objectMapper) {
+                       ObjectMapper objectMapper, PlatformTransactionManager transactionManager) {
         this.sync = sync;
         this.animales = animales;
         this.identificadores = identificadores;
@@ -44,6 +55,10 @@ public class SyncService {
         this.movimientos = movimientos;
         this.context = context;
         this.objectMapper = objectMapper;
+        this.tx = new TransactionTemplate(transactionManager);
+        this.tx.setPropagationBehavior(TransactionTemplate.PROPAGATION_REQUIRES_NEW);
+        this.retryTx = new TransactionTemplate(transactionManager);
+        this.retryTx.setPropagationBehavior(TransactionTemplate.PROPAGATION_REQUIRES_NEW);
     }
 
     @Transactional
@@ -54,7 +69,7 @@ public class SyncService {
                 d.estado().name(), d.ultimoCursor());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public SyncPullResponse pull(SyncPushRequest.DispositivoInfo info, long cursor, int size) {
         CurrentUser user = context.requirePermission("SINC_PULL");
         Dispositivo dispositivo = requireDispositivo(user, info);
@@ -69,7 +84,7 @@ public class SyncService {
         return new SyncPullResponse(dispositivo.id(), nuevoCursor, hayMas, Instant.now(), responses);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public SyncBootstrapResponse bootstrap(SyncPushRequest.DispositivoInfo info) {
         CurrentUser user = context.requirePermission("SINC_BOOTSTRAP");
         Dispositivo dispositivo = requireDispositivo(user, info);
@@ -94,85 +109,151 @@ public class SyncService {
                 new SyncUsuarioInfo(user.userId(), user.roles(), user.permisos(), permitidas, todas));
     }
 
-    @Transactional
     public SyncPushResponse push(SyncPushRequest request) {
         CurrentUser user = context.requirePermission("SINC_PUSH");
         Dispositivo dispositivo = requireDispositivo(user, request.dispositivo());
-        sync.setDispositivoOrigen(dispositivo.codigoDispositivo());
         List<OperacionResultado> resultados = new ArrayList<>();
         for (SyncPushRequest.OperacionRequest op : request.operaciones()) {
-            resultados.add(applyOperacion(user, dispositivo, op));
+            resultados.add(procesar(user, dispositivo, op));
         }
         long cursor = sync.ultimoCursor(user.empresaId());
         sync.upsertDispositivo(withCursor(dispositivo, cursor));
         return new SyncPushResponse(dispositivo.id(), cursor, resultados);
     }
 
-    @Transactional
     public LoteResponse lote(List<SyncPushRequest.OperacionRequest> operaciones) {
-        List<OperacionResultado> resultados = operaciones.stream().map(this::applyLoteOperacion).toList();
+        CurrentUser user = context.requirePermission("SINC_PUSH");
+        Dispositivo dispositivo = requireDispositivo(user,
+                new SyncPushRequest.DispositivoInfo("web-lote", "Operaciones web", "WEB", "1.0.0"));
+        List<OperacionResultado> resultados = new ArrayList<>();
+        for (SyncPushRequest.OperacionRequest op : operaciones) {
+            resultados.add(procesar(user, dispositivo, op));
+        }
         long procesadas = resultados.stream().filter(r -> "SYNCED".equals(r.estado())).count();
         return new LoteResponse(procesadas, resultados.size() - procesadas, resultados);
     }
 
-    private OperacionResultado applyLoteOperacion(SyncPushRequest.OperacionRequest request) {
+    private OperacionResultado procesar(CurrentUser user, Dispositivo dispositivo,
+                                        SyncPushRequest.OperacionRequest request) {
         try {
-            Object saved = dispatch(context.currentUser(), request);
-            long version = serverVersion(saved, request.tipo());
-            UUID entityId = serverEntityId(saved, request.tipo());
-            return new OperacionResultado(request.clienteId(), "SYNCED", entityId, version, toNode(saved), null, null, null);
-        } catch (BusinessException exception) {
-            if (exception.code() == ErrorCode.VERSION_CONFLICT) {
-                Object serverData = currentServerData(context.currentUser(), request);
-                long version = serverVersion(serverData, request.tipo());
-                return new OperacionResultado(request.clienteId(), "CONFLICT", request.entidadId(), version,
-                        toNode(serverData), exception.code().name(), exception.getMessage(), List.of("version"));
-            }
-            return new OperacionResultado(request.clienteId(), "REJECTED", request.entidadId(), null, null,
-                    exception.code().name(), exception.getMessage(), null);
-        } catch (RuntimeException exception) {
-            return new OperacionResultado(request.clienteId(), "RETRYABLE", request.entidadId(), null, null,
-                    "INTERNAL_ERROR", exception.getMessage(), null);
+            return tx.execute(status -> aplicar(user, dispositivo, request));
+        } catch (RuntimeException reason) {
+            return registrarRetryable(user, dispositivo, request, reason);
         }
     }
 
-    private OperacionResultado applyOperacion(CurrentUser user, Dispositivo dispositivo,
-                                              SyncPushRequest.OperacionRequest request) {
-        Optional<OperacionSync> existing = sync.findOperacion(user.empresaId(), dispositivo.id(), request.clienteId());
-        if (existing.isPresent() && !"PENDIENTE".equals(existing.get().estado())) {
-            return fromStored(existing.get());
+    private OperacionResultado aplicar(CurrentUser user, Dispositivo dispositivo,
+                                       SyncPushRequest.OperacionRequest request) {
+        sync.setDispositivoOrigen(dispositivo.codigoDispositivo(), dispositivo.id());
+        String hash = payloadHash(request.datos());
+
+        Optional<OperacionSync> porClave = sync.findOperacionByIdempotencyKey(user.empresaId(), request.idempotencyKey());
+        if (porClave.isPresent()) {
+            OperacionSync existing = porClave.get();
+            if (!existing.dispositivoId().equals(dispositivo.id())) {
+                return conflict(user, dispositivo, request, hash, existing,
+                        "Clave de idempotencia reutilizada por otro dispositivo.");
+            }
+            if (existing.estado() == EstadoOperacionSync.SYNCED) {
+                if (Objects.equals(existing.payloadHash(), hash)) return fromStored(existing);
+                return conflict(user, dispositivo, request, hash, existing,
+                        "Clave de idempotencia reutilizada con un payload distinto.");
+            }
+            if (esDefinitivo(existing.estado())) return fromStored(existing);
         }
-        OperacionSync op = new OperacionSync(UUID.randomUUID(), user.empresaId(), dispositivo.id(), user.userId(),
-                request.clienteId(), request.tipo(), request.entidad(), request.entidadId(), writeJson(request.datos()),
-                request.versionCliente() == null ? 0 : request.versionCliente(), "PENDIENTE", null, null, null,
-                null, null, request.idempotencyKey(), Instant.now(), null);
+
+        Optional<OperacionSync> porCliente = sync.findOperacion(user.empresaId(), dispositivo.id(), request.clienteId());
+        if (porCliente.isPresent()) {
+            OperacionSync existing = porCliente.get();
+            if (existing.estado() == EstadoOperacionSync.SYNCED) {
+                if (Objects.equals(existing.payloadHash(), hash)) return fromStored(existing);
+                return conflict(user, dispositivo, request, hash, existing,
+                        "El id local fue reutilizado con un payload distinto.");
+            }
+            if (esDefinitivo(existing.estado())) return fromStored(existing);
+        }
+
+        OperacionSync op = baseOperacion(user, dispositivo, request, hash, porCliente.orElse(null));
+        sync.saveOperacion(op.conResultado(EstadoOperacionSync.PROCESSING, null, null, null, null, null,
+                request.entidadId()));
         try {
             Object saved = dispatch(user, request);
             long serverVersion = serverVersion(saved, request.tipo());
             UUID entityId = serverEntityId(saved, request.tipo());
-            sync.saveOperacion(op.conResultado("APLICADA", null, null, writeJson(saved), serverVersion, null, entityId));
-            return new OperacionResultado(request.clienteId(), "SYNCED", entityId, serverVersion,
-                    toNode(saved), null, null, null);
+            sync.saveOperacion(op.conResultado(EstadoOperacionSync.SYNCED, null, null, writeJson(saved),
+                    serverVersion, null, entityId));
+            return new OperacionResultado(request.clienteId(), EstadoOperacionSync.SYNCED.name(), entityId,
+                    serverVersion, toNode(saved), null, null, null);
         } catch (BusinessException exception) {
             if (exception.code() == ErrorCode.VERSION_CONFLICT) {
                 Object serverData = currentServerData(user, request);
                 long serverVersion = serverVersion(serverData, request.tipo());
                 List<String> fields = List.of("version");
-                sync.saveOperacion(op.conResultado("CONFLICTO", exception.code().name(), exception.getMessage(),
-                        writeJson(serverData), serverVersion, writeJson(fields), request.entidadId()));
-                return new OperacionResultado(request.clienteId(), "CONFLICT", request.entidadId(), serverVersion,
-                        toNode(serverData), exception.code().name(), exception.getMessage(), fields);
+                sync.saveOperacion(op.conResultado(EstadoOperacionSync.CONFLICT, exception.code().name(),
+                        truncate(exception.getMessage(), MAX_MENSAJE_LEN), writeJson(serverData), serverVersion,
+                        writeJson(fields), request.entidadId()));
+                return new OperacionResultado(request.clienteId(), EstadoOperacionSync.CONFLICT.name(),
+                        request.entidadId(), serverVersion, toNode(serverData), exception.code().name(),
+                        truncate(exception.getMessage(), MAX_MENSAJE_LEN), fields);
             }
-            sync.saveOperacion(op.conResultado("RECHAZADA", exception.code().name(), exception.getMessage(),
-                    null, null, null, request.entidadId()));
-            return new OperacionResultado(request.clienteId(), "REJECTED", request.entidadId(), null, null,
-                    exception.code().name(), exception.getMessage(), null);
-        } catch (RuntimeException exception) {
-            sync.saveOperacion(op.conResultado("ERROR", "INTERNAL_ERROR", exception.getMessage(),
-                    null, null, null, request.entidadId()));
-            return new OperacionResultado(request.clienteId(), "RETRYABLE", request.entidadId(), null, null,
-                    "INTERNAL_ERROR", exception.getMessage(), null);
+            sync.saveOperacion(op.conResultado(EstadoOperacionSync.REJECTED, exception.code().name(),
+                    truncate(exception.getMessage(), MAX_MENSAJE_LEN), null, null, null, request.entidadId()));
+            return new OperacionResultado(request.clienteId(), EstadoOperacionSync.REJECTED.name(),
+                    request.entidadId(), null, null, exception.code().name(),
+                    truncate(exception.getMessage(), MAX_MENSAJE_LEN), null);
         }
+    }
+
+    private OperacionResultado conflict(CurrentUser user, Dispositivo dispositivo,
+                                        SyncPushRequest.OperacionRequest request, String hash,
+                                        OperacionSync existing, String motivo) {
+        OperacionSync op = baseOperacion(user, dispositivo, request, hash, existing);
+        String message = truncate(motivo, MAX_MENSAJE_LEN);
+        sync.saveOperacion(op.conResultado(EstadoOperacionSync.CONFLICT, ErrorCode.IDEMPOTENCY_CONFLICT.name(),
+                message, existing.resultadoServidorJson(), existing.versionServidor(), writeJson(List.of("idempotency")),
+                existing.entidadId()));
+        return new OperacionResultado(request.clienteId(), EstadoOperacionSync.CONFLICT.name(), existing.entidadId(),
+                existing.versionServidor(), parse(existing.resultadoServidorJson()),
+                ErrorCode.IDEMPOTENCY_CONFLICT.name(), message, List.of("idempotency"));
+    }
+
+    private OperacionResultado registrarRetryable(CurrentUser user, Dispositivo dispositivo,
+                                                  SyncPushRequest.OperacionRequest request, RuntimeException reason) {
+        return retryTx.execute(status -> {
+            sync.setDispositivoOrigen(dispositivo.codigoDispositivo(), dispositivo.id());
+            String hash = payloadHash(request.datos());
+            Optional<OperacionSync> existing = sync.findOperacion(user.empresaId(), dispositivo.id(), request.clienteId());
+            OperacionSync op = baseOperacion(user, dispositivo, request, hash, existing.orElse(null));
+            int attempts = op.attempts() + 1;
+            Instant next = nextRetryAt(attempts);
+            String message = truncate(reason.getMessage(), MAX_MENSAJE_LEN);
+            sync.saveOperacion(op.conReintento(attempts, next, truncate(reason.getMessage(), MAX_ERROR_LEN))
+                    .conResultado(EstadoOperacionSync.RETRYABLE, "INTERNAL_ERROR", message, null, null, null,
+                            request.entidadId()));
+            return new OperacionResultado(request.clienteId(), EstadoOperacionSync.RETRYABLE.name(),
+                    request.entidadId(), null, null, "INTERNAL_ERROR", message, null);
+        });
+    }
+
+    private OperacionSync baseOperacion(CurrentUser user, Dispositivo dispositivo,
+                                        SyncPushRequest.OperacionRequest request, String hash, OperacionSync existing) {
+        return new OperacionSync(
+                existing == null || !existing.clienteId().equals(request.clienteId())
+                        ? UUID.randomUUID() : existing.id(),
+                user.empresaId(), dispositivo.id(), user.userId(),
+                request.clienteId(), request.tipo(), request.entidad(), request.entidadId(),
+                writeJson(request.datos()), request.versionCliente() == null ? 0 : request.versionCliente(),
+                EstadoOperacionSync.PENDING, null, null, null, null, null,
+                request.idempotencyKey(), hash,
+                existing == null ? 0 : existing.attempts(),
+                existing == null ? null : existing.nextRetryAt(),
+                existing == null ? null : existing.lastError(),
+                existing == null ? Instant.now() : existing.createdAt(),
+                existing == null ? null : existing.appliedAt());
+    }
+
+    private boolean esDefinitivo(EstadoOperacionSync estado) {
+        return estado == EstadoOperacionSync.CONFLICT || estado == EstadoOperacionSync.REJECTED;
     }
 
     private Object dispatch(CurrentUser user, SyncPushRequest.OperacionRequest request) {
@@ -191,20 +272,15 @@ public class SyncService {
             case "MOVIMIENTO_CONFIRMAR" -> movimientos.confirm(uuid(required(datos, "id")), longValue(datos.get("version")));
             case "MOVIMIENTO_ANULAR" -> movimientos.annul(uuid(required(datos, "id")), str(datos.get("motivo")),
                     longValue(datos.get("version")));
+            case "MOVIMIENTO_REVERTIR" -> movimientos.revert(uuid(required(datos, "id")), str(datos.get("motivo")),
+                    longValue(datos.get("version")));
             default -> throw new BusinessException(ErrorCode.OPERACION_TIPO_DESCONOCIDO);
         };
     }
 
     private OperacionResultado fromStored(OperacionSync op) {
-        String estado = switch (op.estado()) {
-            case "APLICADA" -> "SYNCED";
-            case "CONFLICTO" -> "CONFLICT";
-            case "RECHAZADA" -> "REJECTED";
-            case "ERROR" -> "RETRYABLE";
-            default -> "DUPLICATED";
-        };
         UUID entityId = op.entidadId() != null ? op.entidadId() : idFromJson(op.resultadoServidorJson());
-        return new OperacionResultado(op.clienteId(), estado, entityId, op.versionServidor(),
+        return new OperacionResultado(op.clienteId(), op.estado().name(), entityId, op.versionServidor(),
                 parse(op.resultadoServidorJson()), op.resultadoCodigo(), op.resultadoMensaje(),
                 parseList(op.conflictosJson()));
     }
@@ -214,7 +290,7 @@ public class SyncService {
         if (id == null) return null;
         return switch (request.tipo()) {
             case "ANIMAL_ACTUALIZAR", "ANIMAL_CAMBIAR_ESTADO" -> animales.get(id);
-            case "MOVIMIENTO_CONFIRMAR", "MOVIMIENTO_ANULAR" -> movimientos.get(id);
+            case "MOVIMIENTO_CONFIRMAR", "MOVIMIENTO_ANULAR", "MOVIMIENTO_REVERTIR" -> movimientos.get(id);
             case "PESAJE_REGISTRAR" -> pesajes.get(id);
             default -> null;
         };
@@ -226,7 +302,7 @@ public class SyncService {
             case "ANIMAL_CREAR", "ANIMAL_ACTUALIZAR", "ANIMAL_CAMBIAR_ESTADO" -> ((Animal) saved).version();
             case "IDENTIFICADOR_ASIGNAR" -> ((IdentificadorAnimal) saved).version();
             case "PESAJE_REGISTRAR" -> ((Pesaje) saved).version();
-            case "MOVIMIENTO_CREAR", "MOVIMIENTO_CONFIRMAR", "MOVIMIENTO_ANULAR" -> ((Movimiento) saved).version();
+            case "MOVIMIENTO_CREAR", "MOVIMIENTO_CONFIRMAR", "MOVIMIENTO_ANULAR", "MOVIMIENTO_REVERTIR" -> ((Movimiento) saved).version();
             default -> 0;
         };
     }
@@ -237,7 +313,7 @@ public class SyncService {
             case "ANIMAL_CREAR", "ANIMAL_ACTUALIZAR", "ANIMAL_CAMBIAR_ESTADO" -> ((Animal) saved).id();
             case "IDENTIFICADOR_ASIGNAR" -> ((IdentificadorAnimal) saved).id();
             case "PESAJE_REGISTRAR" -> ((Pesaje) saved).id();
-            case "MOVIMIENTO_CREAR", "MOVIMIENTO_CONFIRMAR", "MOVIMIENTO_ANULAR" -> ((Movimiento) saved).id();
+            case "MOVIMIENTO_CREAR", "MOVIMIENTO_CONFIRMAR", "MOVIMIENTO_ANULAR", "MOVIMIENTO_REVERTIR" -> ((Movimiento) saved).id();
             default -> null;
         };
     }
@@ -313,6 +389,43 @@ public class SyncService {
     private UUID idFromJson(String json) {
         JsonNode node = parse(json);
         if (node == null || !node.has("id")) return null;
-        return uuid(node.get("id"));
+        JsonNode id = node.get("id");
+        if (id == null || !id.isTextual()) return null;
+        return uuid(id.asText());
+    }
+
+    private String payloadHash(Map<String, Object> datos) {
+        if (datos == null) return null;
+        try {
+            String canonical = objectMapper.writeValueAsString(canonical(datos));
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(canonical.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception exception) {
+            throw new IllegalStateException("No se pudo calcular el hash del payload", exception);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object canonical(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> sorted = new TreeMap<>();
+            map.forEach((key, item) -> sorted.put(String.valueOf(key), canonical(item)));
+            return sorted;
+        }
+        if (value instanceof List<?> list) {
+            return list.stream().map(this::canonical).collect(Collectors.toList());
+        }
+        return value;
+    }
+
+    private Instant nextRetryAt(int attempts) {
+        if (attempts >= MAX_ATTEMPTS) return null;
+        long seconds = Math.min(3600L, (long) Math.pow(2, attempts) * 60L);
+        return Instant.now().plusSeconds(seconds);
+    }
+
+    private String truncate(String value, int max) {
+        if (value == null) return null;
+        return value.length() <= max ? value : value.substring(0, max);
     }
 }

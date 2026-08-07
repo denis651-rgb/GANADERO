@@ -97,7 +97,9 @@ class JdbcSecurityRepositoryAdapter implements PerfilUsuarioRepository, MiembroE
     public MiembroEmpresa changeStatus(UUID miembroId, UUID empresaId, EstadoMiembro estado,
                                        long version, UUID actorId) {
         int changed = jdbc.sql("""
-                update seguridad.miembros_empresa set estado=:estado,updated_at=now(),updated_by=:actor,
+                update seguridad.miembros_empresa set estado=:estado,
+                    fecha_ingreso=case when :estado='ACTIVO' then current_date else fecha_ingreso end,
+                    updated_at=now(),updated_by=:actor,
                     version=version+1 where id=:id and empresa_id=:empresa and version=:version
                 """).param("estado", estado.name()).param("actor", actorId).param("id", miembroId)
                 .param("empresa", empresaId).param("version", version).update();
@@ -224,6 +226,17 @@ class JdbcSecurityRepositoryAdapter implements PerfilUsuarioRepository, MiembroE
                 .param("actor", actorId).param("id", roleId).param("version",version).update();
         if(changed==0)throw new BusinessException(ErrorCode.VERSION_CONFLICT);
         return findAvailableById(roleId, empresaId).orElseThrow();
+    }
+
+    @Override
+    public boolean existsActiveByEmail(UUID empresaId, String email) {
+        return jdbc.sql("""
+                select count(*) from seguridad.miembros_empresa me
+                join seguridad.perfiles_usuario pu on pu.id = me.usuario_id
+                where me.empresa_id = :empresa
+                  and lower(pu.email) = lower(:email)
+                  and me.estado in ('ACTIVO', 'INVITADO')
+                """).param("empresa", empresaId).param("email", email).query(Long.class).single() > 0;
     }
 
     private PerfilUsuario profile(java.sql.ResultSet rs, int row) throws java.sql.SQLException {

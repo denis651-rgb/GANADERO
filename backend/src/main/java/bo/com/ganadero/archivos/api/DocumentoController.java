@@ -22,8 +22,9 @@ public class DocumentoController {
     @PostMapping(consumes = "multipart/form-data")
     public ApiResponse<DocumentoService.DocumentoResponse> upload(@RequestPart("file") MultipartFile file,
             @RequestParam(required = false) String entidadTipo, @RequestParam(required = false) UUID entidadId,
+            @RequestParam(defaultValue = "false") boolean principal,
             HttpServletRequest request) {
-        return success(service.uploadDocumento(file, entidadTipo, entidadId), request);
+        return success(service.uploadDocumento(file, entidadTipo, entidadId, principal), request);
     }
 
     @GetMapping
@@ -32,9 +33,17 @@ public class DocumentoController {
         return success(service.list(entidadTipo, entidadId), request);
     }
 
+    @PatchMapping("/{id}/principal")
+    public ApiResponse<DocumentoService.DocumentoResponse> markPrincipal(@PathVariable UUID id,
+            HttpServletRequest request) {
+        return success(service.markPrincipal(id), request);
+    }
+
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable UUID id, HttpServletRequest request) {
-        service.delete(id);
+    public ApiResponse<Void> delete(@PathVariable UUID id,
+            @RequestParam(defaultValue = "false") boolean confirmarPrincipal,
+            HttpServletRequest request) {
+        service.delete(id, confirmarPrincipal);
         return success(null, request);
     }
 

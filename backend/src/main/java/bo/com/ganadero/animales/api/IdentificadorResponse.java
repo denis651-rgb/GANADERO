@@ -18,10 +18,11 @@ public record IdentificadorResponse(
         Instant fechaRetiro,
         String motivoRetiro,
         String observaciones,
+        String payload,
         long version) {
 
     public static IdentificadorResponse from(IdentificadorAnimal i) {
         return new IdentificadorResponse(i.id(), i.animalId(), i.tipo(), i.valor(), i.principal(), i.estado(),
-                i.fechaAsignacion(), i.fechaRetiro(), i.motivoRetiro(), i.observaciones(), i.version());
+                i.fechaAsignacion(), i.fechaRetiro(), i.motivoRetiro(), i.observaciones(), i.payload(), i.version());
     }
 }

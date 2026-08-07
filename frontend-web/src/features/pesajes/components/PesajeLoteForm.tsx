@@ -6,7 +6,6 @@ import { Save, X } from 'lucide-react'
 import { pesajeLoteSchema, type PesajeLoteForm, type PesajeLoteFormInput } from '@/features/pesajes/schema'
 import { registrarPesajeLote } from '@/features/pesajes/api'
 import { listLotes } from '@/features/lotes/api'
-import { queueHttpOperation } from '@/offline/operationQueue'
 import { createUuid } from '@/shared/utils/uuid'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
@@ -25,23 +24,16 @@ export function PesajeLoteForm({ onSaved, onCancel }: PesajeLoteFormProps) {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<PesajeLoteFormInput, unknown, PesajeLoteForm>({
     resolver: zodResolver(pesajeLoteSchema),
   })
-  const lots = useQuery({ queryKey: ['pesaje-lote-lots'], queryFn: () => listLotes({ estado: 'ABIERTO', page: 0, size: 200 }) })
+  const lots = useQuery({ queryKey: ['pesaje-lote-lots'], queryFn: () => listLotes({ estado: 'ACTIVO', page: 0, size: 200 }) })
 
   async function submit(values: PesajeLoteForm) {
     setMessage(null)
+    if (!navigator.onLine) {
+      setMessage({ tone: 'info', text: 'El pesaje por lote requiere conexión; registra los pesajes individuales sin conexión.' })
+      return
+    }
     const input = { ...values, dispositivo: 'WEB', idempotencyKey: createUuid() }
     try {
-      if (!navigator.onLine) {
-        await queueHttpOperation({
-          type: 'REGISTER_PESAJE_LOTE',
-          entityType: 'PESAJE',
-          method: 'POST',
-          url: '/api/v1/pesajes/lote',
-          body: input,
-        })
-        setMessage({ tone: 'info', text: 'Pesaje por lote guardado en el dispositivo. Quedó pendiente de sincronización.' })
-        return
-      }
       const registrados = await registrarPesajeLote(input)
       void queryClient.invalidateQueries({ queryKey: ['pesajes'] })
       setMessage({ tone: 'success', text: `Pesaje registrado para ${registrados.length} animal(es) del lote.` })
@@ -60,7 +52,7 @@ export function PesajeLoteForm({ onSaved, onCancel }: PesajeLoteFormProps) {
       <form className="form-grid" onSubmit={handleSubmit(submit)} noValidate>
         {message && <div className="form-full"><Alert tone={message.tone}>{message.text}</Alert></div>}
         <Field label="Lote" error={errors.loteId?.message}>
-          <select {...register('loteId')}><option value="">Selecciona un lote…</option>{lots.data?.content.filter((item) => item.estado === 'ABIERTO').map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
+          <select {...register('loteId')}><option value="">Selecciona un lote…</option>{lots.data?.content.filter((item) => item.estado === 'ACTIVO').map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
         </Field>
         <Field label="Peso (kg)" error={errors.pesoKg?.message} hint="El mismo peso se aplicará a todos los animales activos del lote.">
           <input type="number" min="1" step="0.1" {...register('pesoKg')} placeholder="250" />

@@ -8,6 +8,7 @@ export function ComercialPage() {
       description="Terceros, compras de insumos y operaciones con animales."
       phase={5}
       icon={ShoppingCart}
+      status="PROXIMAMENTE"
       capabilities={[
         "Proveedores y clientes",
         "Compras de productos",

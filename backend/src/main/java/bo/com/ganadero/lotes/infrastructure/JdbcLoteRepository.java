@@ -9,12 +9,15 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
@@ -26,10 +29,16 @@ class JdbcLoteRepository implements LoteRepository {
     }
 
     @Override
-    public LotePage findAll(UUID empresa, EstadoLote estado, String search, int page, int size) {
+    public LotePage findAll(UUID empresa, Set<UUID> propiedades, boolean todas, EstadoLote estado,
+                            String search, int page, int size) {
+        if (!todas && propiedades.isEmpty()) return LotePage.of(List.of(), page, size, 0);
         StringBuilder where = new StringBuilder(" where l.empresa_id=:e");
         Map<String, Object> params = new HashMap<>();
         params.put("e", empresa);
+        if (!todas) {
+            where.append(" and l.propiedad_id in (:propiedades)");
+            params.put("propiedades", new ArrayList<>(propiedades));
+        }
         if (estado != null) {
             where.append(" and l.estado=:estado");
             params.put("estado", estado.name());
@@ -88,12 +97,13 @@ class JdbcLoteRepository implements LoteRepository {
     }
 
     @Override
-    public Lote close(UUID id, UUID empresa, long version, UUID actor) {
+    public Lote close(UUID id, UUID empresa, long version, LocalDate fechaCierre, String motivoCierre, UUID actor) {
         int changed = jdbc.sql("""
-                update ganado.lotes_ganaderos set estado='CERRADO',fecha_cierre=current_date,
-                    updated_at=now(),updated_by=:actor,version=version+1
-                where id=:id and empresa_id=:e and version=:version and estado='ABIERTO'""")
-                .param("actor", actor).param("id", id).param("e", empresa).param("version", version).update();
+                update ganado.lotes_ganaderos set estado='CERRADO',fecha_cierre=coalesce(:fecha,current_date),
+                    motivo_cierre=:motivo,updated_at=now(),updated_by=:actor,version=version+1
+                where id=:id and empresa_id=:e and version=:version and estado='ACTIVO'""")
+                .param("fecha", fechaCierre).param("motivo", motivoCierre).param("actor", actor)
+                .param("id", id).param("e", empresa).param("version", version).update();
         if (changed == 0) throw missingOrConflict(findById(id, empresa).isPresent());
         return findById(id, empresa).orElseThrow();
     }
@@ -107,18 +117,11 @@ class JdbcLoteRepository implements LoteRepository {
     }
 
     @Override
-    public List<UUID> findActiveAnimalsInLote(List<UUID> animalIds, UUID empresa) {
-        if (animalIds.isEmpty()) return List.of();
-        return jdbc.sql("select distinct animal_id from ganado.membresias_lote where empresa_id=:e and fecha_salida is null and animal_id in (:ids)")
-                .param("e", empresa).param("ids", animalIds).query(UUID.class).list();
-    }
-
-    @Override
     public Optional<Lote> findActiveLotOfAnimal(UUID animalId, UUID empresa) {
         return jdbc.sql("""
                 select l.* from ganado.lotes_ganaderos l
                 join ganado.membresias_lote m on m.lote_id=l.id
-                where m.animal_id=:animal and m.empresa_id=:e and m.fecha_salida is null and l.estado='ABIERTO' limit 1""")
+                where m.animal_id=:animal and m.empresa_id=:e and m.fecha_salida is null and l.estado='ACTIVO' limit 1""")
                 .param("animal", animalId).param("e", empresa).query(this::map).optional();
     }
 
@@ -129,33 +132,78 @@ class JdbcLoteRepository implements LoteRepository {
     }
 
     @Override
-    public void openMembership(UUID loteId, UUID animalId, UUID empresa, UUID actor) {
-        jdbc.sql("""
-                insert into ganado.membresias_lote(id,empresa_id,lote_id,animal_id,fecha_ingreso,ingresado_por)
-                values(:id,:e,:lote,:animal,now(),:actor)""")
-                .param("id", UUID.randomUUID()).param("e", empresa).param("lote", loteId)
-                .param("animal", animalId).param("actor", actor).update();
-        insertEvent(loteId, animalId, empresa, actor, "Ingresado al lote", "ingreso", "LOTE");
+    public Optional<MembresiaLote> findActiveMembership(UUID animalId, UUID empresa) {
+        return jdbc.sql("select m.* from ganado.membresias_lote m " +
+                        "where m.animal_id=:animal and m.empresa_id=:e and m.fecha_salida is null for update")
+                .param("animal", animalId).param("e", empresa).query(this::mapMembership).optional();
     }
 
     @Override
-    public void closeMembership(UUID loteId, UUID animalId, UUID empresa, String motivo, UUID actor) {
-        jdbc.sql("""
-                update ganado.membresias_lote set fecha_salida=now(),motivo_salida=:motivo,salida_por=:actor
-                where lote_id=:lote and animal_id=:animal and empresa_id=:e and fecha_salida is null""")
-                .param("motivo", motivo).param("actor", actor).param("lote", loteId)
-                .param("animal", animalId).param("e", empresa).update();
-        insertEvent(loteId, animalId, empresa, actor, "Retirado del lote", "salida", "LOTE");
+    public MembresiaLote openMembership(UUID loteId, String loteCodigo, UUID animalId, UUID empresa,
+                                        String motivoIngreso, String observacion, String modo,
+                                        Instant fechaIngreso, UUID actor) {
+        UUID id = UUID.randomUUID();
+        try {
+            jdbc.sql("""
+                    insert into ganado.membresias_lote(id,empresa_id,lote_id,animal_id,fecha_ingreso,
+                        motivo_ingreso,observacion,modo,ingresado_por)
+                    values(:id,:e,:lote,:animal,:ingreso,:motivo,:obs,:modo,:actor)""")
+                    .param("id", id).param("e", empresa).param("lote", loteId).param("animal", animalId)
+                    .param("ingreso", Timestamp.from(fechaIngreso)).param("motivo", motivoIngreso)
+                    .param("obs", observacion).param("modo", modo).param("actor", actor).update();
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException(ErrorCode.ANIMAL_ALREADY_IN_LOT);
+        }
+        return jdbc.sql("select m.* from ganado.membresias_lote m where m.id=:id").param("id", id)
+                .query(this::mapMembership).single();
     }
 
-    private void insertEvent(UUID loteId, UUID animalId, UUID empresa, UUID actor, String titulo, String detalle, String modulo) {
+    @Override
+    public void closeMembership(UUID loteId, String loteCodigo, UUID animalId, UUID empresa,
+                                String motivo, Instant fechaSalida, UUID actor) {
         jdbc.sql("""
-                insert into ganado.eventos_animal(id,empresa_id,animal_id,tipo,titulo,descripcion,modulo_origen,
-                    registro_origen,dispositivo,metadata,registrado_por,created_by,fecha_evento)
-                values(:id,:e,:animal,'LOTE',:titulo,:detalle,:modulo,:registro,null,'{}'::jsonb,:actor,:actor,now())""")
-                .param("id", UUID.randomUUID()).param("e", empresa).param("animal", animalId)
-                .param("titulo", titulo).param("detalle", detalle).param("modulo", modulo)
-                .param("registro", loteId).param("actor", actor).update();
+                update ganado.membresias_lote set fecha_salida=:salida,motivo_salida=:motivo,salida_por=:actor,
+                    version=version+1
+                where lote_id=:lote and animal_id=:animal and empresa_id=:e and fecha_salida is null""")
+                .param("salida", Timestamp.from(fechaSalida)).param("motivo", motivo).param("actor", actor)
+                .param("lote", loteId).param("animal", animalId).param("e", empresa).update();
+    }
+
+    @Override
+    public MembresiaLotePage findHistory(UUID loteId, UUID empresa, UUID animalId, Instant desde, Instant hasta,
+                                         String motivoIngreso, String motivoSalida, int page, int size) {
+        StringBuilder where = new StringBuilder(" where m.lote_id=:lote and m.empresa_id=:e");
+        Map<String, Object> params = new HashMap<>();
+        params.put("lote", loteId);
+        params.put("e", empresa);
+        if (animalId != null) {
+            where.append(" and m.animal_id=:animal");
+            params.put("animal", animalId);
+        }
+        if (desde != null) {
+            where.append(" and m.fecha_ingreso >= :desde");
+            params.put("desde", Timestamp.from(desde));
+        }
+        if (hasta != null) {
+            where.append(" and m.fecha_ingreso <= :hasta");
+            params.put("hasta", Timestamp.from(hasta));
+        }
+        if (motivoIngreso != null && !motivoIngreso.isBlank()) {
+            where.append(" and lower(coalesce(m.motivo_ingreso,'')) like :mi");
+            params.put("mi", "%" + motivoIngreso.toLowerCase() + "%");
+        }
+        if (motivoSalida != null && !motivoSalida.isBlank()) {
+            where.append(" and lower(coalesce(m.motivo_salida,'')) like :ms");
+            params.put("ms", "%" + motivoSalida.toLowerCase() + "%");
+        }
+        long total = jdbc.sql("select count(*) from ganado.membresias_lote m" + where).params(params)
+                .query(Long.class).single();
+        params.put("limit", size);
+        params.put("offset", (long) page * size);
+        List<MembresiaLote> values = jdbc.sql("select m.* from ganado.membresias_lote m" + where
+                        + " order by m.fecha_ingreso desc limit :limit offset :offset")
+                .params(params).query(this::mapMembership).list();
+        return MembresiaLotePage.of(values, page, size, total);
     }
 
     private Lote map(ResultSet rs, int rowNum) throws SQLException {
@@ -170,11 +218,12 @@ class JdbcLoteRepository implements LoteRepository {
         Instant salida = rs.getTimestamp("fecha_salida") == null ? null : rs.getTimestamp("fecha_salida").toInstant();
         return new MembresiaLote(rs.getObject("id", UUID.class), rs.getObject("lote_id", UUID.class),
                 rs.getObject("animal_id", UUID.class), rs.getTimestamp("fecha_ingreso").toInstant(), salida,
-                rs.getString("motivo_salida"), rs.getObject("ingresado_por", UUID.class),
-                rs.getObject("salida_por", UUID.class));
+                rs.getString("motivo_ingreso"), rs.getString("motivo_salida"), rs.getString("observacion"),
+                rs.getString("modo"), rs.getObject("ingresado_por", UUID.class),
+                rs.getObject("salida_por", UUID.class), rs.getLong("version"));
     }
 
     private BusinessException missingOrConflict(boolean exists) {
-        return new BusinessException(exists ? ErrorCode.VERSION_CONFLICT : ErrorCode.LOT_NOT_FOUND);
+        return new BusinessException(exists ? ErrorCode.LOT_VERSION_CONFLICT : ErrorCode.LOT_NOT_FOUND);
     }
 }

@@ -9,7 +9,11 @@ public record MembresiaLote(
         UUID animalId,
         Instant fechaIngreso,
         Instant fechaSalida,
+        String motivoIngreso,
         String motivoSalida,
+        String observacion,
+        String modo,
         UUID ingresadoPor,
-        UUID salidaPor) {
+        UUID salidaPor,
+        long version) {
 }

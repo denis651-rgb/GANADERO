@@ -6,7 +6,6 @@ import bo.com.ganadero.shared.error.ErrorCode;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
-import tools.jackson.databind.ObjectMapper;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -20,11 +19,9 @@ import java.util.UUID;
 @Repository
 class JdbcIdentificadorRepository implements IdentificadorRepository {
     private final JdbcClient jdbc;
-    private final ObjectMapper objectMapper;
 
-    JdbcIdentificadorRepository(JdbcClient jdbc, ObjectMapper objectMapper) {
+    JdbcIdentificadorRepository(JdbcClient jdbc) {
         this.jdbc = jdbc;
-        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -40,19 +37,30 @@ class JdbcIdentificadorRepository implements IdentificadorRepository {
     }
 
     @Override
+    public Optional<IdentificadorAnimal> findByQrIdentifier(UUID id, UUID empresa) {
+        return jdbc.sql("select * from ganado.identificadores_animal where id=:id and empresa_id=:e and tipo='QR'")
+                .param("id", id).param("e", empresa).query(this::map).optional();
+    }
+
+    @Override
+    public Optional<IdentificadorAnimal> findActiveQr(UUID animalId, UUID empresa) {
+        return jdbc.sql("select * from ganado.identificadores_animal where animal_id=:animal and empresa_id=:e and tipo='QR' and estado='ACTIVO' order by created_at desc limit 1")
+                .param("animal", animalId).param("e", empresa).query(this::map).optional();
+    }
+
+    @Override
     public IdentificadorAnimal create(IdentificadorAnimal i, UUID actor) {
         try {
             Map<String, Object> p = params(i);
             p.put("actor", actor);
             jdbc.sql("""
                     insert into ganado.identificadores_animal(id,empresa_id,animal_id,tipo,valor,principal,estado,
-                        fecha_asignacion,asignado_por,observaciones,created_by,updated_by)
-                    values(:id,:e,:animal,:tipo,:valor,:principal,:estado,:asignacion,:actor,:obs,:actor,:actor)""")
+                        fecha_asignacion,asignado_por,observaciones,payload,created_by,updated_by)
+                    values(:id,:e,:animal,:tipo,:valor,:principal,:estado,:asignacion,:actor,:obs,:payload,:actor,:actor)""")
                     .params(p).update();
         } catch (DataIntegrityViolationException ex) {
             throw new BusinessException(ErrorCode.IDENTIFIER_ALREADY_EXISTS);
         }
-        insertEvent(i, actor, "IDENTIFICADOR " + i.tipo().name() + " asignado", "asignado", i.valor());
         return findById(i.id(), i.animalId(), i.empresaId()).orElseThrow();
     }
 
@@ -70,22 +78,35 @@ class JdbcIdentificadorRepository implements IdentificadorRepository {
         } catch (DataIntegrityViolationException ex) {
             throw new BusinessException(ErrorCode.IDENTIFIER_ALREADY_EXISTS);
         }
-        insertEvent(i, actor, "Identificador " + i.tipo().name() + " actualizado", "actualizado", i.valor());
-        return findById(i.id(), i.animalId(), i.empresaId()).orElseThrow();
+        IdentificadorAnimal after = findById(i.id(), i.animalId(), i.empresaId()).orElseThrow();
+        return after;
     }
 
     @Override
     public IdentificadorAnimal retire(UUID id, UUID animalId, UUID empresa, String motivo, long version, UUID actor) {
         int changed = jdbc.sql("""
-                update ganado.identificadores_animal set estado='RETIRADO',fecha_retiro=now(),motivo_retiro=:motivo,
+                update ganado.identificadores_animal set estado='RETIRADO',principal=false,fecha_retiro=now(),motivo_retiro=:motivo,
                     retirado_por=:actor,updated_at=now(),updated_by=:actor,version=version+1
                 where id=:id and animal_id=:animal and empresa_id=:e and estado='ACTIVO' and version=:version""")
                 .param("id", id).param("animal", animalId).param("e", empresa)
                 .param("motivo", motivo).param("actor", actor).param("version", version).update();
         if (changed == 0) throw missingOrConflict(findById(id, animalId, empresa).isPresent());
-        IdentificadorAnimal saved = findById(id, animalId, empresa).orElseThrow();
-        insertEvent(saved, actor, "Identificador " + saved.tipo().name() + " retirado", "retirado", motivo);
-        return saved;
+        return findById(id, animalId, empresa).orElseThrow();
+    }
+
+    @Override
+    public IdentificadorAnimal setPrincipal(UUID id, UUID animalId, UUID empresa, long version, UUID actor) {
+        try {
+            int changed = jdbc.sql("""
+                    update ganado.identificadores_animal set principal=true,updated_at=now(),updated_by=:actor,version=version+1
+                    where id=:id and animal_id=:animal and empresa_id=:e and estado='ACTIVO' and version=:version""")
+                    .param("id", id).param("animal", animalId).param("e", empresa)
+                    .param("actor", actor).param("version", version).update();
+            if (changed == 0) throw missingOrConflict(findById(id, animalId, empresa).isPresent());
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException(ErrorCode.IDENTIFIER_ALREADY_EXISTS);
+        }
+        return findById(id, animalId, empresa).orElseThrow();
     }
 
     @Override
@@ -99,26 +120,10 @@ class JdbcIdentificadorRepository implements IdentificadorRepository {
         }
     }
 
-    private void insertEvent(IdentificadorAnimal i, UUID actor, String titulo, String accion, String detalle) {
-        String metadata = "{}";
-        try {
-            metadata = objectMapper.writeValueAsString(Map.of("tipo", i.tipo().name(), "valor", i.valor(), "accion", accion));
-        } catch (Exception ignored) {
-            // metadata opcional
-        }
-        jdbc.sql("""
-                insert into ganado.eventos_animal(id,empresa_id,animal_id,tipo,titulo,descripcion,modulo_origen,
-                    registro_origen,dispositivo,metadata,registrado_por,created_by,fecha_evento)
-                values(:id,:e,:animal,'IDENTIFICADOR',:titulo,:detalle,'IDENTIFICADORES',:registro,null,:metadata::jsonb,:actor,:actor,now())""")
-                .param("id", UUID.randomUUID())
-                .param("e", i.empresaId())
-                .param("animal", i.animalId())
-                .param("titulo", titulo)
-                .param("detalle", detalle)
-                .param("registro", i.id())
-                .param("metadata", metadata)
-                .param("actor", actor)
-                .update();
+    @Override
+    public void lockActiveIdentifiers(UUID animalId, UUID empresa) {
+        jdbc.sql("select id from ganado.identificadores_animal where empresa_id=:e and animal_id=:animal and estado='ACTIVO' for update")
+                .param("e", empresa).param("animal", animalId).query(UUID.class).list();
     }
 
     private Map<String, Object> params(IdentificadorAnimal i) {
@@ -132,6 +137,7 @@ class JdbcIdentificadorRepository implements IdentificadorRepository {
         p.put("estado", i.estado().name());
         p.put("asignacion", java.sql.Timestamp.from(i.fechaAsignacion()));
         p.put("obs", i.observaciones());
+        p.put("payload", i.payload());
         p.put("version", i.version());
         return p;
     }
@@ -145,10 +151,12 @@ class JdbcIdentificadorRepository implements IdentificadorRepository {
                 EstadoIdentificador.valueOf(rs.getString("estado")),
                 rs.getTimestamp("fecha_asignacion").toInstant(), retiro, rs.getString("motivo_retiro"),
                 rs.getObject("asignado_por", UUID.class), rs.getObject("retirado_por", UUID.class),
-                rs.getString("observaciones"), rs.getLong("version"));
+                rs.getString("observaciones"), rs.getString("payload"),
+                rs.getTimestamp("created_at").toInstant(), rs.getTimestamp("updated_at").toInstant(),
+                rs.getLong("version"));
     }
 
     private BusinessException missingOrConflict(boolean exists) {
-        return new BusinessException(exists ? ErrorCode.VERSION_CONFLICT : ErrorCode.IDENTIFIER_NOT_FOUND);
+        return new BusinessException(exists ? ErrorCode.IDENTIFIER_VERSION_CONFLICT : ErrorCode.IDENTIFIER_NOT_FOUND);
     }
 }

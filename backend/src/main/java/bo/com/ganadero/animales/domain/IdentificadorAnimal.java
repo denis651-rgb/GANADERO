@@ -17,5 +17,20 @@ public record IdentificadorAnimal(
         UUID asignadoPor,
         UUID retiradoPor,
         String observaciones,
+        String payload,
+        Instant createdAt,
+        Instant updatedAt,
         long version) {
+
+    public boolean activo() {
+        return estado == EstadoIdentificador.ACTIVO;
+    }
+
+    public boolean retirado() {
+        return estado == EstadoIdentificador.RETIRADO;
+    }
+
+    public boolean esQr() {
+        return tipo == TipoIdentificador.QR;
+    }
 }

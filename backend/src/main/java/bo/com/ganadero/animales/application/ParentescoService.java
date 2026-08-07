@@ -5,13 +5,18 @@ import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import bo.com.ganadero.shared.security.CurrentUser;
 import bo.com.ganadero.shared.security.UserContext;
+import bo.com.ganadero.timeline.application.RegistrarEventoTimeline;
+import bo.com.ganadero.timeline.application.TimelineEventPublisher;
+import bo.com.ganadero.timeline.domain.TipoEventoAnimal;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -21,13 +26,16 @@ public class ParentescoService {
     private final AnimalRepository animales;
     private final UserContext context;
     private final ApplicationEventPublisher events;
+    private final TimelineEventPublisher timeline;
 
     public ParentescoService(ParentescoRepository parentescos, AnimalRepository animales,
-                             UserContext context, ApplicationEventPublisher events) {
+                             UserContext context, ApplicationEventPublisher events,
+                             TimelineEventPublisher timeline) {
         this.parentescos = parentescos;
         this.animales = animales;
         this.context = context;
         this.events = events;
+        this.timeline = timeline;
     }
 
     @Transactional(readOnly = true)
@@ -47,6 +55,8 @@ public class ParentescoService {
                 command.nombreExterno(), command.razaExternaId(), command.registroGenealogico(),
                 Instant.now(), user.userId());
         Parentesco saved = parentescos.create(value, user.userId());
+        publicar(user, saved, TipoEventoAnimal.GENEALOGIA_REGISTRADA,
+                "Se registró el progenitor " + saved.tipo().name().toLowerCase() + ".");
         audit(user, "CREAR", saved.id(), animalId);
         return saved;
     }
@@ -68,6 +78,8 @@ public class ParentescoService {
                 merged.animalPadreId(), merged.nombreExterno(), merged.razaExternaId(),
                 merged.registroGenealogico(), current.fechaRegistro(), user.userId());
         Parentesco saved = parentescos.update(value, user.userId());
+        publicar(user, saved, TipoEventoAnimal.GENEALOGIA_ACTUALIZADA,
+                "Se actualizó el progenitor " + saved.tipo().name().toLowerCase() + ".");
         audit(user, "ACTUALIZAR", saved.id(), animalId);
         return saved;
     }
@@ -117,6 +129,19 @@ public class ParentescoService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.ANIMAL_NOT_FOUND));
         context.requirePropertyAccess(user, animal.propiedadActualId());
         return animal;
+    }
+
+    private void publicar(CurrentUser user, Parentesco parentesco, TipoEventoAnimal tipo, String descripcion) {
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("tipo", parentesco.tipo().name());
+        if (parentesco.animalPadreId() != null) {
+            metadata.put("animalPadreId", parentesco.animalPadreId().toString());
+        }
+        if (parentesco.nombreExterno() != null) {
+            metadata.put("nombreExterno", parentesco.nombreExterno());
+        }
+        timeline.publish(new RegistrarEventoTimeline(user.empresaId(), parentesco.animalId(), tipo, null,
+                descripcion, null, parentesco.id(), metadata, user.userId(), Instant.now(), null));
     }
 
     private void audit(CurrentUser user, String accion, UUID id, UUID animalId) {

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { SessionExpiredError } from '@/shared/api/http'
 import type { ApiErrorBody } from '@/shared/api/types'
 
 export class AppError extends Error {
@@ -16,6 +17,9 @@ export class AppError extends Error {
 }
 
 export function normalizeApiError(error: unknown): AppError {
+  if (error instanceof SessionExpiredError) {
+    return new AppError(error.message, { status: 401, code: 'SESSION_EXPIRED' })
+  }
   if (error instanceof AppError) return error
   if (axios.isAxiosError<ApiErrorBody>(error)) {
     const body = error.response?.data

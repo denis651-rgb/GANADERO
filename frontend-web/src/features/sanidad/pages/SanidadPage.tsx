@@ -8,6 +8,7 @@ export function SanidadPage() {
       description="Planes sanitarios, jornadas, tratamientos y cuarentenas."
       phase={3}
       icon={HeartPulse}
+      status="EN_DESARROLLO"
       capabilities={[
         "Planes sanitarios",
         "Vacunaci\u00f3n por lote",

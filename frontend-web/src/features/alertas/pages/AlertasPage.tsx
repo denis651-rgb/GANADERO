@@ -8,6 +8,7 @@ export function AlertasPage() {
       description="Reglas y eventos que requieren atenci\u00f3n del usuario."
       phase={3}
       icon={Bell}
+      status="EN_DESARROLLO"
       capabilities={[
         "Pr\u00f3ximos partos",
         "Vacunas pendientes",

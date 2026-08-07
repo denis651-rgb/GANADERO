@@ -57,7 +57,7 @@ export function LotesPage() {
     </form></Card>}
     <Card>
       <div className="filter-heading"><span className="search-box"><Search size={18} /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(0) }} placeholder="Buscar por código o nombre" /></span>
-        <select aria-label="Filtrar por estado" value={estado} onChange={(event) => { setEstado(event.target.value as EstadoLote | ''); setPage(0) }}><option value="">Todos los estados</option><option value="ABIERTO">Abierto</option><option value="CERRADO">Cerrado</option></select></div>
+        <select aria-label="Filtrar por estado" value={estado} onChange={(event) => { setEstado(event.target.value as EstadoLote | ''); setPage(0) }}><option value="">Todos los estados</option><option value="ACTIVO">Activo</option><option value="CERRADO">Cerrado</option></select></div>
       {query.isPending && <LoadingState message="Consultando lotes…" />}
       {query.data?.content.length === 0 && <EmptyState title="No hay lotes" description="Crea el primer lote para agrupar animales." />}
       {query.data && query.data.content.length > 0 && <>

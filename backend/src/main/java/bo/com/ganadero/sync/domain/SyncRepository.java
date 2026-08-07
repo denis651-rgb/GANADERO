@@ -9,8 +9,9 @@ public interface SyncRepository {
     Dispositivo upsertDispositivo(Dispositivo dispositivo);
     Optional<Dispositivo> findDispositivo(UUID empresa, String codigoDispositivo);
     Optional<OperacionSync> findOperacion(UUID empresa, UUID dispositivoId, UUID clienteId);
+    Optional<OperacionSync> findOperacionByIdempotencyKey(UUID empresa, String idempotencyKey);
     OperacionSync saveOperacion(OperacionSync operacion);
-    void setDispositivoOrigen(String codigoDispositivo);
+    void setDispositivoOrigen(String codigoDispositivo, UUID dispositivoId);
     List<CambioSync> pullCambios(UUID empresa, long cursor, int size);
     boolean hasCambiosDespues(UUID empresa, long cursor);
     long ultimoCursor(UUID empresa);

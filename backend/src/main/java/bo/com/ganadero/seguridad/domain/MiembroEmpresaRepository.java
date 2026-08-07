@@ -16,4 +16,5 @@ public interface MiembroEmpresaRepository {
     void replaceProperties(UUID miembroId, UUID empresaId, Set<UUID> propertyIds, long version, UUID actorId);
     long countActiveOwners(UUID empresaId);
     Optional<UsuarioActual> findCurrentUser(UUID usuarioId, UUID empresaId);
+    boolean existsActiveByEmail(UUID empresaId, String email);
 }

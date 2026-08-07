@@ -4,6 +4,8 @@ import { ProtectedRoute } from '@/app/routes/ProtectedRoute'
 import { LoginPage } from '@/auth/pages/LoginPage'
 import { ForgotPasswordPage } from '@/auth/pages/ForgotPasswordPage'
 import { PasswordActionPage } from '@/auth/pages/PasswordActionPage'
+import { ActivarInvitacionPage } from '@/features/invitaciones/pages/ActivarInvitacionPage'
+import { InvitacionesPage } from '@/features/invitaciones/pages/InvitacionesPage'
 import { PerfilPage } from '@/features/perfil/pages/PerfilPage'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
 import { EmpresaPage } from '@/features/empresa/pages/EmpresaPage'
@@ -15,6 +17,8 @@ import { AnimalesPage } from '@/features/animales/pages/AnimalesPage'
 import { NuevoAnimalPage } from '@/features/animales/pages/NuevoAnimalPage'
 import { AnimalDetailPage } from '@/features/animales/pages/AnimalDetailPage'
 import { EditarAnimalPage } from '@/features/animales/pages/EditarAnimalPage'
+import { QrScannerPage } from '@/features/animales/qr/pages/QrScannerPage'
+import { QrPrintPage } from '@/features/animales/qr/pages/QrPrintPage'
 import { LotesPage } from '@/features/lotes/pages/LotesPage'
 import { LoteDetailPage } from '@/features/lotes/pages/LoteDetailPage'
 import { MovimientosPage } from '@/features/movimientos/pages/MovimientosPage'
@@ -40,6 +44,7 @@ export function AppRouter() {
       <Route path="/auth/recuperar-contrasena" element={<ForgotPasswordPage />} />
       <Route path="/auth/restablecer-contrasena" element={<PasswordActionPage />} />
       <Route path="/auth/aceptar-invitacion" element={<PasswordActionPage invitation />} />
+      <Route path="/auth/activar-invitacion" element={<ActivarInvitacionPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
@@ -47,6 +52,7 @@ export function AppRouter() {
           <Route path="empresa" element={<EmpresaPage />} />
           <Route path="perfil" element={<PerfilPage />} />
           <Route path="usuarios" element={<UsuariosPage />} />
+          <Route path="invitaciones" element={<InvitacionesPage />} />
           <Route path="roles" element={<RolesPage />} />
           <Route path="propiedades" element={<PropiedadesPage />} />
           <Route path="potreros" element={<PotrerosPage />} />
@@ -69,6 +75,8 @@ export function AppRouter() {
           <Route path="alertas" element={<AlertasPage />} />
           <Route path="reportes" element={<ReportesPage />} />
           <Route path="sincronizacion" element={<SyncPage />} />
+          <Route path="animales/qr/imprimir" element={<QrPrintPage />} />
+          <Route path="qr/escanear" element={<QrScannerPage />} />
         </Route>
       </Route>
 

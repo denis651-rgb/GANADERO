@@ -56,7 +56,6 @@ class JdbcParentescoRepository implements ParentescoRepository {
         } catch (DataIntegrityViolationException ex) {
             throw new BusinessException(ErrorCode.PARENTESCO_ALREADY_EXISTS);
         }
-        insertEvent(p, actor, "asignado");
         return findById(p.id(), p.animalId(), p.empresaId()).orElseThrow();
     }
 
@@ -76,7 +75,6 @@ class JdbcParentescoRepository implements ParentescoRepository {
         } catch (DataIntegrityViolationException ex) {
             throw new BusinessException(ErrorCode.PARENTESCO_CYCLE);
         }
-        insertEvent(p, actor, "actualizado");
         return findById(p.id(), p.animalId(), p.empresaId()).orElseThrow();
     }
 
@@ -84,23 +82,6 @@ class JdbcParentescoRepository implements ParentescoRepository {
     public void delete(UUID id, UUID animalId, UUID empresa) {
         jdbc.sql("delete from ganado.parentescos where id=:id and animal_id=:animal and empresa_id=:e")
                 .param("id", id).param("animal", animalId).param("e", empresa).update();
-    }
-
-    private void insertEvent(Parentesco p, UUID actor, String accion) {
-        jdbc.sql("""
-                insert into ganado.eventos_animal(id,empresa_id,animal_id,tipo,titulo,descripcion,modulo_origen,
-                    registro_origen,dispositivo,metadata,registrado_por,created_by,fecha_evento)
-                values(:id,:e,:animal,'GENEALOGIA',:titulo,:detalle,'GENEALOGIA',:registro,null,'{}'::jsonb,:actor,:actor,now())""")
-                .param("id", UUID.randomUUID())
-                .param("e", p.empresaId())
-                .param("animal", p.animalId())
-                .param("titulo", p.tipo().name() + " " + accion)
-                .param("detalle", p.nombreExterno() != null ? p.nombreExterno()
-                        : (p.animalPadreId() != null ? "Animal registrado " + p.animalPadreId()
-                        : "Progenitor externo"))
-                .param("registro", p.id())
-                .param("actor", actor)
-                .update();
     }
 
     private Parentesco map(ResultSet rs, int rowNum) throws SQLException {

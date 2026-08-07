@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router'
 import { LogOut } from 'lucide-react'
-import { appModules } from '@/app/modules'
+import { appModules, MODULE_STATUS_LABEL } from '@/app/modules'
 import { useAuth } from '@/auth/auth-context'
 import { cn } from '@/shared/utils/cn'
 
@@ -29,7 +29,8 @@ export function Sidebar() {
             >
               <Icon size={19} aria-hidden="true" />
               <span>{module.label}</span>
-              {module.phase > 1 && <small>F{module.phase}</small>}
+              {module.status !== 'LISTO' && <small className={`module-status module-status-${module.status.toLowerCase()}`}>{MODULE_STATUS_LABEL[module.status]}</small>}
+              {module.status === 'LISTO' && module.phase > 1 && <small>F{module.phase}</small>}
             </NavLink>
           )
         })}

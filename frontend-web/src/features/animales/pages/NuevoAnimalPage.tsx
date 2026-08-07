@@ -10,7 +10,9 @@ import { listPropiedades } from '@/features/propiedades/api'
 import { listPotreros } from '@/features/potreros/api'
 import type { AnimalSummary, CreateAnimalInput } from '@/features/animales/types'
 import type { Page } from '@/shared/api/types'
-import { queueHttpOperation } from '@/offline/operationQueue'
+import { queueSyncOperation } from '@/offline/operationQueue'
+import { offlineFormCatalogs } from '@/offline/catalogs'
+import { createUuid } from '@/shared/utils/uuid'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
 import { Field } from '@/shared/components/Field'
@@ -32,6 +34,7 @@ export function NuevoAnimalPage() {
   })
   const propertyId = useWatch({ control, name: 'propiedadActualId' })
   const catalogs = useQuery({ queryKey: ['animal-form-catalogs'], queryFn: async () => {
+    if (!navigator.onLine) return offlineFormCatalogs()
     const [breeds, categories, properties, paddocks] = await Promise.all([listRazas(), listCategorias(), listPropiedades(), listPotreros()])
     return { breeds, categories, properties, paddocks }
   } })
@@ -40,12 +43,12 @@ export function NuevoAnimalPage() {
     setMessage(null)
     try {
       if (!navigator.onLine) {
-        await queueHttpOperation({
-          type: 'CREATE_ANIMAL',
-          entityType: 'ANIMAL',
-          method: 'POST',
-          url: '/api/v1/animales',
-          body: values,
+        const id = createUuid()
+        await queueSyncOperation({
+          tipo: 'ANIMAL_CREAR',
+          entidad: 'ANIMAL',
+          idempotencyKey: id,
+          datos: { ...values, id },
         })
         setMessage({ tone: 'info', text: 'Animal guardado en el dispositivo. Quedó pendiente de sincronización.' })
         return
