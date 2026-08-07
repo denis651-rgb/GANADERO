@@ -53,33 +53,53 @@ public class JdbcSyncRepository implements SyncRepository {
     }
 
     @Override
+    public Optional<OperacionSync> findOperacionByIdempotencyKey(UUID empresa, String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) return Optional.empty();
+        return jdbc.sql("""
+                select * from sync.operaciones
+                where empresa_id=:empresa and idempotency_key=:key
+                order by created_at limit 1
+                """).param("empresa", empresa).param("key", idempotencyKey)
+                .query(this::mapOperacion).optional();
+    }
+
+    @Override
     public OperacionSync saveOperacion(OperacionSync op) {
         jdbc.sql("""
                 insert into sync.operaciones(id,empresa_id,dispositivo_id,usuario_id,cliente_id,tipo,entidad,entidad_id,
                 datos,version_cliente,estado,resultado_codigo,resultado_mensaje,resultado_servidor,version_servidor,
-                conflictos,idempotency_key,created_at,applied_at)
-                values(:id,:empresa,:dispositivo,:usuario,:cliente,:tipo,:entidad,:entidadId,:datos,:versionCliente,
-                :estado,:codigo,:mensaje,:servidor,:versionServidor,:conflictos,:idempotency,now(),:appliedAt)
+                conflictos,idempotency_key,payload_hash,attempts,next_retry_at,last_error,created_at,applied_at)
+                values(:id,:empresa,:dispositivo,:usuario,:cliente,:tipo,:entidad,:entidadId,:datos::jsonb,
+                :versionCliente,:estado,:codigo,:mensaje,:servidor::jsonb,:versionServidor,
+                :conflictos::jsonb,:idempotency,:payloadHash,:attempts,
+                :nextRetryAt,:lastError,now(),:appliedAt)
                 on conflict (empresa_id, dispositivo_id, cliente_id) do update set
                 estado=excluded.estado,resultado_codigo=excluded.resultado_codigo,
                 resultado_mensaje=excluded.resultado_mensaje,resultado_servidor=excluded.resultado_servidor,
-                version_servidor=excluded.version_servidor,conflictos=excluded.conflictos,applied_at=excluded.applied_at
+                version_servidor=excluded.version_servidor,conflictos=excluded.conflictos,entidad_id=excluded.entidad_id,
+                payload_hash=excluded.payload_hash,attempts=excluded.attempts,
+                next_retry_at=excluded.next_retry_at,last_error=excluded.last_error,applied_at=excluded.applied_at
                 """).param("id", op.id()).param("empresa", op.empresaId()).param("dispositivo", op.dispositivoId())
                 .param("usuario", op.usuarioId()).param("cliente", op.clienteId()).param("tipo", op.tipo())
                 .param("entidad", op.entidad() == null ? "" : op.entidad()).param("entidadId", op.entidadId())
                 .param("datos", op.datosJson()).param("versionCliente", op.versionCliente())
-                .param("estado", op.estado()).param("codigo", op.resultadoCodigo())
+                .param("estado", op.estado().name()).param("codigo", op.resultadoCodigo())
                 .param("mensaje", op.resultadoMensaje()).param("servidor", op.resultadoServidorJson())
                 .param("versionServidor", op.versionServidor()).param("conflictos", op.conflictosJson())
-                .param("idempotency", op.idempotencyKey())
+                .param("idempotency", op.idempotencyKey()).param("payloadHash", op.payloadHash())
+                .param("attempts", op.attempts())
+                .param("nextRetryAt", op.nextRetryAt() == null ? null : java.sql.Timestamp.from(op.nextRetryAt()))
+                .param("lastError", op.lastError())
                 .param("appliedAt", op.appliedAt() == null ? null : java.sql.Timestamp.from(op.appliedAt())).update();
         return findOperacion(op.empresaId(), op.dispositivoId(), op.clienteId()).orElseThrow();
     }
 
     @Override
-    public void setDispositivoOrigen(String codigoDispositivo) {
+    public void setDispositivoOrigen(String codigoDispositivo, UUID dispositivoId) {
         jdbc.sql("select set_config('sync.dispositivo', :codigo, true)")
                 .param("codigo", codigoDispositivo == null ? "" : codigoDispositivo).query(String.class).single();
+        jdbc.sql("select set_config('app.dispositivo_id', :id, true)")
+                .param("id", dispositivoId == null ? "" : dispositivoId.toString()).query(String.class).single();
     }
 
     @Override
@@ -177,7 +197,7 @@ public class JdbcSyncRepository implements SyncRepository {
     public List<Map<String, Object>> bootstrapIdentificadores(UUID empresa, boolean todas, Set<UUID> permitidas) {
         return list("select i.id, i.empresa_id as \"empresaId\", i.animal_id as \"animalId\", i.tipo, i.valor, " +
                 "i.principal, i.estado, i.fecha_asignacion as \"fechaAsignacion\", i.fecha_retiro as \"fechaRetiro\", " +
-                "i.observaciones, i.version from ganado.identificadores_animal i " +
+                "i.observaciones, i.payload, i.version from ganado.identificadores_animal i " +
                 "join ganado.animales a on a.id=i.animal_id where i.empresa_id=:e",
                 "a.propiedad_actual_id", empresa, todas, permitidas);
     }
@@ -237,14 +257,17 @@ public class JdbcSyncRepository implements SyncRepository {
     private OperacionSync mapOperacion(ResultSet r, int row) throws SQLException {
         Timestamp appliedAt = r.getTimestamp("applied_at");
         Timestamp createdAt = r.getTimestamp("created_at");
+        Timestamp nextRetryAt = r.getTimestamp("next_retry_at");
         Long versionServidor = r.getObject("version_servidor") == null ? null : r.getLong("version_servidor");
         return new OperacionSync(r.getObject("id", UUID.class), r.getObject("empresa_id", UUID.class),
                 r.getObject("dispositivo_id", UUID.class), r.getObject("usuario_id", UUID.class),
                 r.getObject("cliente_id", UUID.class), r.getString("tipo"), r.getString("entidad"),
                 r.getObject("entidad_id", UUID.class), r.getString("datos"), r.getLong("version_cliente"),
-                r.getString("estado"), r.getString("resultado_codigo"), r.getString("resultado_mensaje"),
-                r.getString("resultado_servidor"), versionServidor, r.getString("conflictos"),
-                r.getString("idempotency_key"), createdAt == null ? null : createdAt.toInstant(),
+                EstadoOperacionSync.valueOf(r.getString("estado")), r.getString("resultado_codigo"),
+                r.getString("resultado_mensaje"), r.getString("resultado_servidor"), versionServidor,
+                r.getString("conflictos"), r.getString("idempotency_key"), r.getString("payload_hash"),
+                r.getInt("attempts"), nextRetryAt == null ? null : nextRetryAt.toInstant(),
+                r.getString("last_error"), createdAt == null ? null : createdAt.toInstant(),
                 appliedAt == null ? null : appliedAt.toInstant());
     }
 

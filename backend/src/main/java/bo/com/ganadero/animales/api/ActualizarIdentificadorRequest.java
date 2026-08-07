@@ -8,9 +8,10 @@ public record ActualizarIdentificadorRequest(
         TipoIdentificador tipo,
         @Size(max = 120) String valor,
         Boolean principal,
-        @Size(max = 1000) String observaciones) {
+        @Size(max = 1000) String observaciones,
+        Long version) {
 
     public IdentificadorCommand command() {
-        return new IdentificadorCommand(null, tipo, valor, principal, observaciones);
+        return new IdentificadorCommand(null, tipo, valor, principal, observaciones, version);
     }
 }

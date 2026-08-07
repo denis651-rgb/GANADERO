@@ -8,6 +8,7 @@ export function ReproduccionPage() {
       description="Celo, servicios, diagn\u00f3sticos, partos y destetes."
       phase={3}
       icon={Activity}
+      status="EN_DESARROLLO"
       capabilities={[
         "Registrar servicios",
         "Diagn\u00f3stico de gestaci\u00f3n",

@@ -14,6 +14,7 @@ public record MovimientoResponse(
         EstadoMovimiento estado,
         LocalDate fechaMovimiento,
         String motivo,
+        String observacion,
         UUID origenPropiedadId,
         UUID origenPotreroId,
         UUID origenLoteId,
@@ -26,12 +27,19 @@ public record MovimientoResponse(
         Instant fechaConfirmacion,
         Instant fechaAnulacion,
         String motivoAnulacion,
+        UUID usuarioRevierte,
+        Instant fechaReversion,
+        String motivoReversion,
+        UUID movimientoRevertidoId,
+        UUID movimientoReversionId,
         long version) {
 
     public static MovimientoResponse from(Movimiento m) {
-        return new MovimientoResponse(m.id(), m.tipo(), m.estado(), m.fechaMovimiento(), m.motivo(),
+        return new MovimientoResponse(m.id(), m.tipo(), m.estado(), m.fechaMovimiento(), m.motivo(), m.observacion(),
                 m.origenPropiedadId(), m.origenPotreroId(), m.origenLoteId(), m.destinoPropiedadId(),
                 m.destinoPotreroId(), m.destinoLoteId(), m.usuarioCrea(), m.usuarioConfirma(), m.usuarioAnula(),
-                m.fechaConfirmacion(), m.fechaAnulacion(), m.motivoAnulacion(), m.version());
+                m.fechaConfirmacion(), m.fechaAnulacion(), m.motivoAnulacion(), m.usuarioRevierte(),
+                m.fechaReversion(), m.motivoReversion(), m.movimientoRevertidoId(), m.movimientoReversionId(),
+                m.version());
     }
 }

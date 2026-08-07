@@ -38,6 +38,14 @@ app:
   bootstrap:
     enabled: ${APP_BOOTSTRAP_ENABLED:false}
     token: ${APP_BOOTSTRAP_TOKEN:}
+  invitations:
+    expiration-hours: ${APP_INVITATION_EXPIRATION_HOURS:72}
+    max-resend-attempts: ${APP_INVITATION_MAX_RESEND_ATTEMPTS:5}
+  qr:
+    signing-secret: ${APP_QR_SIGNING_SECRET:}
+    payload-version: ${APP_QR_PAYLOAD_VERSION:1}
+    max-payload-bytes: ${APP_QR_MAX_PAYLOAD_BYTES:2048}
+    resolver-rate-limit-per-minute: ${APP_QR_RESOLVER_RATE_LIMIT_PER_MINUTE:20}
   system-status:
     enabled: ${APP_SYSTEM_STATUS_ENABLED:false}
   storage:

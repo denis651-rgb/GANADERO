@@ -22,3 +22,5 @@ app:
     token: ${APP_BOOTSTRAP_TOKEN:local-bootstrap-change-me}
   system-status:
     enabled: ${APP_SYSTEM_STATUS_ENABLED:true}
+  qr:
+    signing-secret: local-qr-signing-secret-change-me

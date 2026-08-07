@@ -30,4 +30,8 @@ public class UserContext {
             throw new BusinessException(ErrorCode.PROPERTY_ACCESS_DENIED);
         }
     }
+
+    public boolean hasPropertyAccess(CurrentUser user, UUID propiedadId) {
+        return user.accesoTodasPropiedades() || user.propiedadesPermitidas().contains(propiedadId);
+    }
 }

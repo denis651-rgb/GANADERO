@@ -6,6 +6,8 @@ app:
     token: test-bootstrap-token
   system-status:
     enabled: true
+  qr:
+    signing-secret: test-qr-signing-secret
   cors:
     allowed-origins: http://localhost:5173
 

@@ -9,13 +9,18 @@ import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import bo.com.ganadero.shared.security.CurrentUser;
 import bo.com.ganadero.shared.security.UserContext;
+import bo.com.ganadero.timeline.application.RegistrarEventoTimeline;
+import bo.com.ganadero.timeline.application.TimelineEventPublisher;
+import bo.com.ganadero.timeline.domain.TipoEventoAnimal;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -25,14 +30,16 @@ public class PesajeService {
     private final LoteRepository lotes;
     private final UserContext context;
     private final ApplicationEventPublisher events;
+    private final TimelineEventPublisher timeline;
 
     public PesajeService(PesajeRepository pesajes, AnimalRepository animales, LoteRepository lotes,
-                         UserContext context, ApplicationEventPublisher events) {
+                         UserContext context, ApplicationEventPublisher events, TimelineEventPublisher timeline) {
         this.pesajes = pesajes;
         this.animales = animales;
         this.lotes = lotes;
         this.context = context;
         this.events = events;
+        this.timeline = timeline;
     }
 
     @Transactional(readOnly = true)
@@ -76,6 +83,7 @@ public class PesajeService {
                 command.dispositivo(), clienteUuid, command.idempotencyKey(), EstadoPesaje.ACTIVO,
                 null, null, null, command.observaciones(), null, null, 0);
         Pesaje saved = pesajes.create(value, user.userId());
+        publicar(user, saved, TipoEventoAnimal.PESAJE_REGISTRADO, null, null);
         audit(user, "REGISTRAR", saved.id());
         return saved;
     }
@@ -97,6 +105,7 @@ public class PesajeService {
                     command.idempotencyKey(), EstadoPesaje.ACTIVO, null, null, null,
                     command.observaciones(), null, null, 0);
             Pesaje saved = pesajes.create(value, user.userId());
+            publicar(user, saved, TipoEventoAnimal.PESAJE_REGISTRADO, null, null);
             audit(user, "REGISTRAR_LOTE", saved.id());
             return saved;
         }).toList();
@@ -110,8 +119,24 @@ public class PesajeService {
         context.requirePropertyAccess(user, animal.propiedadActualId());
         if (pesaje.estado() == EstadoPesaje.ANULADO) throw new BusinessException(ErrorCode.PESAJE_ALREADY_ANNULLED);
         Pesaje saved = pesajes.annul(id, user.empresaId(), motivo, version, user.userId());
+        publicar(user, saved, TipoEventoAnimal.PESAJE_ANULADO, motivo,
+                "PESAJE_ANULADO|" + saved.id() + "|" + saved.version());
         audit(user, "ANULAR", saved.id());
         return saved;
+    }
+
+    private void publicar(CurrentUser user, Pesaje pesaje, TipoEventoAnimal tipo, String motivo,
+                          String idempotencyKey) {
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("pesoKg", pesaje.pesoKg());
+        metadata.put("fecha", pesaje.fecha().toString());
+        metadata.put("tipo", pesaje.tipo().name());
+        if (pesaje.condicionCorporal() != null) metadata.put("condicionCorporal", pesaje.condicionCorporal());
+        if (pesaje.dispositivo() != null) metadata.put("dispositivo", pesaje.dispositivo());
+        if (motivo != null) metadata.put("motivo", motivo);
+        timeline.publish(new RegistrarEventoTimeline(user.empresaId(), pesaje.animalId(), tipo, null,
+                pesaje.pesoKg() + " kg" + (motivo == null ? "" : " · " + motivo), null, pesaje.id(),
+                metadata, user.userId(), Instant.now(), idempotencyKey));
     }
 
     private Animal requireAnimal(CurrentUser user, UUID animalId) {

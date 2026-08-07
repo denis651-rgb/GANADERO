@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, CalendarClock, Edit3, MapPin, RefreshCw } from 'lucide-react'
-import { changeAnimalState, getAnimal, getAnimalHistory, listCategorias, listRazas } from '@/features/animales/api'
+import { changeAnimalState, getAnimal, getAnimalTimeline, listCategorias, listRazas } from '@/features/animales/api'
 import { GenealogiaTab } from '@/features/animales/components/GenealogiaTab'
 import { IdentificadoresTab } from '@/features/animales/components/IdentificadoresTab'
+import { FotosTab } from '@/features/animales/components/FotosTab'
 import type { AnimalState } from '@/features/animales/types'
 import { listPropiedades } from '@/features/propiedades/api'
 import { listPotreros } from '@/features/potreros/api'
@@ -17,14 +18,31 @@ import { PageHeader } from '@/shared/components/PageHeader'
 import { normalizeApiError } from '@/shared/api/errors'
 
 const states: AnimalState[] = ['ACTIVO', 'VENDIDO', 'MUERTO', 'PERDIDO', 'TRANSFERIDO', 'DESCARTADO']
-type Tab = 'historial' | 'identificadores' | 'genealogia'
+type Tab = 'timeline' | 'identificadores' | 'genealogia' | 'fotos'
 
 export function AnimalDetailPage() {
   const { id = '' } = useParams()
-  const [tab, setTab] = useState<Tab>('historial')
+  const [tab, setTab] = useState<Tab>('timeline')
+  const [filtroTipo, setFiltroTipo] = useState('')
+  const [filtroModulo, setFiltroModulo] = useState('')
+  const [desde, setDesde] = useState('')
+  const [hasta, setHasta] = useState('')
+  const [page, setPage] = useState(0)
+  const timelineSize = 10
   const client = useQueryClient()
   const animal = useQuery({ queryKey: ['animal', id], queryFn: () => getAnimal(id), enabled: Boolean(id) })
-  const history = useQuery({ queryKey: ['animal-history', id], queryFn: () => getAnimalHistory(id), enabled: Boolean(id) })
+  const history = useQuery({
+    queryKey: ['animal-timeline', id, { tipo: filtroTipo, modulo: filtroModulo, desde, hasta, page, size: timelineSize }],
+    queryFn: () => getAnimalTimeline(id, {
+      tipo: filtroTipo || undefined,
+      modulo: filtroModulo || undefined,
+      desde: desde || undefined,
+      hasta: hasta || undefined,
+      page,
+      size: timelineSize,
+    }),
+    enabled: Boolean(id),
+  })
   const catalogs = useQuery({ queryKey: ['animal-detail-catalogs'], queryFn: async () => {
     const [breeds, categories, properties, paddocks] = await Promise.all([listRazas(), listCategorias(), listPropiedades(), listPotreros()])
     return { breeds, categories, properties, paddocks }
@@ -37,7 +55,7 @@ export function AnimalDetailPage() {
     onSuccess: async () => {
       await Promise.all([
         client.invalidateQueries({ queryKey: ['animal', id] }),
-        client.invalidateQueries({ queryKey: ['animal-history', id] }),
+        client.invalidateQueries({ queryKey: ['animal-timeline', id] }),
         client.invalidateQueries({ queryKey: ['animals'] }),
       ])
     },
@@ -64,12 +82,37 @@ export function AnimalDetailPage() {
     </div>
     <Card><h3><RefreshCw size={19} /> Cambiar estado</h3><form className="state-form" onSubmit={(event) => { event.preventDefault(); stateMutation.mutate(event.currentTarget) }}><select name="estado" defaultValue="" required><option value="" disabled>Selecciona el nuevo estado…</option>{states.filter((state) => state !== value.estado).map((state) => <option key={state}>{state}</option>)}</select><input name="motivo" required maxLength={1000} placeholder="Motivo del cambio" /><Button type="submit" loading={stateMutation.isPending}>Actualizar estado</Button></form></Card>
     <div className="tabs">
-      <button type="button" className={`tab-button ${tab === 'historial' ? 'active' : ''}`} onClick={() => setTab('historial')}><CalendarClock size={17} /> Historial</button>
+      <button type="button" className={`tab-button ${tab === 'timeline' ? 'active' : ''}`} onClick={() => setTab('timeline')}><CalendarClock size={17} /> Línea de tiempo</button>
       <button type="button" className={`tab-button ${tab === 'identificadores' ? 'active' : ''}`} onClick={() => setTab('identificadores')}>Identificadores</button>
+      <button type="button" className={`tab-button ${tab === 'fotos' ? 'active' : ''}`} onClick={() => setTab('fotos')}>Fotografías</button>
       <button type="button" className={`tab-button ${tab === 'genealogia' ? 'active' : ''}`} onClick={() => setTab('genealogia')}>Genealogía</button>
     </div>
-    {tab === 'identificadores' && <IdentificadoresTab animalId={id} />}
+    {tab === 'identificadores' && <IdentificadoresTab animalId={id} animalCodigo={value.codigo} />}
+    {tab === 'fotos' && <FotosTab animalId={id} />}
     {tab === 'genealogia' && <GenealogiaTab animalId={id} />}
-    {tab === 'historial' && <Card><h3>Historial</h3>{history.isPending && <LoadingState message="Cargando historial…" />}{history.data?.length === 0 && <EmptyState title="Sin eventos" description="Todavía no existen eventos para este animal." />}{history.data && history.data.length > 0 && <ol className="timeline">{history.data.map((event) => <li key={event.id}><span className="timeline-dot" /><div><strong>{event.titulo ?? event.tipo.replaceAll('_', ' ')}</strong><time>{new Date(event.fechaEvento).toLocaleString('es-BO')}</time>{event.moduloOrigen && <span className="table-secondary">Módulo: {event.moduloOrigen}</span>}<p>{event.descripcion ?? event.motivo ?? 'Sin detalle adicional.'}</p>{event.estadoAnterior && event.estadoNuevo && event.estadoAnterior !== event.estadoNuevo && <span className="table-secondary">{event.estadoAnterior} → {event.estadoNuevo}</span>}</div></li>)}</ol>}</Card>}
+    {tab === 'timeline' && <Card><h3>Línea de tiempo</h3>
+      <div className="filter-heading" style={{ justifyContent: 'flex-start' }}>
+        <select aria-label="Filtrar por tipo" value={filtroTipo} onChange={(event) => { setFiltroTipo(event.target.value); setPage(0) }}><option value="">Todos los tipos</option>{[...new Set(history.data?.content.map((event) => event.tipo) ?? [])].map((tipo) => <option key={tipo}>{tipo}</option>)}</select>
+        <select aria-label="Filtrar por módulo" value={filtroModulo} onChange={(event) => { setFiltroModulo(event.target.value); setPage(0) }}><option value="">Todos los módulos</option>{[...new Set(history.data?.content.map((event) => event.moduloOrigen) ?? [])].map((modulo) => <option key={modulo}>{modulo}</option>)}</select>
+        <input type="date" aria-label="Desde" value={desde} onChange={(event) => { setDesde(event.target.value); setPage(0) }} />
+        <input type="date" aria-label="Hasta" value={hasta} onChange={(event) => { setHasta(event.target.value); setPage(0) }} />
+      </div>
+      {history.isPending && <LoadingState message="Cargando línea de tiempo…" />}
+      {history.data?.content.length === 0 && <EmptyState title="Sin eventos" description="Todavía no existen eventos para este animal." />}
+      {history.data && history.data.content.length > 0 && <ol className="timeline">{history.data.content.map((event) => {
+        const metadata = Object.entries(event.metadata ?? {})
+          .filter(([key, val]) => key !== 'origenSync' && (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean'))
+        return <li key={event.id}><span className="timeline-dot" /><div>
+          <strong>{event.titulo ?? event.tipo.replaceAll('_', ' ')}</strong>
+          <time>{new Date(event.fechaTecnica ?? event.fechaEvento).toLocaleString('es-BO')}</time>
+          <span className="table-secondary">Módulo: {event.moduloOrigen}</span>
+          {event.origenSync && <span className="status-badge">Sincronizado</span>}
+          <p>{event.descripcion ?? 'Sin detalle adicional.'}</p>
+          {event.usuarioNombre && <span className="table-secondary">Registrado por: {event.usuarioNombre}</span>}
+          {metadata.map(([key, val]) => <span key={key} className="table-secondary">{key.replaceAll('_', ' ')}: {String(val)}</span>)}
+        </div></li>
+      })}</ol>}
+      {history.data && history.data.content.length > 0 && <div className="pagination"><span>Página {history.data.page + 1} de {Math.max(history.data.totalPages, 1)}</span><div><Button variant="ghost" disabled={page === 0 || history.isFetching} onClick={() => setPage((value) => value - 1)}>Anterior</Button><Button variant="ghost" disabled={page + 1 >= history.data.totalPages || history.isFetching} onClick={() => setPage((value) => value + 1)}>Siguiente</Button></div></div>}
+    </Card>}
   </div>
 }

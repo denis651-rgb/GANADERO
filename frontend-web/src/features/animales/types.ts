@@ -70,6 +70,23 @@ export interface AnimalEvent {
   createdBy?: string
 }
 
+export interface TimelineEvent {
+  id: string
+  tipo: string
+  titulo?: string
+  descripcion?: string
+  fechaTecnica: string
+  fechaEvento: string
+  usuarioId?: string
+  usuarioNombre?: string
+  dispositivoId?: string
+  moduloOrigen: string
+  registroOrigenId?: string
+  metadata: Record<string, unknown>
+  origenSync: boolean
+  idempotencyKey?: string
+}
+
 export type TipoIdentificador = 'ARETE' | 'QR' | 'RFID' | 'TATUAJE' | 'OTRO'
 export type EstadoIdentificador = 'ACTIVO' | 'RETIRADO'
 
@@ -84,6 +101,7 @@ export interface Identificador {
   fechaRetiro?: string
   motivoRetiro?: string
   observaciones?: string
+  payload?: string
   version: number
 }
 
@@ -92,6 +110,14 @@ export interface AsignarIdentificadorInput {
   valor: string
   principal?: boolean
   observaciones?: string
+}
+
+export interface ActualizarIdentificadorInput {
+  tipo?: TipoIdentificador
+  valor?: string
+  principal?: boolean
+  observaciones?: string
+  version?: number
 }
 
 export type TipoParentesco = 'MADRE' | 'PADRE'

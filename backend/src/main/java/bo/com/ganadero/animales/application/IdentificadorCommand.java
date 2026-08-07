@@ -9,5 +9,6 @@ public record IdentificadorCommand(
         TipoIdentificador tipo,
         String valor,
         Boolean principal,
-        String observaciones) {
+        String observaciones,
+        Long version) {
 }

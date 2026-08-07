@@ -98,6 +98,24 @@ export function AuthProvider({ children }: PropsWithChildren) {
     : (supabase ? 'loading' : 'anonymous'))
   const [user, setUser] = useState<AuthUser | null>(initialMockUser)
   const [session, setSession] = useState<Session | null>(null)
+  const [sessionExpired, setSessionExpired] = useState(false)
+
+  useEffect(() => {
+    const evaluate = () => {
+      if (authMode === 'mock' || !session?.expires_at) {
+        setSessionExpired(false)
+        return
+      }
+      setSessionExpired(Date.now() >= session.expires_at * 1000)
+    }
+    evaluate()
+    const interval = window.setInterval(evaluate, 60_000)
+    window.addEventListener('online', evaluate)
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener('online', evaluate)
+    }
+  }, [session])
 
   useEffect(() => {
     setAccessTokenProvider(async () => session?.access_token ?? null)
@@ -166,7 +184,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
     if (authMode === 'mock') {
       localStorage.removeItem(MOCK_STORAGE_KEY)
     } else if (supabase) {
-      await supabase.auth.signOut()
+      try {
+        await supabase.auth.signOut()
+      } catch {
+        // Sin conexión: se limpia igualmente la sesión local.
+      }
     }
     setSession(null)
     setUser(null)
@@ -178,7 +200,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return Boolean(user?.permissions.includes('*') || user?.permissions.includes(permission))
   }, [user])
 
-  const value = useMemo<AuthContextValue>(() => ({ status, user, signIn, signOut, can }), [status, user, signIn, signOut, can])
+  const value = useMemo<AuthContextValue>(
+    () => ({ status, user, signIn, signOut, can, sessionExpired }),
+    [status, user, signIn, signOut, can, sessionExpired],
+  )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

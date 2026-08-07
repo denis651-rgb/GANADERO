@@ -61,6 +61,17 @@ public class MovimientoController {
         return ok(MovimientoResponse.from(service.annul(id, body.motivo(), body.version())), request);
     }
 
+    @PostMapping("/{id}/validar")
+    ApiResponse<ValidacionMovimientoResponse> validar(@PathVariable UUID id, HttpServletRequest request) {
+        return ok(ValidacionMovimientoResponse.from(service.validar(id)), request);
+    }
+
+    @PostMapping("/{id}/revertir")
+    ApiResponse<MovimientoResponse> revertir(@PathVariable UUID id, @Valid @RequestBody RevertirMovimientoRequest body,
+                                             HttpServletRequest request) {
+        return ok(MovimientoResponse.from(service.revert(id, body.motivo(), body.version())), request);
+    }
+
     private <T> ApiResponse<T> ok(T data, HttpServletRequest request) {
         Object value = request.getAttribute(CorrelationIdFilter.ATTRIBUTE);
         return ApiResponse.success(data, value == null ? "unknown" : value.toString());

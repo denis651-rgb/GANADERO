@@ -10,7 +10,8 @@ import { listLotes } from '@/features/lotes/api'
 import { listPropiedades } from '@/features/propiedades/api'
 import { listPotreros } from '@/features/potreros/api'
 import { AnimalPicker } from '@/features/pesajes/components/AnimalPicker'
-import { queueHttpOperation } from '@/offline/operationQueue'
+import { queueSyncOperation } from '@/offline/operationQueue'
+import { offlineFormCatalogs } from '@/offline/catalogs'
 import { createUuid } from '@/shared/utils/uuid'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
@@ -45,10 +46,11 @@ export function RegistrarPesajeForm({ onSaved, onCancel }: RegistrarPesajeFormPr
   const catalogs = useQuery({
     queryKey: ['pesaje-form-catalogs'],
     queryFn: async () => {
+      if (!navigator.onLine) return offlineFormCatalogs()
       const [properties, paddocks, lots] = await Promise.all([
         listPropiedades(),
         listPotreros(),
-        listLotes({ estado: 'ABIERTO', page: 0, size: 200 }),
+        listLotes({ estado: 'ACTIVO', page: 0, size: 200 }),
       ])
       return { properties, paddocks, lots }
     },
@@ -60,21 +62,22 @@ export function RegistrarPesajeForm({ onSaved, onCancel }: RegistrarPesajeFormPr
       return
     }
     setMessage(null)
+    const id = createUuid()
     const input = {
       ...values,
       animalId: selected.id,
+      id,
       dispositivo: 'WEB',
-      clienteUuid: createUuid(),
-      idempotencyKey: createUuid(),
+      clienteUuid: id,
+      idempotencyKey: id,
     }
     try {
       if (!navigator.onLine) {
-        await queueHttpOperation({
-          type: 'REGISTER_PESAJE',
-          entityType: 'PESAJE',
-          method: 'POST',
-          url: '/api/v1/pesajes',
-          body: input,
+        await queueSyncOperation({
+          tipo: 'PESAJE_REGISTRAR',
+          entidad: 'PESAJE',
+          idempotencyKey: id,
+          datos: input,
         })
         setMessage({ tone: 'info', text: 'Pesaje guardado en el dispositivo. Quedó pendiente de sincronización.' })
         reset({ animalId: '', tipo: 'RUTINA' })
@@ -129,7 +132,7 @@ export function RegistrarPesajeForm({ onSaved, onCancel }: RegistrarPesajeFormPr
           <select {...register('potreroId')}><option value="">Sin especificar</option>{catalogs.data?.paddocks.filter((item) => item.activo && item.propiedadId === propertyId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
         </Field>
         <Field label="Lote" error={errors.loteId?.message}>
-          <select {...register('loteId')}><option value="">Sin especificar</option>{catalogs.data?.lots.content.filter((item) => item.estado === 'ABIERTO').map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
+          <select {...register('loteId')}><option value="">Sin especificar</option>{catalogs.data?.lots.content.filter((item) => item.estado === 'ACTIVO').map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
         </Field>
         <div className="form-full">
           <Field label="Observaciones" error={errors.observaciones?.message}>

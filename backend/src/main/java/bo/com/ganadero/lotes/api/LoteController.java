@@ -1,6 +1,9 @@
 package bo.com.ganadero.lotes.api;
 
+import bo.com.ganadero.lotes.application.HistorialLoteFilter;
+import bo.com.ganadero.lotes.application.IngresoMasivoResultado;
 import bo.com.ganadero.lotes.application.LoteService;
+import bo.com.ganadero.lotes.application.RetiroMasivoResultado;
 import bo.com.ganadero.lotes.domain.EstadoLote;
 import bo.com.ganadero.shared.api.ApiResponse;
 import bo.com.ganadero.shared.web.CorrelationIdFilter;
@@ -11,6 +14,7 @@ import jakarta.validation.constraints.Min;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -52,7 +56,7 @@ public class LoteController {
     @PostMapping("/{id}/cerrar")
     ApiResponse<LoteResponse> close(@PathVariable UUID id, @Valid @RequestBody CerrarLoteRequest body,
                                     HttpServletRequest request) {
-        return ok(LoteResponse.from(service.close(id, body.version())), request);
+        return ok(LoteResponse.from(service.close(id, body.version(), body.fechaCierre(), body.motivo())), request);
     }
 
     @GetMapping("/{id}/animales")
@@ -63,17 +67,32 @@ public class LoteController {
     }
 
     @PostMapping("/{id}/animales")
-    ApiResponse<List<MembresiaResponse>> addAnimales(@PathVariable UUID id,
-                                                     @Valid @RequestBody LoteAnimalesRequest body,
-                                                     HttpServletRequest request) {
-        return ok(service.addAnimals(id, body.animalIds()).stream().map(MembresiaResponse::from).toList(), request);
+    ApiResponse<IngresoMasivoResultado> addAnimales(@PathVariable UUID id,
+                                                    @Valid @RequestBody IngresoLoteRequest body,
+                                                    HttpServletRequest request) {
+        return ok(service.addAnimals(id, body.command()), request);
     }
 
     @PostMapping("/{id}/retirar-animales")
-    ApiResponse<List<MembresiaResponse>> removeAnimales(@PathVariable UUID id,
-                                                        @Valid @RequestBody LoteAnimalesRequest body,
-                                                        HttpServletRequest request) {
-        return ok(service.removeAnimals(id, body.animalIds(), body.motivo()).stream().map(MembresiaResponse::from).toList(), request);
+    ApiResponse<RetiroMasivoResultado> removeAnimales(@PathVariable UUID id,
+                                                      @Valid @RequestBody RetiroLoteRequest body,
+                                                      HttpServletRequest request) {
+        return ok(service.removeAnimals(id, body.command()), request);
+    }
+
+    @GetMapping("/{id}/historial")
+    ApiResponse<MembresiaLotePageResponse> historial(@PathVariable UUID id,
+                                                     @RequestParam(required = false) UUID animalId,
+                                                     @RequestParam(required = false) Instant desde,
+                                                     @RequestParam(required = false) Instant hasta,
+                                                     @RequestParam(required = false) String motivoIngreso,
+                                                     @RequestParam(required = false) String motivoSalida,
+                                                     @RequestParam(defaultValue = "0") @Min(0) int page,
+                                                     @RequestParam(defaultValue = "20") @Min(1) @Max(500) int size,
+                                                     HttpServletRequest request) {
+        HistorialLoteFilter filter = new HistorialLoteFilter(animalId, desde, hasta,
+                motivoIngreso, motivoSalida, page, size);
+        return ok(MembresiaLotePageResponse.from(service.historial(id, filter)), request);
     }
 
     private <T> ApiResponse<T> ok(T data, HttpServletRequest request) {

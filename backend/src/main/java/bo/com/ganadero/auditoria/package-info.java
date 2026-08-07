@@ -6,6 +6,6 @@
  * infraestructura interna de otro módulo.</p>
  */
 @org.springframework.modulith.ApplicationModule(
-        allowedDependencies = {"animales", "propiedades", "potreros", "seguridad", "lotes", "movimientos", "pesajes", "shared"}
+        allowedDependencies = {"animales", "propiedades", "potreros", "seguridad", "lotes", "movimientos", "pesajes", "archivos", "shared"}
 )
 package bo.com.ganadero.auditoria;

@@ -1,10 +1,13 @@
-export type PendingStatus = 'PENDING' | 'SYNCING' | 'SYNCED' | 'ERROR' | 'CONFLICT'
+export type PendingStatus = 'PENDING' | 'PROCESSING' | 'SYNCED' | 'CONFLICT' | 'REJECTED' | 'RETRYABLE'
 
 export interface LocalCatalog {
   id: string
   type: string
   code: string
   name: string
+  activo?: boolean
+  propiedadId?: string
+  estado?: string
   version: number
   updatedAt: string
 }
@@ -20,6 +23,18 @@ export interface LocalAnimalSummary {
   paddockId: string
   lotId?: string
   status: string
+  version: number
+  updatedAt: string
+}
+
+export interface LocalIdentifier {
+  id: string
+  animalId: string
+  tipo: string
+  valor: string
+  principal: boolean
+  estado: string
+  payload?: string
   version: number
   updatedAt: string
 }
@@ -47,17 +62,22 @@ export interface LocalPaddock {
 export interface PendingOperation {
   id?: number
   operationId: string
-  type: string
-  entityType: string
-  entityId?: string
-  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-  url: string
-  body: unknown
+  tipo: string
+  entidad: string
+  entidadId?: string
+  versionCliente?: number
+  idempotencyKey: string
+  payloadHash?: string
+  datos?: Record<string, unknown>
   status: PendingStatus
   attempts: number
   createdAt: string
   updatedAt: string
   lastError?: string
+  nextRetryAt?: string
+  datosServidor?: unknown
+  versionServidor?: number
+  conflictos?: string[]
 }
 
 export interface PendingFile {
@@ -68,9 +88,14 @@ export interface PendingFile {
   file: Blob
   fileName: string
   mimeType: string
+  principal: boolean
   status: PendingStatus
+  attempts: number
+  progress: number
   createdAt: string
+  updatedAt: string
   lastError?: string
+  nextRetryAt?: string
 }
 
 export interface SyncState {

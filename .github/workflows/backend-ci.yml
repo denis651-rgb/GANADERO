@@ -1,4 +1,4 @@
-name: Backend CI
+﻿name: Backend CI
 
 on:
   pull_request:
@@ -8,28 +8,52 @@ on:
       - "infrastructure/**"
       - ".github/workflows/backend-ci.yml"
   push:
-    branches: [main, develop]
+    branches:
+      - main
+      - develop
     paths:
       - "backend/**"
       - "database/**"
       - "infrastructure/**"
       - ".github/workflows/backend-ci.yml"
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
     defaults:
       run:
+        shell: bash
         working-directory: backend
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
           cache: maven
           cache-dependency-path: backend/pom.xml
-      - name: Dar permisos al Maven Wrapper
+
+      - name: Verificar formato LF de Maven Wrapper
+        run: |
+          if grep -q $'\r' mvnw; then
+            echo "ERROR: backend/mvnw contiene finales de línea CRLF"
+            exit 1
+          fi
+
+      - name: Dar permiso de ejecución
         run: chmod +x mvnw
-      - name: Verificar backend
+
+      - name: Mostrar versión de Maven
+        run: ./mvnw --version
+
+      - name: Compilar y ejecutar pruebas
         run: ./mvnw -B clean verify

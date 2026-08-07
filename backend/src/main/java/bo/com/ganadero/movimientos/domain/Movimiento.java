@@ -11,6 +11,7 @@ public record Movimiento(
         EstadoMovimiento estado,
         LocalDate fechaMovimiento,
         String motivo,
+        String observacion,
         UUID origenPropiedadId,
         UUID origenPotreroId,
         UUID origenLoteId,
@@ -23,5 +24,10 @@ public record Movimiento(
         Instant fechaConfirmacion,
         Instant fechaAnulacion,
         String motivoAnulacion,
+        UUID usuarioRevierte,
+        Instant fechaReversion,
+        String motivoReversion,
+        UUID movimientoRevertidoId,
+        UUID movimientoReversionId,
         long version) {
 }

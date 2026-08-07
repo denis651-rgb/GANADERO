@@ -8,6 +8,7 @@ export function InventarioPage() {
       description="Productos, lotes, almacenes, existencias y movimientos."
       phase={4}
       icon={PackageSearch}
+      status="EN_DESARROLLO"
       capabilities={[
         "Control por lote",
         "Vencimientos",

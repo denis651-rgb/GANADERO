@@ -8,6 +8,7 @@ export function ReportesPage() {
       description="Indicadores productivos, sanitarios y econ\u00f3micos."
       phase={6}
       icon={FileBarChart}
+      status="PROXIMAMENTE"
       capabilities={[
         "Inventario ganadero",
         "Productividad",
