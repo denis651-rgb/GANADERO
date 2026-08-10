@@ -121,7 +121,7 @@ class JdbcTimelineRepository implements TimelineRepository {
 
     private String dispositivoActual() {
         return jdbc.sql("select current_setting('sync.dispositivo', true)")
-                .query(String.class).single();
+                .query(String.class).optional().orElse(null);
     }
 
     private UUID dispositivoId(UUID empresa, String codigo) {
