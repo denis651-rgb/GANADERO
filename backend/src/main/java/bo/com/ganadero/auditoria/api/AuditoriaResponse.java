@@ -8,6 +8,7 @@ import java.util.UUID;
 
 public record AuditoriaResponse(
         UUID id,
+        UUID empresaId,
         UUID usuarioId,
         String accion,
         String modulo,
@@ -25,7 +26,7 @@ public record AuditoriaResponse(
 
     public static AuditoriaResponse from(AuditoriaRegistro r) {
         return new AuditoriaResponse(
-                r.id(), r.usuarioId(), r.accion(), r.modulo(), r.entidad(), r.entidadId(),
+                r.id(), r.empresaId(), r.usuarioId(), r.accion(), r.modulo(), r.entidad(), r.entidadId(),
                 r.correlationId(), r.resultado(), r.datos(), r.datosAnteriores(), r.datosNuevos(),
                 r.dispositivo(), r.ip(), r.userAgent(), r.createdAt());
     }

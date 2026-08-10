@@ -28,5 +28,9 @@ public record Pesaje(
         String observaciones,
         String codigoAnimal,
         String nombreAnimal,
+        String loteNombre,
+        String potreroNombre,
+        String propiedadNombre,
+        String responsableNombre,
         long version) {
 }

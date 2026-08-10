@@ -8,6 +8,8 @@ public record AuditoriaFilter(
         String modulo,
         String accion,
         String entidad,
+        UUID propiedadId,
+        String correlationId,
         LocalDateTime desde,
         LocalDateTime hasta,
         int page,

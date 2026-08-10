@@ -30,12 +30,15 @@ public class AuditoriaController {
             @RequestParam(required = false) String modulo,
             @RequestParam(required = false) String accion,
             @RequestParam(required = false) String entidad,
+            @RequestParam(required = false) UUID propiedadId,
+            @RequestParam(required = false) String correlationId,
             @RequestParam(required = false) LocalDateTime desde,
             @RequestParam(required = false) LocalDateTime hasta,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(500) int size,
             HttpServletRequest request) {
-        AuditPage result = service.list(new AuditoriaFilter(usuarioId, modulo, accion, entidad, desde, hasta, page, size));
+        AuditPage result = service.list(new AuditoriaFilter(usuarioId, modulo, accion, entidad, propiedadId,
+                correlationId, desde, hasta, page, size));
         return ok(AuditPageResponse.from(result), request);
     }
 

@@ -322,6 +322,11 @@ public class MovimientoService {
         UUID property = movimiento.destinoPropiedadId() != null ? movimiento.destinoPropiedadId() : animal.propiedadActualId();
         UUID paddock = movimiento.destinoPotreroId() != null ? movimiento.destinoPotreroId() : animal.potreroActualId();
         UUID lote = animal.loteActualId();
+        if (movimiento.destinoPotreroId() != null
+                && !animales.validLocation(user.empresaId(), property, paddock)) {
+            throw new BusinessException(ErrorCode.INVALID_MOVEMENT_DESTINATION,
+                    "El potrero de destino no pertenece a la propiedad de destino.");
+        }
         if (movimiento.destinoLoteId() != null) {
             Lote destino = lotes.findById(movimiento.destinoLoteId(), user.empresaId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.LOT_NOT_FOUND));

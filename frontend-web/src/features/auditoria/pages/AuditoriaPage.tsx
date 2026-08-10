@@ -1,7 +1,8 @@
 import { Fragment, useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, ClipboardList, ChevronDown, ChevronUp } from 'lucide-react'
-import { listAuditoria } from '@/features/auditoria/api'
+import { listAuditoria, type AuditoriaRegistro } from '@/features/auditoria/api'
+import { listPropiedades } from '@/features/propiedades/api'
 import { listUsuarios } from '@/features/usuarios/api'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
@@ -11,24 +12,43 @@ import { LoadingState } from '@/shared/components/LoadingState'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { normalizeApiError } from '@/shared/api/errors'
 
+function diffObjects(antes: Record<string, unknown> | undefined, nuevo: Record<string, unknown> | undefined) {
+  const a = antes ?? {}
+  const n = nuevo ?? {}
+  const keys = Array.from(new Set([...Object.keys(a), ...Object.keys(n)]))
+  return keys.filter((key) => JSON.stringify(a[key]) !== JSON.stringify(n[key]))
+}
+
+function Diferencia({ item }: { item: AuditoriaRegistro }) {
+  const changed = diffObjects(item.datosAnteriores, item.datosNuevos)
+  if (changed.length === 0) return null
+  return <div>
+    <h4>Diferencia</h4>
+    <pre className="code-block">{changed.map((key) => `${key}: ${JSON.stringify(item.datosAnteriores?.[key] ?? null)} → ${JSON.stringify(item.datosNuevos?.[key] ?? null)}`).join('\n')}</pre>
+  </div>
+}
+
 export function AuditoriaPage() {
   const [page, setPage] = useState(0)
   const [modulo, setModulo] = useState('')
   const [accion, setAccion] = useState('')
   const [entidad, setEntidad] = useState('')
   const [usuarioId, setUsuarioId] = useState('')
+  const [propiedadId, setPropiedadId] = useState('')
+  const [correlationId, setCorrelationId] = useState('')
   const [desde, setDesde] = useState('')
   const [hasta, setHasta] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const size = 15
 
   const query = useQuery({
-    queryKey: ['auditoria', { modulo, accion, entidad, usuarioId, desde, hasta, page, size }],
-    queryFn: () => listAuditoria({ modulo, accion, entidad, usuarioId, desde: desde || undefined, hasta: hasta || undefined, page, size }),
+    queryKey: ['auditoria', { modulo, accion, entidad, usuarioId, propiedadId, correlationId, desde, hasta, page, size }],
+    queryFn: () => listAuditoria({ modulo, accion, entidad, usuarioId, propiedadId, correlationId, desde: desde || undefined, hasta: hasta || undefined, page, size }),
     placeholderData: keepPreviousData,
   })
   const usuarios = useQuery({ queryKey: ['auditoria-usuarios'], queryFn: listUsuarios })
-  const error = query.error ?? usuarios.error
+  const propiedades = useQuery({ queryKey: ['auditoria-propiedades'], queryFn: listPropiedades })
+  const error = query.error ?? usuarios.error ?? propiedades.error
 
   return <div className="page-stack">
     <PageHeader eyebrow="Seguridad" title="Auditoría" description="Trazabilidad de acciones, cambios y correlación de solicitudes." />
@@ -36,10 +56,12 @@ export function AuditoriaPage() {
     <Card>
       <div className="filter-heading"><span><ClipboardList size={18} />Filtros</span>{query.data && <strong>{query.data.totalElements} registros</strong>}</div>
       <div className="animal-filters">
-        <select aria-label="Filtrar por módulo" value={modulo} onChange={(event) => { setModulo(event.target.value); setPage(0) }}><option value="">Todos los módulos</option>{['ANIMALES', 'PROPIEDADES', 'POTREROS', 'LOTES', 'MOVIMIENTOS', 'SEGURIDAD', 'AUDITORIA'].map((value) => <option key={value}>{value}</option>)}</select>
-        <select aria-label="Filtrar por acción" value={accion} onChange={(event) => { setAccion(event.target.value); setPage(0) }}><option value="">Todas las acciones</option>{['CREAR', 'ACTUALIZAR', 'ELIMINAR', 'CERRAR', 'ASIGNAR', 'CONFIRMAR', 'ANULAR', 'BLOQUEAR', 'ACTIVAR'].map((value) => <option key={value}>{value}</option>)}</select>
-        <select aria-label="Filtrar por entidad" value={entidad} onChange={(event) => { setEntidad(event.target.value); setPage(0) }}><option value="">Toda entidad</option>{['ANIMAL', 'IDENTIFICADOR', 'PARENTESCO', 'LOTE', 'MOVIMIENTO', 'MIEMBRO_EMPRESA', 'ROL', 'PROPIEDAD', 'POTRERO'].map((value) => <option key={value}>{value}</option>)}</select>
+        <select aria-label="Filtrar por módulo" value={modulo} onChange={(event) => { setModulo(event.target.value); setPage(0) }}><option value="">Todos los módulos</option>{['EMPRESAS', 'ANIMALES', 'PROPIEDADES', 'POTREROS', 'LOTES', 'MOVIMIENTOS', 'PESAJE', 'ARCHIVOS', 'SEGURIDAD', 'SINCRONIZACION', 'AUDITORIA'].map((value) => <option key={value}>{value}</option>)}</select>
+        <select aria-label="Filtrar por acción" value={accion} onChange={(event) => { setAccion(event.target.value); setPage(0) }}><option value="">Todas las acciones</option>{['CREAR', 'ACTUALIZAR', 'ELIMINAR', 'CERRAR', 'ASIGNAR', 'CONFIRMAR', 'ANULAR', 'BLOQUEAR', 'ACTIVAR', 'INVITAR', 'RETIRAR', 'RESOLVER_QR', 'PULL', 'PUSH', 'BOOTSTRAP', 'REGISTRAR_DISPOSITIVO'].map((value) => <option key={value}>{value}</option>)}</select>
+        <select aria-label="Filtrar por entidad" value={entidad} onChange={(event) => { setEntidad(event.target.value); setPage(0) }}><option value="">Toda entidad</option>{['EMPRESA', 'CONFIGURACION_EMPRESA', 'ANIMAL', 'IDENTIFICADOR', 'PARENTESCO', 'LOTE', 'MOVIMIENTO', 'PESAJE', 'DOCUMENTO', 'MIEMBRO_EMPRESA', 'ROL', 'PROPIEDAD', 'POTRERO', 'DISPOSITIVO', 'OPERACIONES'].map((value) => <option key={value}>{value}</option>)}</select>
         <select aria-label="Filtrar por usuario" value={usuarioId} onChange={(event) => { setUsuarioId(event.target.value); setPage(0) }}><option value="">Todos los usuarios</option>{usuarios.data?.map((user) => <option key={user.id} value={user.usuarioId}>{user.nombres} {user.apellidos}</option>)}</select>
+        <select aria-label="Filtrar por propiedad" value={propiedadId} onChange={(event) => { setPropiedadId(event.target.value); setPage(0) }}><option value="">Toda propiedad</option>{propiedades.data?.map((propiedad) => <option key={propiedad.id} value={propiedad.id}>{propiedad.codigo} · {propiedad.nombre}</option>)}</select>
+        <input aria-label="Correlation ID" placeholder="Correlation ID" value={correlationId} onChange={(event) => { setCorrelationId(event.target.value); setPage(0) }} />
         <input aria-label="Desde" type="datetime-local" value={desde} onChange={(event) => { setDesde(event.target.value); setPage(0) }} />
         <input aria-label="Hasta" type="datetime-local" value={hasta} onChange={(event) => { setHasta(event.target.value); setPage(0) }} />
       </div>
@@ -57,6 +79,7 @@ export function AuditoriaPage() {
                 {item.datosAnteriores && <div><h4>Datos anteriores</h4><pre className="code-block">{JSON.stringify(item.datosAnteriores, null, 2)}</pre></div>}
                 {item.datosNuevos && <div><h4>Datos nuevos</h4><pre className="code-block">{JSON.stringify(item.datosNuevos, null, 2)}</pre></div>}
               </div>
+              <Diferencia item={item} />
               <p className="table-secondary">IP: {item.ip ?? '—'} · Dispositivo: {item.dispositivo ?? '—'} · Correlation: {item.correlationId ?? '—'}{item.userAgent ? ` · UA: ${item.userAgent}` : ''}</p>
             </div></td></tr>}
           </Fragment>

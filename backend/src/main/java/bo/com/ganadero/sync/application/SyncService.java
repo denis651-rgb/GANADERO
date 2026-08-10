@@ -13,8 +13,10 @@ import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import bo.com.ganadero.shared.security.CurrentUser;
 import bo.com.ganadero.shared.security.UserContext;
+import bo.com.ganadero.shared.audit.SyncAuditEvent;
 import bo.com.ganadero.sync.api.*;
 import bo.com.ganadero.sync.domain.*;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,12 +44,14 @@ public class SyncService {
     private final MovimientoService movimientos;
     private final UserContext context;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher events;
     private final TransactionTemplate tx;
     private final TransactionTemplate retryTx;
 
     public SyncService(SyncRepository sync, AnimalService animales, IdentificadorService identificadores,
                        PesajeService pesajes, MovimientoService movimientos, UserContext context,
-                       ObjectMapper objectMapper, PlatformTransactionManager transactionManager) {
+                       ObjectMapper objectMapper, ApplicationEventPublisher events,
+                       PlatformTransactionManager transactionManager) {
         this.sync = sync;
         this.animales = animales;
         this.identificadores = identificadores;
@@ -55,6 +59,7 @@ public class SyncService {
         this.movimientos = movimientos;
         this.context = context;
         this.objectMapper = objectMapper;
+        this.events = events;
         this.tx = new TransactionTemplate(transactionManager);
         this.tx.setPropagationBehavior(TransactionTemplate.PROPAGATION_REQUIRES_NEW);
         this.retryTx = new TransactionTemplate(transactionManager);
@@ -65,6 +70,9 @@ public class SyncService {
     public SyncDispositivoResponse registrarDispositivo(SyncPushRequest.DispositivoInfo info) {
         CurrentUser user = context.requirePermission("SINC_DISPOSITIVO_REGISTRAR");
         Dispositivo d = requireDispositivo(user, info);
+        events.publishEvent(new SyncAuditEvent(user.empresaId(), user.userId(), "REGISTRAR_DISPOSITIVO",
+                "DISPOSITIVO", d.id(), Map.of("codigo", d.codigoDispositivo(), "plataforma", d.plataforma(),
+                "versionApp", d.versionApp()), Instant.now()));
         return new SyncDispositivoResponse(d.id(), d.codigoDispositivo(), d.nombre(), d.plataforma(), d.versionApp(),
                 d.estado().name(), d.ultimoCursor());
     }
@@ -81,6 +89,9 @@ public class SyncService {
                 .map(c -> new CambioResponse(c.id(), c.tabla(), c.entidadId(), c.tipoCambio(),
                         parse(c.datosJson()), c.dispositivoOrigen(), c.createdAt()))
                 .toList();
+        events.publishEvent(new SyncAuditEvent(user.empresaId(), user.userId(), "PULL", "DISPOSITIVO",
+                dispositivo.id(), Map.of("cursor", nuevoCursor, "cambios", cambios.size(), "hayMas", hayMas),
+                Instant.now()));
         return new SyncPullResponse(dispositivo.id(), nuevoCursor, hayMas, Instant.now(), responses);
     }
 
@@ -94,6 +105,8 @@ public class SyncService {
         Map<String, Object> empresaData = sync.bootstrapEmpresas(empresa).stream().findFirst().orElse(Map.of());
         long cursor = sync.ultimoCursor(empresa);
         sync.upsertDispositivo(withCursor(dispositivo, cursor));
+        events.publishEvent(new SyncAuditEvent(user.empresaId(), user.userId(), "BOOTSTRAP", "DISPOSITIVO",
+                dispositivo.id(), Map.of("cursor", cursor), Instant.now()));
         return new SyncBootstrapResponse(dispositivo.id(), cursor, empresaData,
                 sync.bootstrapPropiedades(empresa, todas, permitidas),
                 sync.bootstrapSectores(empresa, todas, permitidas),
@@ -118,6 +131,7 @@ public class SyncService {
         }
         long cursor = sync.ultimoCursor(user.empresaId());
         sync.upsertDispositivo(withCursor(dispositivo, cursor));
+        publicarPush(user, dispositivo, resultados);
         return new SyncPushResponse(dispositivo.id(), cursor, resultados);
     }
 
@@ -129,8 +143,20 @@ public class SyncService {
         for (SyncPushRequest.OperacionRequest op : operaciones) {
             resultados.add(procesar(user, dispositivo, op));
         }
+        publicarPush(user, dispositivo, resultados);
         long procesadas = resultados.stream().filter(r -> "SYNCED".equals(r.estado())).count();
         return new LoteResponse(procesadas, resultados.size() - procesadas, resultados);
+    }
+
+    private void publicarPush(CurrentUser user, Dispositivo dispositivo, List<OperacionResultado> resultados) {
+        Map<String, Object> resumen = new LinkedHashMap<>();
+        resumen.put("procesadas", resultados.size());
+        resumen.put("sincronizadas", resultados.stream().filter(r -> "SYNCED".equals(r.estado())).count());
+        resumen.put("conflictos", resultados.stream().filter(r -> "CONFLICT".equals(r.estado())).count());
+        resumen.put("rechazadas", resultados.stream().filter(r -> "REJECTED".equals(r.estado())).count());
+        resumen.put("reintentables", resultados.stream().filter(r -> "RETRYABLE".equals(r.estado())).count());
+        tx.executeWithoutResult(status -> events.publishEvent(new SyncAuditEvent(user.empresaId(), user.userId(), "PUSH",
+                "OPERACIONES", dispositivo.id(), resumen, Instant.now())));
     }
 
     private OperacionResultado procesar(CurrentUser user, Dispositivo dispositivo,

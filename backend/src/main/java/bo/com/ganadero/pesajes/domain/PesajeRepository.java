@@ -1,7 +1,9 @@
 package bo.com.ganadero.pesajes.domain;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public interface PesajeRepository {
@@ -12,4 +14,11 @@ public interface PesajeRepository {
     List<UUID> listActiveAnimalsOfLote(UUID loteId, UUID empresa);
     Pesaje create(Pesaje pesaje, UUID actor);
     Pesaje annul(UUID id, UUID empresa, String motivo, long version, UUID actor);
+
+    Optional<PesajeIndicadorLote> indicadorLote(UUID loteId, UUID empresa);
+    BigDecimal promedioPesoLote(UUID loteId, UUID empresa);
+    long countAnimalesActivosLote(UUID loteId, UUID empresa);
+    List<PesajeSinPesaje> animalesSinPesaje(UUID empresa, boolean todasPropiedades, Set<UUID> propiedades,
+                                            int page, int size);
+    long countAnimalesSinPesaje(UUID empresa, boolean todasPropiedades, Set<UUID> propiedades);
 }

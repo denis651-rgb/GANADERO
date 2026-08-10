@@ -14,11 +14,14 @@ import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import bo.com.ganadero.shared.security.CurrentUser;
 import bo.com.ganadero.shared.security.UserContext;
+import bo.com.ganadero.timeline.application.RegistrarEventoTimeline;
+import bo.com.ganadero.timeline.domain.TipoEventoAnimal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -43,11 +46,14 @@ class LoteServiceTest {
     private UUID loteId;
     private UUID otherLoteId;
     private UUID animalId;
+    private UUID otherAnimalId;
     private UUID userId;
+    private final List<Object> published = new ArrayList<>();
     private LoteService service;
 
     @BeforeEach
     void setup() {
+        published.clear();
         lotes = mock(LoteRepository.class);
         animales = mock(AnimalRepository.class);
         company = UUID.randomUUID();
@@ -56,11 +62,96 @@ class LoteServiceTest {
         loteId = UUID.randomUUID();
         otherLoteId = UUID.randomUUID();
         animalId = UUID.randomUUID();
+        otherAnimalId = UUID.randomUUID();
         userId = UUID.randomUUID();
         CurrentUser user = new CurrentUser(userId, company, UUID.randomUUID(), Set.of(),
                 Set.of("LOTE_VER", "LOTE_CREAR", "LOTE_EDITAR", "LOTE_ASIGNAR_ANIMALES"),
                 Set.of(), true);
-        service = new LoteService(lotes, animales, new UserContext(() -> user), event -> {}, event -> {});
+        service = new LoteService(lotes, animales, new UserContext(() -> user), published::add, published::add);
+    }
+
+    @Test
+    void createLoteSuccess() {
+        when(lotes.create(any(Lote.class), eq(userId))).thenReturn(lote(EstadoLote.ACTIVO));
+        Lote created = service.create(new LoteCommand(property, "L-2", "Lote 2", null, null));
+        assertThat(created.estado()).isEqualTo(EstadoLote.ACTIVO);
+        verify(lotes).create(any(Lote.class), eq(userId));
+        assertThat(published).anyMatch(e -> e instanceof LoteAuditEvent ev && "CREAR_LOTE".equals(ev.accion()));
+    }
+
+    @Test
+    void updateLoteSuccess() {
+        when(lotes.findById(loteId, company)).thenReturn(Optional.of(lote(EstadoLote.ACTIVO)));
+        when(lotes.update(any(Lote.class), eq(userId))).thenReturn(lote(EstadoLote.ACTIVO));
+        Lote updated = service.update(loteId, new LoteCommand(property, "L-2", "Renombrado", null, null));
+        assertThat(updated.estado()).isEqualTo(EstadoLote.ACTIVO);
+        verify(lotes).update(any(Lote.class), eq(userId));
+        assertThat(published).anyMatch(e -> e instanceof LoteAuditEvent ev && "ACTUALIZAR_LOTE".equals(ev.accion()));
+    }
+
+    @Test
+    void updateLoteRejectsClosedLot() {
+        when(lotes.findById(loteId, company)).thenReturn(Optional.of(lote(EstadoLote.CERRADO)));
+        assertThatThrownBy(() -> service.update(loteId, new LoteCommand(property, "L-2", "X", null, null)))
+                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.LOT_ALREADY_CLOSED));
+        verify(lotes, never()).update(any(), any());
+    }
+
+    @Test
+    void updateLotePropagatesVersionConflict() {
+        when(lotes.findById(loteId, company)).thenReturn(Optional.of(lote(EstadoLote.ACTIVO)));
+        when(lotes.update(any(Lote.class), eq(userId)))
+                .thenThrow(new BusinessException(ErrorCode.LOT_VERSION_CONFLICT));
+        assertThatThrownBy(() -> service.update(loteId, new LoteCommand(property, "L-2", "X", null, null)))
+                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.LOT_VERSION_CONFLICT));
+    }
+
+    @Test
+    void closePropagatesVersionConflict() {
+        when(lotes.findById(loteId, company)).thenReturn(Optional.of(lote(EstadoLote.ACTIVO)));
+        when(lotes.hasActiveAnimals(loteId, company)).thenReturn(false);
+        when(lotes.close(eq(loteId), eq(company), eq(0L), any(), any(), eq(userId)))
+                .thenThrow(new BusinessException(ErrorCode.LOT_VERSION_CONFLICT));
+        assertThatThrownBy(() -> service.close(loteId, 0, null, null))
+                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.LOT_VERSION_CONFLICT));
+    }
+
+    @Test
+    void addAnimalsRejectsAnimalFromAnotherCompany() {
+        when(lotes.findById(loteId, company)).thenReturn(Optional.of(lote(EstadoLote.ACTIVO)));
+        when(animales.findById(animalId, company)).thenReturn(Optional.empty());
+        when(animales.findByIdAnyCompany(animalId)).thenReturn(Optional.of(animal(EstadoAnimal.ACTIVO)));
+        assertThatThrownBy(() -> service.addAnimals(loteId, ingreso(List.of(animalId), "ATOMICO")))
+                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.ANIMAL_COMPANY_MISMATCH));
+        verify(lotes, never()).openMembership(any(), any(), any(), any());
+    }
+
+    @Test
+    void addAnimalsAtomicoPropagatesErrorForRollback() {
+        when(lotes.findById(loteId, company)).thenReturn(Optional.of(lote(EstadoLote.ACTIVO)));
+        when(animales.findById(animalId, company)).thenReturn(Optional.of(animal(EstadoAnimal.ACTIVO)));
+        when(animales.findById(otherAnimalId, company)).thenReturn(Optional.of(animal(EstadoAnimal.VENDIDO)));
+        when(lotes.findActiveMembership(animalId, company)).thenReturn(Optional.empty());
+        when(lotes.openMembership(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(membresia(loteId, animalId));
+        assertThatThrownBy(() -> service.addAnimals(loteId,
+                new IngresoLoteCommand(List.of(animalId, otherAnimalId), "ATOMICO", null, null, null)))
+                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.ANIMAL_STATUS_NOT_ALLOWED));
+    }
+
+    @Test
+    void addAnimalsGeneraTimelineYAuditoria() {
+        when(lotes.findById(loteId, company)).thenReturn(Optional.of(lote(EstadoLote.ACTIVO)));
+        when(animales.findById(animalId, company)).thenReturn(Optional.of(animal(EstadoAnimal.ACTIVO)));
+        when(lotes.findActiveMembership(animalId, company)).thenReturn(Optional.empty());
+        when(lotes.openMembership(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(membresia(loteId, animalId));
+        IngresoMasivoResultado result = service.addAnimals(loteId, ingreso(List.of(animalId), null));
+        assertThat(result.ok()).isTrue();
+        assertThat(published).anyMatch(e -> e instanceof RegistrarEventoTimeline ev
+                && ev.tipo() == TipoEventoAnimal.LOTE_ASIGNADO && ev.animalId().equals(animalId));
+        assertThat(published).anyMatch(e -> e instanceof LoteAuditEvent ev
+                && "INGRESAR_ANIMAL_LOTE".equals(ev.accion()));
     }
 
     @Test
