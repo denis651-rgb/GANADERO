@@ -35,10 +35,19 @@ public class JdbcPesajeRepository implements PesajeRepository {
             "left join seguridad.perfiles_usuario pu on pu.id=p.responsable_id";
 
     @Override
-    public PesajePage findAll(UUID empresa, UUID animalId, UUID propiedadId, int page, int size) {
+    public PesajePage findAll(UUID empresa, Set<UUID> propiedades, boolean todasPropiedades,
+                              UUID animalId, UUID propiedadId, int page, int size) {
         StringBuilder filter = new StringBuilder(" where p.empresa_id=:e");
         Map<String, Object> params = new HashMap<>();
         params.put("e", empresa);
+        if (!todasPropiedades) {
+            if (propiedades.isEmpty()) {
+                filter.append(" and 1=0");
+            } else {
+                filter.append(" and p.propiedad_id in (:allowedProperties)");
+                params.put("allowedProperties", propiedades);
+            }
+        }
         if (animalId != null) {
             filter.append(" and p.animal_id=:animal");
             params.put("animal", animalId);
