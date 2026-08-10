@@ -72,7 +72,7 @@ export function AnimalDetailPage() {
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
     {stateMutation.isSuccess && <Alert tone="success">Estado actualizado correctamente.</Alert>}
     <div className="two-column-grid">
-      <Card><div className="detail-heading"><h3>Datos principales</h3><span className="status-badge">{value.estado}</span></div><dl className="detail-list">
+      <Card><div className="detail-heading"><h3>Datos principales</h3><span className={`status-badge status-${value.estado.toLowerCase()}`}>{value.estado}</span></div><dl className="detail-list">
         <div><dt>Sexo</dt><dd>{value.sexo}</dd></div><div><dt>Raza</dt><dd>{catalogs.data?.breeds.find((item) => item.id === value.razaPrincipalId)?.nombre ?? '—'}</dd></div>
         <div><dt>Categoría</dt><dd>{catalogs.data?.categories.find((item) => item.id === value.categoriaActualId)?.nombre ?? '—'}</dd></div><div><dt>Propósito</dt><dd>{value.proposito}</dd></div>
         <div><dt>Nacimiento</dt><dd>{value.fechaNacimiento ?? '—'}{value.fechaNacimientoEstimada ? ' (estimada)' : ''}</dd></div><div><dt>Origen</dt><dd>{value.origen}</dd></div>
@@ -81,16 +81,16 @@ export function AnimalDetailPage() {
       <Card><h3><MapPin size={19} /> Ubicación y observaciones</h3><p><strong>{location || 'Ubicación no disponible'}</strong></p><p className="muted">{value.observaciones || 'Sin observaciones registradas.'}</p></Card>
     </div>
     <Card><h3><RefreshCw size={19} /> Cambiar estado</h3><form className="state-form" onSubmit={(event) => { event.preventDefault(); stateMutation.mutate(event.currentTarget) }}><select name="estado" defaultValue="" required><option value="" disabled>Selecciona el nuevo estado…</option>{states.filter((state) => state !== value.estado).map((state) => <option key={state}>{state}</option>)}</select><input name="motivo" required maxLength={1000} placeholder="Motivo del cambio" /><Button type="submit" loading={stateMutation.isPending}>Actualizar estado</Button></form></Card>
-    <div className="tabs">
-      <button type="button" className={`tab-button ${tab === 'timeline' ? 'active' : ''}`} onClick={() => setTab('timeline')}><CalendarClock size={17} /> Línea de tiempo</button>
-      <button type="button" className={`tab-button ${tab === 'identificadores' ? 'active' : ''}`} onClick={() => setTab('identificadores')}>Identificadores</button>
-      <button type="button" className={`tab-button ${tab === 'fotos' ? 'active' : ''}`} onClick={() => setTab('fotos')}>Fotografías</button>
-      <button type="button" className={`tab-button ${tab === 'genealogia' ? 'active' : ''}`} onClick={() => setTab('genealogia')}>Genealogía</button>
+    <div className="tabs" role="tablist" aria-label="Secciones del animal">
+      <button type="button" role="tab" id="tab-timeline" aria-selected={tab === 'timeline'} aria-controls="panel-timeline" className={`tab-button ${tab === 'timeline' ? 'active' : ''}`} onClick={() => setTab('timeline')}><CalendarClock size={17} /> Línea de tiempo</button>
+      <button type="button" role="tab" id="tab-identificadores" aria-selected={tab === 'identificadores'} aria-controls="panel-identificadores" className={`tab-button ${tab === 'identificadores' ? 'active' : ''}`} onClick={() => setTab('identificadores')}>Identificadores</button>
+      <button type="button" role="tab" id="tab-fotos" aria-selected={tab === 'fotos'} aria-controls="panel-fotos" className={`tab-button ${tab === 'fotos' ? 'active' : ''}`} onClick={() => setTab('fotos')}>Fotografías</button>
+      <button type="button" role="tab" id="tab-genealogia" aria-selected={tab === 'genealogia'} aria-controls="panel-genealogia" className={`tab-button ${tab === 'genealogia' ? 'active' : ''}`} onClick={() => setTab('genealogia')}>Genealogía</button>
     </div>
-    {tab === 'identificadores' && <IdentificadoresTab animalId={id} animalCodigo={value.codigo} />}
-    {tab === 'fotos' && <FotosTab animalId={id} />}
-    {tab === 'genealogia' && <GenealogiaTab animalId={id} />}
-    {tab === 'timeline' && <Card><h3>Línea de tiempo</h3>
+    {tab === 'identificadores' && <div role="tabpanel" id="panel-identificadores" aria-labelledby="tab-identificadores"><IdentificadoresTab animalId={id} animalCodigo={value.codigo} /></div>}
+    {tab === 'fotos' && <div role="tabpanel" id="panel-fotos" aria-labelledby="tab-fotos"><FotosTab animalId={id} /></div>}
+    {tab === 'genealogia' && <div role="tabpanel" id="panel-genealogia" aria-labelledby="tab-genealogia"><GenealogiaTab animalId={id} /></div>}
+    {tab === 'timeline' && <Card role="tabpanel" id="panel-timeline" aria-labelledby="tab-timeline"><h3>Línea de tiempo</h3>
       <div className="filter-heading" style={{ justifyContent: 'flex-start' }}>
         <select aria-label="Filtrar por tipo" value={filtroTipo} onChange={(event) => { setFiltroTipo(event.target.value); setPage(0) }}><option value="">Todos los tipos</option>{[...new Set(history.data?.content.map((event) => event.tipo) ?? [])].map((tipo) => <option key={tipo}>{tipo}</option>)}</select>
         <select aria-label="Filtrar por módulo" value={filtroModulo} onChange={(event) => { setFiltroModulo(event.target.value); setPage(0) }}><option value="">Todos los módulos</option>{[...new Set(history.data?.content.map((event) => event.moduloOrigen) ?? [])].map((modulo) => <option key={modulo}>{modulo}</option>)}</select>

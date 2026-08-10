@@ -12,7 +12,7 @@ import { formatDate } from '@/shared/utils/date'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
 import { EmptyState } from '@/shared/components/EmptyState'
-import { LoadingState } from '@/shared/components/LoadingState'
+import { TableSkeleton } from '@/shared/components/Skeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { Alert } from '@/shared/components/Alert'
 import { normalizeApiError } from '@/shared/api/errors'
@@ -59,7 +59,7 @@ export function PesajesPage() {
       <div className="animal-filters">
         <select aria-label="Filtrar por propiedad" value={propertyId} onChange={(event) => { setPropertyId(event.target.value); resetPage() }}><option value="">Todas las propiedades</option>{properties.data?.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
       </div>
-      {query.isPending && <LoadingState message="Consultando pesajes…" />}
+      {query.isPending && <TableSkeleton rows={8} columns={7} />}
       {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
       {query.data?.content.length === 0 && <EmptyState title="No hay pesajes" description="Registra el primer control para comenzar a medir la productividad." />}
       {query.data && query.data.content.length > 0 && <>

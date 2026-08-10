@@ -32,7 +32,7 @@ export function PwaInstallPrompt() {
   if (!installPrompt || dismissed || installed) return null
 
   return (
-    <div className="install-toast" role="status">
+    <div className="install-toast" role="dialog" aria-label="Instalación de la aplicación">
       <div>
         <strong>Instala GANADERO</strong>
         <span>Añádela a tu pantalla de inicio para usarla sin conexión.</span>

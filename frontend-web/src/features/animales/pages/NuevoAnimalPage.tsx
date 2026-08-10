@@ -78,7 +78,7 @@ export function NuevoAnimalPage() {
       <PageHeader
         eyebrow="Animales"
         title="Registrar animal"
-        description="El backend determinará la empresa desde la sesión; no se envía empresaId desde este formulario."
+        description="Completa la ficha del animal y guárdala para sumarlo al hato de tu empresa."
         actions={<Link to="/animales"><Button variant="ghost"><ArrowLeft size={18} />Volver</Button></Link>}
       />
       <Card>

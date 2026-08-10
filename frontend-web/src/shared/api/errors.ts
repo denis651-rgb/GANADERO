@@ -24,7 +24,7 @@ export function normalizeApiError(error: unknown): AppError {
   if (axios.isAxiosError<ApiErrorBody>(error)) {
     const body = error.response?.data
     if (!error.response) {
-      return new AppError('No se pudo conectar con el backend. Revisa que Spring Boot esté iniciado.', { code: 'NETWORK_ERROR' })
+      return new AppError('No se pudo conectar con el servidor. Revisa tu conexión a internet e intenta de nuevo.', { code: 'NETWORK_ERROR' })
     }
     return new AppError(body?.message ?? error.message, {
       status: error.response.status,

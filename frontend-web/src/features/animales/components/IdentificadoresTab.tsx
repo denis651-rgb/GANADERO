@@ -25,6 +25,8 @@ export function IdentificadoresTab({ animalId, animalCodigo }: { animalId: strin
   const [generatePrincipal, setGeneratePrincipal] = useState(true)
   const [replaceMotivo, setReplaceMotivo] = useState('')
   const [replacePrincipal, setReplacePrincipal] = useState(true)
+  const [retireTarget, setRetireTarget] = useState<Identificador | null>(null)
+  const [retireMotivo, setRetireMotivo] = useState('')
   const query = useQuery({ queryKey: ['animal-identificadores', animalId], queryFn: () => listIdentificadores(animalId), enabled: Boolean(animalId) })
   const assign = useMutation({
     mutationFn: (form: HTMLFormElement) => {
@@ -40,7 +42,11 @@ export function IdentificadoresTab({ animalId, animalCodigo }: { animalId: strin
   })
   const retire = useMutation({
     mutationFn: ({ id, version, motivo }: { id: string; version: number; motivo: string }) => retirarIdentificador(animalId, id, motivo, version),
-    onSuccess: async () => { await client.invalidateQueries({ queryKey: ['animal-identificadores', animalId] }) },
+    onSuccess: async () => {
+      setRetireTarget(null)
+      setRetireMotivo('')
+      await client.invalidateQueries({ queryKey: ['animal-identificadores', animalId] })
+    },
   })
   const makePrincipal = useMutation({
     mutationFn: ({ id, version }: { id: string; version: number }) => hacerPrincipalIdentificador(animalId, id, version),
@@ -68,10 +74,6 @@ export function IdentificadoresTab({ animalId, animalCodigo }: { animalId: strin
   const activeQr = query.data?.find((item) => item.tipo === 'QR' && item.estado === 'ACTIVO')
 
   const replaceError = replace.error ?? generate.error
-  const promptRetire = (item: Identificador) => {
-    const motivo = window.prompt('Motivo del retiro (mínimo 5 caracteres)') ?? ''
-    if (motivo.trim().length >= 5) retire.mutate({ id: item.id, version: item.version, motivo })
-  }
 
   return <div className="page-stack">
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
@@ -108,7 +110,7 @@ export function IdentificadoresTab({ animalId, animalCodigo }: { animalId: strin
           {item.estado === 'ACTIVO' && <>
             {item.tipo === 'QR' && <Button variant="ghost" onClick={() => setReplaceTarget(item)}>Reemplazar QR</Button>}
             {!item.principal && <Button variant="ghost" onClick={() => makePrincipal.mutate({ id: item.id, version: item.version })}>Hacer principal</Button>}
-            <Button variant="danger" loading={retire.isPending} onClick={() => promptRetire(item)}>Retirar</Button>
+            <Button variant="danger" loading={retire.isPending && retire.variables?.id === item.id} onClick={() => { setRetireTarget(item); setRetireMotivo('') }}>Retirar</Button>
           </>}
         </div></td>
       </tr>)}</tbody></table></div>}
@@ -141,8 +143,30 @@ export function IdentificadoresTab({ animalId, animalCodigo }: { animalId: strin
         identificador={qrView}
         showPayload
         onReplace={() => { setQrView(null); setReplaceTarget(qrView) }}
-        onRetire={() => { setQrView(null); promptRetire(qrView) }}
+        onRetire={() => { setQrView(null); setRetireTarget(qrView); setRetireMotivo('') }}
       />}
+    </Modal>
+
+    <Modal
+      open={Boolean(retireTarget)}
+      title="Retirar identificador"
+      onClose={() => { if (!retire.isPending) { setRetireTarget(null); setRetireMotivo('') } }}
+    >
+      {retireTarget && <div className="page-stack">
+        <p className="muted">
+          Se retirará el identificador <strong>{retireTarget.valor}</strong> ({retireTarget.tipo}).
+          {retireTarget.tipo === 'QR' && ' El código QR dejará de ser válido.'}
+          {retireTarget.principal && ' Este animal quedará sin identificador principal.'}
+        </p>
+        <Field label="Motivo del retiro">
+          <textarea value={retireMotivo} onChange={(event) => setRetireMotivo(event.target.value)} rows={3} required minLength={5} placeholder="Motivo del retiro (mínimo 5 caracteres)" />
+        </Field>
+        {retire.error && <Alert tone="danger">{normalizeApiError(retire.error).message}</Alert>}
+        <div className="form-actions">
+          <Button variant="ghost" onClick={() => { setRetireTarget(null); setRetireMotivo('') }} disabled={retire.isPending}>Cancelar</Button>
+          <Button variant="danger" loading={retire.isPending} disabled={retireMotivo.trim().length < 5} onClick={() => retire.mutate({ id: retireTarget.id, version: retireTarget.version, motivo: retireMotivo })}>Retirar identificador</Button>
+        </div>
+      </div>}
     </Modal>
   </div>
 }

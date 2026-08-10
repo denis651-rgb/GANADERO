@@ -10,7 +10,7 @@ import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { Field } from '@/shared/components/Field'
-import { LoadingState } from '@/shared/components/LoadingState'
+import { TableSkeleton } from '@/shared/components/Skeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { normalizeApiError } from '@/shared/api/errors'
 
@@ -58,7 +58,7 @@ export function LotesPage() {
     <Card>
       <div className="filter-heading"><span className="search-box"><Search size={18} /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(0) }} placeholder="Buscar por código o nombre" /></span>
         <select aria-label="Filtrar por estado" value={estado} onChange={(event) => { setEstado(event.target.value as EstadoLote | ''); setPage(0) }}><option value="">Todos los estados</option><option value="ACTIVO">Activo</option><option value="CERRADO">Cerrado</option></select></div>
-      {query.isPending && <LoadingState message="Consultando lotes…" />}
+      {query.isPending && <TableSkeleton rows={7} columns={6} />}
       {query.data?.content.length === 0 && <EmptyState title="No hay lotes" description="Crea el primer lote para agrupar animales." />}
       {query.data && query.data.content.length > 0 && <>
         <div className="table-wrapper"><table><thead><tr><th>Código</th><th>Nombre</th><th>Propiedad</th><th>Estado</th><th>Apertura</th><th>Cierre</th><th></th></tr></thead><tbody>{query.data.content.map((lote) => <tr key={lote.id}>

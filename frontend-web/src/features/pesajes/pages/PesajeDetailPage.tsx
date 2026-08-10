@@ -111,7 +111,6 @@ export function PesajeDetailPage() {
           <div><dt>Estado</dt><dd><span className={`status-badge status-${pesaje.estado.toLowerCase()}`}>{pesaje.estado}</span></dd></div>
           {pesaje.estado === 'ANULADO' && <div><dt>Motivo de anulación</dt><dd>{pesaje.motivoAnulacion || '—'}</dd></div>}
           <div><dt>Observaciones</dt><dd>{pesaje.observaciones || '—'}</dd></div>
-          <div><dt>Versión</dt><dd>{pesaje.version}</dd></div>
         </dl>
       </Card>
       <Card>

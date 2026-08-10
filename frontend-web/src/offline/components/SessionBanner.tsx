@@ -10,7 +10,7 @@ export function SessionBanner() {
   if (!sessionExpired) return null
 
   return (
-    <div className="session-banner" role="status">
+    <div className="session-banner" role="alertdialog" aria-label="Sesión expirada">
       <span>Tu sesión expiró. Conéctate e inicia sesión de nuevo para sincronizar; tus datos locales están a salvo.</span>
       <Button
         onClick={() => {

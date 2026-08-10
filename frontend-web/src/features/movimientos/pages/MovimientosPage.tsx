@@ -16,7 +16,7 @@ import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { Field } from '@/shared/components/Field'
-import { LoadingState } from '@/shared/components/LoadingState'
+import { TableSkeleton } from '@/shared/components/Skeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { normalizeApiError } from '@/shared/api/errors'
 
@@ -152,7 +152,7 @@ export function MovimientosPage() {
       <div className="filter-heading"><span className="search-box"><Search size={18} /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(0) }} placeholder="Filtrar" /></span>
         <select aria-label="Filtrar por estado" value={estado} onChange={(event) => { setEstado(event.target.value as EstadoMovimiento | ''); setPage(0) }}><option value="">Todos los estados</option>{estados.map((value) => <option key={value}>{value}</option>)}</select>
         <select aria-label="Filtrar por tipo" value={tipoFiltro} onChange={(event) => { setTipoFiltro(event.target.value as TipoMovimiento | ''); setPage(0) }}><option value="">Todos los tipos</option>{tipos.map((value) => <option key={value}>{value}</option>)}</select></div>
-      {query.isPending && <LoadingState message="Consultando movimientos…" />}
+      {query.isPending && <TableSkeleton rows={8} columns={6} />}
       {query.data?.content.length === 0 && <EmptyState title="No hay movimientos" description="Crea el primer movimiento de animales." />}
       {query.data && query.data.content.length > 0 && <>
         <div className="table-wrapper"><table><thead><tr><th>Tipo</th><th>Estado</th><th>Fecha</th><th>Origen</th><th>Destino</th><th></th></tr></thead><tbody>{query.data.content.map((item) => {

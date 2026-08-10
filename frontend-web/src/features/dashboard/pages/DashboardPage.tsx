@@ -158,7 +158,7 @@ export function DashboardPage() {
       />
 
       {!online && <Alert tone="info" title="Trabajando sin conexión">Los indicadores muestran los datos descargados; las operaciones compatibles se guardarán localmente hasta sincronizar.</Alert>}
-      {backendError && <Alert tone="danger" title="No se pudo cargar el resumen">{backendError.message}</Alert>}
+      {backendError && backendError.code !== 'NETWORK_ERROR' && <Alert tone="danger" title="No se pudo cargar el resumen">{backendError.message}</Alert>}
 
       <div className="metric-grid">
         <Card className="metric-card">

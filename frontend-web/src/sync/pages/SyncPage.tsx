@@ -12,10 +12,20 @@ import {
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
 import { EmptyState } from '@/shared/components/EmptyState'
+import { Modal } from '@/shared/components/Modal'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { Alert } from '@/shared/components/Alert'
 import { useOnlineStatus } from '@/shared/hooks/useOnlineStatus'
 import { useAuth } from '@/auth/auth-context'
+
+const statusLabel: Record<string, string> = {
+  PENDING: 'Pendiente',
+  PROCESSING: 'Procesando',
+  SYNCED: 'Sincronizada',
+  CONFLICT: 'Conflicto',
+  REJECTED: 'Rechazada',
+  RETRYABLE: 'Reintentable',
+}
 
 export function SyncPage() {
   const { sessionExpired } = useAuth()
@@ -25,6 +35,7 @@ export function SyncPage() {
   const lastSync = useLiveQuery(() => db.estadoSincronizacion.get('lastSyncAt'))
   const online = useOnlineStatus()
   const [syncing, setSyncing] = useState(false)
+  const [confirmClear, setConfirmClear] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [syncError, setSyncError] = useState<string | null>(null)
 
@@ -64,7 +75,7 @@ export function SyncPage() {
   return (
     <div className="page-stack">
       <PageHeader
-        eyebrow="Fase 2 preparada"
+        eyebrow="Offline-first"
         title="Sincronización"
         description={`Última sincronización: ${lastSync?.value ? new Date(lastSync.value).toLocaleString('es-BO') : 'todavía no realizada'}`}
         actions={<Button onClick={() => void sync()} loading={syncing} disabled={!online || sessionExpired}><RefreshCw size={18} />Sincronizar</Button>}
@@ -75,7 +86,7 @@ export function SyncPage() {
       {message && <Alert tone="info">{message}</Alert>}
       <Alert tone="info">El escáner de QR resuelve códigos sin conexión usando {identifiersCount} identificador(es) locales sincronizados.</Alert>
       <Card>
-        <div className="section-heading"><h3>Cola local</h3><Button variant="ghost" onClick={() => void clearSynced()}><Trash2 size={17} />Limpiar sincronizadas</Button></div>
+        <div className="section-heading"><h3>Cola local</h3><Button variant="ghost" onClick={() => setConfirmClear(true)}><Trash2 size={17} />Limpiar sincronizadas</Button></div>
         {!operations?.length ? (
           <EmptyState title="No hay operaciones locales" description="Las operaciones realizadas sin conexión aparecerán aquí." />
         ) : (
@@ -84,7 +95,7 @@ export function SyncPage() {
               <article key={operation.operationId} className="operation-item">
                 <div><strong>{operation.tipo}</strong><span>{operation.entidad}{operation.entidadId ? ` · ${operation.entidadId}` : ''} · {operation.attempts} intento(s)</span></div>
                 <div className="operation-meta">
-                  <span className={`status-badge status-${operation.status.toLowerCase()}`}>{operation.status}</span>
+                  <span className={`status-badge status-${operation.status.toLowerCase()}`}>{statusLabel[operation.status] ?? operation.status}</span>
                   <small>{new Date(operation.createdAt).toLocaleString('es-BO')}</small>
                   {['RETRYABLE', 'CONFLICT', 'REJECTED'].includes(operation.status) && (
                     <Button variant="ghost" onClick={() => void retryOperation(operation.operationId)}><RefreshCw size={14} />Reintentar</Button>
@@ -122,7 +133,7 @@ export function SyncPage() {
               <article key={file.localId} className="operation-item">
                 <div><strong>{file.fileName}</strong><span>{file.entityType} {file.entityId} · {(file.file.size / 1024).toFixed(1)} KB</span></div>
                 <div className="operation-meta">
-                  <span className={`status-badge status-${file.status.toLowerCase()}`}>{file.status}</span>
+                  <span className={`status-badge status-${file.status.toLowerCase()}`}>{statusLabel[file.status] ?? file.status}</span>
                   {file.status === 'PROCESSING' && <small>{file.progress}%</small>}
                   <small>{new Date(file.createdAt).toLocaleString('es-BO')}</small>
                   {file.status === 'RETRYABLE' && (
@@ -135,6 +146,20 @@ export function SyncPage() {
           </div>
         )}
       </Card>
+
+      <Modal
+        open={confirmClear}
+        title="Limpiar sincronizadas"
+        onClose={() => setConfirmClear(false)}
+      >
+        <div className="page-stack">
+          <p className="muted">¿Eliminar las operaciones ya sincronizadas de la cola local? Esta acción no se puede deshacer, pero no afecta a los datos ya enviados al servidor.</p>
+          <div className="form-actions">
+            <Button variant="ghost" onClick={() => setConfirmClear(false)}>Cancelar</Button>
+            <Button variant="danger" onClick={() => { setConfirmClear(false); void clearSynced() }}><Trash2 size={17} />Limpiar sincronizadas</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

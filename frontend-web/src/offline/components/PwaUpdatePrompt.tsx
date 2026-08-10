@@ -11,7 +11,7 @@ export function PwaUpdatePrompt() {
   if (!needRefresh && !offlineReady) return null
 
   return (
-    <div className="pwa-toast" role="status">
+    <div className="pwa-toast" role="dialog" aria-label="Actualización de la aplicación">
       <div>
         <strong>{offlineReady ? 'Aplicación lista sin conexión' : 'Nueva versión disponible'}</strong>
         <span>{offlineReady ? 'Los recursos principales fueron guardados.' : 'Actualiza cuando no tengas formularios pendientes.'}</span>
