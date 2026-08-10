@@ -2,6 +2,7 @@ package bo.com.ganadero.empresas.application;
 
 import bo.com.ganadero.empresas.domain.ConfiguracionEmpresa;
 import bo.com.ganadero.empresas.domain.ConfiguracionEmpresaRepository;
+import bo.com.ganadero.shared.audit.EmpresaAuditEvent;
 import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import bo.com.ganadero.shared.security.CurrentUser;
@@ -34,7 +35,7 @@ public class ActualizarConfiguracionUseCase {
                 command.permitirStockNegativo(), command.requiereAprobacionVenta(),
                 command.comprimirImagenes(), command.calidadImagen(), command.version(), user.userId());
         ConfiguracionEmpresa saved = repository.save(configuration);
-        events.publishEvent(new EmpresaActualizadaEvent(user.empresaId(), user.userId(),
+        events.publishEvent(new EmpresaAuditEvent(user.empresaId(), user.userId(),
                 "CONFIGURACION_EMPRESA", user.empresaId(), Instant.now()));
         return saved;
     }

@@ -58,6 +58,33 @@ public class JdbcAuditoriaRepository implements AuditoriaRepository {
         if (f.modulo() != null && !f.modulo().isBlank()) { where.append(" and upper(a.modulo)=upper(:modulo)"); params.put("modulo", f.modulo()); }
         if (f.accion() != null && !f.accion().isBlank()) { where.append(" and upper(a.accion)=upper(:accion)"); params.put("accion", f.accion()); }
         if (f.entidad() != null && !f.entidad().isBlank()) { where.append(" and upper(a.entidad)=upper(:entidad)"); params.put("entidad", f.entidad()); }
+        if (f.correlationId() != null && !f.correlationId().isBlank()) {
+            where.append(" and a.correlation_id=:corr"); params.put("corr", f.correlationId());
+        }
+        if (f.propiedadId() != null) {
+            where.append("""
+                     and a.entidad_id in (
+                         select pr.id from core.propiedades pr where pr.id=:propiedad and pr.empresa_id=:e
+                         union all select pot.id from campo.potreros pot where pot.propiedad_id=:propiedad and pot.empresa_id=:e
+                         union all select sec.id from campo.sectores sec where sec.propiedad_id=:propiedad and sec.empresa_id=:e
+                         union all select an.id from ganado.animales an where an.propiedad_actual_id=:propiedad and an.empresa_id=:e
+                         union all select idt.id from ganado.identificadores_animal idt
+                             join ganado.animales an on an.id=idt.animal_id
+                             where an.propiedad_actual_id=:propiedad and idt.empresa_id=:e
+                         union all select pa.id from ganado.parentescos pa
+                             join ganado.animales an on an.id=pa.animal_id
+                             where an.propiedad_actual_id=:propiedad and pa.empresa_id=:e
+                         union all select lo.id from ganado.lotes_ganaderos lo where lo.propiedad_id=:propiedad and lo.empresa_id=:e
+                         union all select mv.id from ganado.movimientos mv where mv.empresa_id=:e and (
+                             mv.origen_propiedad_id=:propiedad or mv.destino_propiedad_id=:propiedad
+                             or mv.origen_potrero_id in (select pot.id from campo.potreros pot where pot.propiedad_id=:propiedad)
+                             or mv.destino_potrero_id in (select pot.id from campo.potreros pot where pot.propiedad_id=:propiedad)
+                             or mv.origen_lote_id in (select lo.id from ganado.lotes_ganaderos lo where lo.propiedad_id=:propiedad)
+                             or mv.destino_lote_id in (select lo.id from ganado.lotes_ganaderos lo where lo.propiedad_id=:propiedad))
+                         union all select pe.id from produccion.pesajes pe where pe.propiedad_id=:propiedad and pe.empresa_id=:e
+                     )""");
+            params.put("propiedad", f.propiedadId());
+        }
         if (f.desde() != null) { where.append(" and a.created_at>=:desde"); params.put("desde", f.desde()); }
         if (f.hasta() != null) { where.append(" and a.created_at<:hasta"); params.put("hasta", f.hasta()); }
         long total = jdbc.sql("select count(*) from auditoria.registros a" + where).params(params).query(Long.class).single();

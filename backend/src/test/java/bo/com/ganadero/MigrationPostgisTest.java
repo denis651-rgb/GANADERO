@@ -22,6 +22,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class MigrationPostgisTest {
 
@@ -65,7 +66,7 @@ class MigrationPostgisTest {
                             .current()
                             .getVersion()
                             .toString()
-            ).isEqualTo("30");
+            ).isEqualTo("32");
 
             assertRequiredTablesExist(postgres);
             assertFlywayHistoryIsSuccessful(postgres);
@@ -82,7 +83,7 @@ class MigrationPostgisTest {
                             .current()
                             .getVersion()
                             .toString()
-            ).isEqualTo("30");
+            ).isEqualTo("32");
         }
     }
 
@@ -137,7 +138,7 @@ class MigrationPostgisTest {
                             .current()
                             .getVersion()
                             .toString()
-            ).isEqualTo("30");
+            ).isEqualTo("32");
 
             assertVersionNineVerificationDataStillExists(postgres);
             assertRequiredTablesExist(postgres);
@@ -309,6 +310,84 @@ class MigrationPostgisTest {
                     empresa,
                     8
             )).isZero();
+        }
+    }
+
+    @Test
+    void auditoriaRegistrosSonInmutables() throws Exception {
+        try (PostgreSQLContainer<?> postgres = createPostgres()) {
+            postgres.start();
+
+            Flyway flyway = createFlyway(
+                    postgres,
+                    "classpath:db/migration"
+            );
+
+            assertThat(flyway.migrate().success).isTrue();
+
+            UUID id = UUID.randomUUID();
+            UUID empresa = UUID.randomUUID();
+            UUID usuario = UUID.randomUUID();
+            executeUpdate(
+                    postgres,
+                    """
+                    insert into core.empresas (
+                        id,
+                        codigo,
+                        razon_social,
+                        nombre_comercial,
+                        estado,
+                        created_at,
+                        updated_at
+                    )
+                    values (?, ?, ?, ?, 'ACTIVA', now(), now())
+                    """,
+                    empresa,
+                    "AUD-" + empresa.toString().substring(0, 8),
+                    "Empresa auditoría inmutable S.R.L.",
+                    "Empresa auditoría inmutable"
+            );
+            executeUpdate(
+                    postgres,
+                    """
+                    insert into auditoria.registros
+                        (id, empresa_id, usuario_id, accion, modulo, entidad, resultado, created_at)
+                    values
+                        (?, ?, ?, 'CREAR', 'ANIMALES', 'ANIMAL', 'EXITO', now())
+                    """,
+                    id,
+                    empresa,
+                    usuario
+            );
+
+            assertThatThrownBy(() -> executeUpdate(
+                    postgres,
+                    """
+                    update auditoria.registros
+                    set accion = 'ACTUALIZAR'
+                    where id = ?
+                    """,
+                    id
+            ))
+                    .as("UPDATE de auditoría debe ser rechazado")
+                    .isInstanceOf(java.sql.SQLException.class)
+                    .hasMessageContaining("inmutables");
+
+            assertThatThrownBy(() -> executeUpdate(
+                    postgres,
+                    "delete from auditoria.registros where id = ?",
+                    id
+            ))
+                    .as("DELETE de auditoría debe ser rechazado")
+                    .isInstanceOf(java.sql.SQLException.class)
+                    .hasMessageContaining("inmutables");
+
+            assertThat(countRows(
+                    postgres,
+                    "select id from auditoria.registros where id = ?",
+                    id
+            )).as("El registro debe seguir existiendo tras los intentos")
+                    .isEqualTo(1);
         }
     }
 
@@ -568,7 +647,8 @@ class MigrationPostgisTest {
 
     private void executeUpdate(
             PostgreSQLContainer<?> postgres,
-            String sql
+            String sql,
+            Object... parameters
     ) throws Exception {
         try (
                 Connection connection =
@@ -580,6 +660,16 @@ class MigrationPostgisTest {
                 var statement =
                         connection.prepareStatement(sql)
         ) {
+            for (
+                    int index = 0;
+                    index < parameters.length;
+                    index++
+            ) {
+                statement.setObject(
+                        index + 1,
+                        parameters[index]
+                );
+            }
             statement.executeUpdate();
         }
     }

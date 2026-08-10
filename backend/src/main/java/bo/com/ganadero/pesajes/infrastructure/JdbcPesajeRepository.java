@@ -23,9 +23,16 @@ public class JdbcPesajeRepository implements PesajeRepository {
     }
 
     private static final String SELECT_COLUMNS =
-            "select p.*, a.codigo as animal_codigo, a.nombre as animal_nombre";
+            "select p.*, a.codigo as animal_codigo, a.nombre as animal_nombre, " +
+            "l.nombre as lote_nombre, pt.nombre as potrero_nombre, pr.nombre as propiedad_nombre, " +
+            "concat(pu.nombres, ' ', pu.apellidos) as responsable_nombre";
     private static final String FROM_JOIN =
-            " from produccion.pesajes p left join ganado.animales a on a.id=p.animal_id";
+            " from produccion.pesajes p " +
+            "left join ganado.animales a on a.id=p.animal_id " +
+            "left join ganado.lotes_ganaderos l on l.id=p.lote_id " +
+            "left join campo.potreros pt on pt.id=p.potrero_id " +
+            "left join core.propiedades pr on pr.id=p.propiedad_id " +
+            "left join seguridad.perfiles_usuario pu on pu.id=p.responsable_id";
 
     @Override
     public PesajePage findAll(UUID empresa, UUID animalId, UUID propiedadId, int page, int size) {
@@ -157,6 +164,96 @@ public class JdbcPesajeRepository implements PesajeRepository {
                 r.getString("motivo_anulacion"), r.getObject("anulado_por", UUID.class),
                 r.getTimestamp("fecha_anulacion") == null ? null : r.getTimestamp("fecha_anulacion").toInstant(),
                 r.getString("observaciones"), r.getString("animal_codigo"), r.getString("animal_nombre"),
-                r.getLong("version"));
+                r.getString("lote_nombre"), r.getString("potrero_nombre"), r.getString("propiedad_nombre"),
+                r.getString("responsable_nombre"), r.getLong("version"));
+    }
+
+    @Override
+    public Optional<PesajeIndicadorLote> indicadorLote(UUID loteId, UUID empresa) {
+        return jdbc.sql("""
+                select l.id as lote_id, l.codigo as codigo_lote, l.nombre as nombre_lote,
+                       count(distinct a.id) filter (where a.estado = 'ACTIVO') as animales_totales,
+                       count(distinct u.animal_id) as animales_pesados,
+                       round(avg(u.peso_kg), 2) as peso_promedio_kg,
+                       min(u.peso_kg) as peso_minimo_kg,
+                       max(u.peso_kg) as peso_maximo_kg,
+                       min(u.fecha) as fecha_primer_pesaje,
+                       max(u.fecha) as fecha_ultimo_pesaje
+                from ganado.lotes_ganaderos l
+                left join ganado.animales a on a.lote_actual_id = l.id and a.empresa_id = l.empresa_id
+                left join produccion.v_ultimo_peso_animal u on u.animal_id = a.id and u.empresa_id = l.empresa_id
+                where l.id = :lote and l.empresa_id = :e
+                group by l.id, l.codigo, l.nombre
+                """).param("lote", loteId).param("e", empresa).query(this::mapIndicadorLote).optional();
+    }
+
+    @Override
+    public BigDecimal promedioPesoLote(UUID loteId, UUID empresa) {
+        return jdbc.sql("""
+                select round(avg(u.peso_kg), 2)
+                from produccion.v_promedio_peso_lote u
+                where u.lote_id = :lote and u.empresa_id = :e
+                """).param("lote", loteId).param("e", empresa).query(BigDecimal.class).optional().orElse(null);
+    }
+
+    @Override
+    public long countAnimalesActivosLote(UUID loteId, UUID empresa) {
+        return jdbc.sql("""
+                select count(*) from ganado.animales
+                where empresa_id = :e and lote_actual_id = :lote and estado = 'ACTIVO'
+                """).param("e", empresa).param("lote", loteId).query(Long.class).single();
+    }
+
+    @Override
+    public List<PesajeSinPesaje> animalesSinPesaje(UUID empresa, boolean todasPropiedades, Set<UUID> propiedades,
+                                                   int page, int size) {
+        StringBuilder sql = new StringBuilder("""
+                select id, codigo, nombre, ultimo_pesaje, peso_ultimo_kg, dias_sin_pesaje
+                from produccion.v_animales_sin_pesaje
+                where empresa_id = :e
+                """);
+        Map<String, Object> params = new HashMap<>();
+        params.put("e", empresa);
+        if (!todasPropiedades) {
+            sql.append(" and propiedad_actual_id in (:properties)");
+            params.put("properties", propiedades.isEmpty() ? List.of(UUID.randomUUID()) : propiedades);
+        }
+        sql.append(" order by dias_sin_pesaje desc nulls first limit :limit offset :offset");
+        params.put("limit", size);
+        params.put("offset", page * size);
+        return jdbc.sql(sql.toString()).params(params).query(this::mapSinPesaje).list();
+    }
+
+    @Override
+    public long countAnimalesSinPesaje(UUID empresa, boolean todasPropiedades, Set<UUID> propiedades) {
+        StringBuilder sql = new StringBuilder("""
+                select count(*) from produccion.v_animales_sin_pesaje
+                where empresa_id = :e
+                """);
+        Map<String, Object> params = new HashMap<>();
+        params.put("e", empresa);
+        if (!todasPropiedades) {
+            sql.append(" and propiedad_actual_id in (:properties)");
+            params.put("properties", propiedades.isEmpty() ? List.of(UUID.randomUUID()) : propiedades);
+        }
+        return jdbc.sql(sql.toString()).params(params).query(Long.class).single();
+    }
+
+    private PesajeIndicadorLote mapIndicadorLote(ResultSet r, int row) throws SQLException {
+        Integer totales = r.getObject("animales_totales", Integer.class);
+        Integer pesados = r.getObject("animales_pesados", Integer.class);
+        return new PesajeIndicadorLote(
+                r.getObject("lote_id", UUID.class), r.getString("codigo_lote"), r.getString("nombre_lote"),
+                totales, pesados, totales == null ? 0 : totales - (pesados == null ? 0 : pesados),
+                r.getBigDecimal("peso_promedio_kg"), r.getBigDecimal("peso_minimo_kg"),
+                r.getBigDecimal("peso_maximo_kg"), r.getObject("fecha_primer_pesaje", LocalDate.class),
+                r.getObject("fecha_ultimo_pesaje", LocalDate.class));
+    }
+
+    private PesajeSinPesaje mapSinPesaje(ResultSet r, int row) throws SQLException {
+        return new PesajeSinPesaje(
+                r.getObject("id", UUID.class), r.getString("codigo"), r.getString("nombre"),
+                r.getObject("ultimo_pesaje", LocalDate.class), r.getBigDecimal("peso_ultimo_kg"),
+                r.getLong("dias_sin_pesaje"));
     }
 }

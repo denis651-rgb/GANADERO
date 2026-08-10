@@ -10,6 +10,8 @@ import bo.com.ganadero.pesajes.application.PesajeAuditEvent;
 import bo.com.ganadero.potreros.application.PotreroAuditEvent;
 import bo.com.ganadero.propiedades.application.CampoAuditEvent;
 import bo.com.ganadero.seguridad.application.SeguridadAuditEvent;
+import bo.com.ganadero.shared.audit.EmpresaAuditEvent;
+import bo.com.ganadero.shared.audit.SyncAuditEvent;
 import bo.com.ganadero.shared.web.CorrelationIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Component;
@@ -79,6 +81,23 @@ public class AuditEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onArchivo(ArchivoAuditEvent event) {
         persist(event.empresaId(), event.usuarioId(), event.accion(), "ARCHIVOS", event.entidad(), event.entidadId(), event.datos());
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onEmpresa(EmpresaAuditEvent event) {
+        if (event.empresaId() == null) return;
+        RequestInfo request = requestInfo();
+        repository.insert(new AuditoriaRegistro(
+                UUID.randomUUID(), event.empresaId(), event.usuarioId(), "ACTUALIZAR", "EMPRESAS",
+                event.entidadTipo(), event.entidadId(), request.correlationId(), "EXITO",
+                Map.of(), Map.of(), Map.of(),
+                request.dispositivo(), request.ip(), request.userAgent(), event.fecha()));
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onSync(SyncAuditEvent event) {
+        persist(event.empresaId(), event.usuarioId(), event.accion(), "SINCRONIZACION", event.entidad(),
+                event.entidadId(), event.datos());
     }
 
     private void persist(UUID empresaId, UUID usuarioId, String accion, String modulo, String entidad, UUID entidadId) {

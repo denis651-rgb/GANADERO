@@ -2,6 +2,7 @@ package bo.com.ganadero.empresas.application;
 
 import bo.com.ganadero.empresas.domain.Empresa;
 import bo.com.ganadero.empresas.domain.EmpresaRepository;
+import bo.com.ganadero.shared.audit.EmpresaAuditEvent;
 import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import bo.com.ganadero.shared.security.CurrentUser;
@@ -31,7 +32,7 @@ public class ActualizarEmpresaUseCase {
         empresa.update(command.razonSocial(), command.nombreComercial(), command.nit(), command.telefono(),
                 command.email(), command.direccion(), command.version(), user.userId());
         Empresa saved = repository.save(empresa);
-        events.publishEvent(new EmpresaActualizadaEvent(user.empresaId(), user.userId(),
+        events.publishEvent(new EmpresaAuditEvent(user.empresaId(), user.userId(),
                 "EMPRESA", empresa.id(), Instant.now()));
         return saved;
     }

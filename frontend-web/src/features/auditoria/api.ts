@@ -3,6 +3,7 @@ import type { ApiResponse, Page } from '@/shared/api/types'
 
 export interface AuditoriaRegistro {
   id: string
+  empresaId?: string
   usuarioId?: string
   accion: string
   modulo: string
@@ -24,6 +25,8 @@ export interface AuditoriaFilters {
   modulo?: string
   accion?: string
   entidad?: string
+  propiedadId?: string
+  correlationId?: string
   desde?: string
   hasta?: string
   page: number
@@ -37,6 +40,8 @@ export async function listAuditoria(filters: AuditoriaFilters) {
       modulo: filters.modulo || undefined,
       accion: filters.accion || undefined,
       entidad: filters.entidad || undefined,
+      propiedadId: filters.propiedadId || undefined,
+      correlationId: filters.correlationId || undefined,
       desde: filters.desde || undefined,
       hasta: filters.hasta || undefined,
       page: filters.page,

@@ -20,9 +20,13 @@ public record PesajeResponse(
         BigDecimal condicionCorporal,
         String bascula,
         UUID responsableId,
+        String responsableNombre,
         UUID propiedadId,
+        String propiedadNombre,
         UUID potreroId,
+        String potreroNombre,
         UUID loteId,
+        String loteNombre,
         String dispositivo,
         UUID clienteUuid,
         EstadoPesaje estado,
@@ -32,8 +36,9 @@ public record PesajeResponse(
 
     public static PesajeResponse from(Pesaje p) {
         return new PesajeResponse(p.id(), p.animalId(), p.codigoAnimal(), p.nombreAnimal(), p.fecha(), p.pesoKg(),
-                p.tipo(), p.condicionCorporal(), p.bascula(), p.responsableId(), p.propiedadId(), p.potreroId(),
-                p.loteId(), p.dispositivo(), p.clienteUuid(), p.estado(), p.motivoAnulacion(), p.observaciones(),
+                p.tipo(), p.condicionCorporal(), p.bascula(), p.responsableId(), p.responsableNombre(),
+                p.propiedadId(), p.propiedadNombre(), p.potreroId(), p.potreroNombre(), p.loteId(), p.loteNombre(),
+                p.dispositivo(), p.clienteUuid(), p.estado(), p.motivoAnulacion(), p.observaciones(),
                 p.version());
     }
 }
