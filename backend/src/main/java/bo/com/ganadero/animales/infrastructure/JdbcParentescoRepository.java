@@ -25,7 +25,7 @@ class JdbcParentescoRepository implements ParentescoRepository {
 
     @Override
     public List<Parentesco> findByAnimal(UUID animalId, UUID empresa) {
-        return jdbc.sql("select * from ganado.parentescos where animal_id=:animal and empresa_id=:e order by tipo")
+        return jdbc.sql("select * from ganado.parentescos where animal_id=:animal and empresa_id=:e order by tipo_parentesco")
                 .param("animal", animalId).param("e", empresa).query(this::map).list();
     }
 

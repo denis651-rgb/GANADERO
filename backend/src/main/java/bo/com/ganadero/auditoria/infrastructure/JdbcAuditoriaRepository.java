@@ -100,11 +100,11 @@ public class JdbcAuditoriaRepository implements AuditoriaRepository {
     public List<AuditoriaRegistro> findLast(UUID empresa, UUID entidadId, String modulo, String entidad, int limit) {
         return jdbc.sql("""
                 select a.* from auditoria.registros a
-                where a.empresa_id=:e and a.entidad_id=:entidad
-                  and (a.modulo=:modulo or a.entidad=:entidad)
+                where a.empresa_id=:e and a.entidad_id=:entidadId
+                  and (a.modulo=:modulo or a.entidad=:entidadTipo)
                 order by a.created_at desc limit :limit""")
-                .param("e", empresa).param("entidad", entidadId)
-                .param("modulo", modulo).param("entidad", entidad)
+                .param("e", empresa).param("entidadId", entidadId)
+                .param("modulo", modulo).param("entidadTipo", entidad)
                 .param("limit", limit)
                 .query(this::map).list();
     }

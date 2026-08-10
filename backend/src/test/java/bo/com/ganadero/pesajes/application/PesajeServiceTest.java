@@ -95,6 +95,13 @@ class PesajeServiceTest {
     }
 
     @Test
+    void listaPesajesRestringidosALasPropiedadesPermitidas() {
+        service.list(null, null, 0, 20);
+
+        verify(pesajes).findAll(company, Set.of(property), false, null, null, 0, 20);
+    }
+
+    @Test
     void rechazaPesoNoPositivo() {
         assertThatThrownBy(() -> service.registrar(comando(animalId, BigDecimal.ZERO, null, null, null, null)))
                 .isInstanceOfSatisfying(BusinessException.class,

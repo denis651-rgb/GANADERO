@@ -50,7 +50,8 @@ public class PesajeService {
         CurrentUser user = context.requirePermission("PESAJE_VER");
         if (animalId != null) requireAnimal(user, animalId);
         if (propiedadId != null) context.requirePropertyAccess(user, propiedadId);
-        return pesajes.findAll(user.empresaId(), animalId, propiedadId, page, size);
+        return pesajes.findAll(user.empresaId(), user.propiedadesPermitidas(), user.accesoTodasPropiedades(),
+                animalId, propiedadId, page, size);
     }
 
     @Transactional(readOnly = true)

@@ -7,7 +7,8 @@ import java.util.Set;
 import java.util.UUID;
 
 public interface PesajeRepository {
-    PesajePage findAll(UUID empresa, UUID animalId, UUID propiedadId, int page, int size);
+    PesajePage findAll(UUID empresa, Set<UUID> propiedades, boolean todasPropiedades,
+                       UUID animalId, UUID propiedadId, int page, int size);
     Optional<Pesaje> findById(UUID id, UUID empresa);
     Optional<Pesaje> findByClienteUuid(UUID clienteUuid, UUID empresa);
     List<Pesaje> findByAnimal(UUID animalId, UUID empresa);
