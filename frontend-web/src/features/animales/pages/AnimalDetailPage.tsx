@@ -130,7 +130,7 @@ export function AnimalDetailPage() {
         <Alert tone={pendingStateChange.estado === 'MUERTO' ? 'danger' : 'info'}>Esta operación afectará el estado operativo del animal y quedará registrada en su historial.</Alert>
       </div>}
     </ConfirmDialog>
-    <div className="tabs" role="tablist" aria-label="Secciones del animal">
+    <div className="tabs animal-detail-tabs" role="tablist" aria-label="Secciones del animal">
       <button ref={(node) => { tabRefs.current[0] = node }} type="button" role="tab" id="tab-timeline" aria-selected={tab === 'timeline'} aria-controls="panel-timeline" tabIndex={tab === 'timeline' ? 0 : -1} className={`tab-button ${tab === 'timeline' ? 'active' : ''}`} onKeyDown={(event) => handleTabKeyDown(event, 'timeline')} onClick={() => setTab('timeline')}><CalendarClock size={17} aria-hidden="true" /> Línea de tiempo</button>
       <button ref={(node) => { tabRefs.current[1] = node }} type="button" role="tab" id="tab-identificadores" aria-selected={tab === 'identificadores'} aria-controls="panel-identificadores" tabIndex={tab === 'identificadores' ? 0 : -1} className={`tab-button ${tab === 'identificadores' ? 'active' : ''}`} onKeyDown={(event) => handleTabKeyDown(event, 'identificadores')} onClick={() => setTab('identificadores')}>Identificadores</button>
       <button ref={(node) => { tabRefs.current[2] = node }} type="button" role="tab" id="tab-fotos" aria-selected={tab === 'fotos'} aria-controls="panel-fotos" tabIndex={tab === 'fotos' ? 0 : -1} className={`tab-button ${tab === 'fotos' ? 'active' : ''}`} onKeyDown={(event) => handleTabKeyDown(event, 'fotos')} onClick={() => setTab('fotos')}>Fotografías</button>

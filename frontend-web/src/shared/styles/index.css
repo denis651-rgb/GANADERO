@@ -243,6 +243,8 @@ th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-s
 .status-badge-valid { background: var(--green-50); color: var(--green-800); }
 .status-badge-invalid { background: #fff0f0; color: #862a2a; }
 .tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--border); padding: 0 2px; overflow-x: auto; }
+.page-stack, .card, [role="tabpanel"] { min-width: 0; }
+.animal-detail-tabs { width: 100%; max-width: 100%; overscroll-behavior-inline: contain; scrollbar-width: thin; }
 .tab-button { border: 0; background: none; padding: 12px 16px; font: inherit; font-weight: 700; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
 .tab-button:hover { color: var(--primary); }
 .tab-button.active { color: var(--primary); border-bottom-color: var(--primary); }
@@ -531,6 +533,11 @@ th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-s
   .toolbar .search-box, .toolbar .button { width: 100%; }
   .filter-heading, .detail-heading, .section-heading { flex-wrap: wrap; }
   .filter-heading .row-actions, .detail-heading .row-actions, .section-heading .row-actions { width: 100%; }
+  .filter-heading > .button, .filter-heading .row-actions .button { width: 100%; }
+  .animal-detail-tabs { scroll-snap-type: inline proximity; }
+  .animal-detail-tabs .tab-button { flex: 0 0 auto; scroll-snap-align: start; padding-inline: 14px; }
+  .mobile-entity-actions { justify-content: stretch; }
+  .mobile-entity-actions .button { flex: 1 1 100%; width: 100%; }
   .card { padding: 16px; }
   .page-stack { gap: 16px; }
   .metric-card { gap: 12px; }

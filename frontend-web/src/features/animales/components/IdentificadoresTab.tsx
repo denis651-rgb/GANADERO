@@ -13,6 +13,7 @@ import { EmptyState } from '@/shared/components/EmptyState'
 import { Field } from '@/shared/components/Field'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { Modal } from '@/shared/components/Modal'
+import { MobileEntityCard } from '@/shared/components/MobileEntityCard'
 import { useToast } from '@/shared/toast/useToast'
 import { normalizeApiError } from '@/shared/api/errors'
 
@@ -102,7 +103,7 @@ export function IdentificadoresTab({ animalId, animalCodigo }: { animalId: strin
       </form>}
       {query.isPending && <LoadingState message="Cargando identificadores…" />}
       {query.data?.length === 0 && !showForm && <EmptyState title="Sin identificadores" description="Asigna el primer identificador o genera el código QR del animal." />}
-      {query.data && query.data.length > 0 && <div className="table-wrapper"><table><caption className="visually-hidden">Identificadores del animal</caption><thead><tr><th scope="col">Tipo</th><th scope="col">Valor</th><th scope="col">Estado</th><th scope="col">Asignación</th><th scope="col">Retiro</th><th scope="col">Acciones</th></tr></thead><tbody>{query.data.map((item) => <tr key={item.id}>
+      {query.data && query.data.length > 0 && <><div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Identificadores del animal</caption><thead><tr><th scope="col">Tipo</th><th scope="col">Valor</th><th scope="col">Estado</th><th scope="col">Asignación</th><th scope="col">Retiro</th><th scope="col">Acciones</th></tr></thead><tbody>{query.data.map((item) => <tr key={item.id}>
         <td><strong>{item.tipo}</strong></td><td>{item.valor}{item.principal && ' '}<span className="status-badge">Principal</span></td>
         <td><span className="status-badge">{item.estado}</span></td>
         <td>{new Date(item.fechaAsignacion).toLocaleDateString('es-BO')}</td>
@@ -115,7 +116,7 @@ export function IdentificadoresTab({ animalId, animalCodigo }: { animalId: strin
             <Button variant="danger" loading={retire.isPending && retire.variables?.id === item.id} onClick={() => { setRetireTarget(item); setRetireMotivo('') }}>Retirar</Button>
           </>}
         </div></td>
-      </tr>)}</tbody></table></div>}
+      </tr>)}</tbody></table></div><div className="mobile-only"><div className="mobile-entity-list">{query.data.map((item) => <MobileEntityCard key={item.id} title={item.valor} subtitle={item.tipo} status={<span className="status-badge">{item.estado}</span>} metadata={<><span>{item.principal ? 'Identificador principal' : 'Identificador secundario'}</span><span>Asignado: {new Date(item.fechaAsignacion).toLocaleDateString('es-BO')}</span>{item.fechaRetiro && <span>Retirado: {new Date(item.fechaRetiro).toLocaleDateString('es-BO')}{item.motivoRetiro ? ` · ${item.motivoRetiro}` : ''}</span>}</>} action={<>{item.tipo === 'QR' && item.estado === 'ACTIVO' && <Button variant="ghost" onClick={() => setQrView(item)}><QrCode size={15} aria-hidden="true" />Ver QR</Button>}{item.estado === 'ACTIVO' && <>{item.tipo === 'QR' && <Button variant="ghost" onClick={() => setReplaceTarget(item)}>Reemplazar QR</Button>}{!item.principal && <Button variant="ghost" onClick={() => makePrincipal.mutate({ id: item.id, version: item.version })}>Hacer principal</Button>}<Button variant="danger" loading={retire.isPending && retire.variables?.id === item.id} onClick={() => { setRetireTarget(item); setRetireMotivo('') }}>Retirar</Button></>}</>} />)}</div></div></>}
     </Card>
 
     <Modal open={generateOpen} title="Generar código QR" onClose={() => { if (!generate.isPending) setGenerateOpen(false) }}>
