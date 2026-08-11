@@ -245,6 +245,13 @@ th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-s
 .permission-grid label, .form-grid fieldset label { display: flex; gap: 8px; align-items: center; font-size: .88rem; }
 .selected-row { background: color-mix(in srgb, var(--primary) 7%, transparent); }
 .permission-section { scroll-margin-top: 92px; outline: none; }
+.usuario-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; color: var(--muted); font-size: .82rem; }
+.usuario-access-section { min-width: 0; border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+.usuario-access-section legend { padding: 0 7px; font-weight: 800; }
+.usuario-choice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px 12px; margin-top: 10px; }
+.usuario-choice-grid .checkbox-line { align-items: flex-start; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; }
+.usuario-choice-grid .checkbox-line span { display: grid; gap: 2px; min-width: 0; }
+.usuario-choice-grid small { color: var(--muted); overflow-wrap: anywhere; }
 .toast-region { position: fixed; top: 88px; right: 22px; z-index: 100; display: grid; gap: 10px; width: min(420px, calc(100vw - 44px)); }
 .toast { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; color: #fff; border: 1px solid rgba(255,255,255,.2); border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,.24); animation: toast-slide-in .35s ease-out both; }
 .toast svg { flex: 0 0 auto; margin-top: 1px; }

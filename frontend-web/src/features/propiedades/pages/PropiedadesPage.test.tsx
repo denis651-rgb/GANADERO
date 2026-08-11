@@ -4,10 +4,12 @@ import { describe, expect, it, vi } from 'vitest'
 import { PropiedadesPage } from './PropiedadesPage'
 
 const updatePropiedad = vi.fn()
+vi.mock('@/auth/auth-context', () => ({ useAuth: () => ({ can: () => true }) }))
+vi.mock('@/shared/hooks/useOnlineStatus', () => ({ useOnlineStatus: () => true }))
 vi.mock('@/features/propiedades/api', () => ({
   listPropiedades: vi.fn().mockResolvedValue([{ id: 'p-1', codigo: 'PR-1', nombre: 'La Esperanza', activo: true, version: 2 }]),
   listSectores: vi.fn().mockResolvedValue([]), createPropiedad: vi.fn(), createSector: vi.fn(),
-  updatePropiedad: (...args: unknown[]) => updatePropiedad(...args),
+  updatePropiedad: (...args: unknown[]) => updatePropiedad(...args), updateSector: vi.fn(),
 }))
 
 describe('PropiedadesPage operational protection', () => {

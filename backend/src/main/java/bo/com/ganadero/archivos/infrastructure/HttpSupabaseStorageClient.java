@@ -19,6 +19,7 @@ import java.util.Map;
 public class HttpSupabaseStorageClient implements SupabaseStorageClient {
     private static final Logger LOG = LoggerFactory.getLogger(HttpSupabaseStorageClient.class);
     private final RestClient client;
+    private final String baseUrl;
     private final String key;
     private final AppProperties properties;
 
@@ -26,9 +27,10 @@ public class HttpSupabaseStorageClient implements SupabaseStorageClient {
                                      @Value("${SUPABASE_SERVICE_ROLE_KEY:}") String key,
                                      RestClient.Builder builder,
                                      AppProperties properties) {
+        this.baseUrl = normalizeBaseUrl(url);
         this.key = key;
         this.properties = properties;
-        this.client = url == null || url.isBlank() ? builder.build() : builder.baseUrl(url).build();
+        this.client = baseUrl.isBlank() ? builder.build() : builder.baseUrl(baseUrl).build();
     }
 
     @Override
@@ -60,10 +62,10 @@ public class HttpSupabaseStorageClient implements SupabaseStorageClient {
                     .body(Map.of("expiresIn", properties.storage().signedUrlTtl().toSeconds()))
                     .retrieve().body(Map.class);
             Object signed = response == null ? null : response.get("signedURL");
-            if (signed == null) {
+            if (signed == null || String.valueOf(signed).isBlank()) {
                 throw storageFailure("signedUrl", path, null);
             }
-            return String.valueOf(signed);
+            return absoluteSignedUrl(String.valueOf(signed));
         } catch (RestClientException exception) {
             throw storageFailure("signedUrl", path, exception);
         }
@@ -83,10 +85,36 @@ public class HttpSupabaseStorageClient implements SupabaseStorageClient {
     }
 
     private void configured() {
-        if (key == null || key.isBlank()) {
-            LOG.error("Supabase Storage no configurado: falta SUPABASE_SERVICE_ROLE_KEY.");
+        if (baseUrl.isBlank() || key == null || key.isBlank()) {
+            LOG.error("Supabase Storage no configurado: falta SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY.");
             throw new BusinessException(ErrorCode.STORAGE_NOT_CONFIGURED);
         }
+    }
+
+    private String absoluteSignedUrl(String signedUrl) {
+        String value = signedUrl.trim();
+        if (value.startsWith("https://") || value.startsWith("http://")) {
+            return value;
+        }
+        if (value.startsWith("/storage/v1/")) {
+            return baseUrl + value;
+        }
+        if (value.startsWith("storage/v1/")) {
+            return baseUrl + "/" + value;
+        }
+        if (value.startsWith("/")) {
+            return baseUrl + "/storage/v1" + value;
+        }
+        return baseUrl + "/storage/v1/" + value;
+    }
+
+    private static String normalizeBaseUrl(String url) {
+        if (url == null) return "";
+        String normalized = url.trim();
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
     }
 
     private BusinessException storageFailure(String operation, String path, RestClientException cause) {
