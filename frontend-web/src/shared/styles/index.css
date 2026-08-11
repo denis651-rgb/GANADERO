@@ -57,8 +57,8 @@ h1, h2, h3, p { margin-top: 0; }
 .icon-button:hover { background: rgba(255,255,255,.1); }
 
 .app-main { margin-left: 272px; min-height: 100vh; }
-.topbar { min-height: 78px; padding: 14px clamp(18px, 3vw, 38px); background: rgba(255,255,255,.88); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 20px; position: sticky; top: 0; z-index: 15; }
-.topbar-title { font-size: 1.25rem; font-weight: 800; margin: 2px 0 0; }
+.topbar { min-height: 58px; padding: 9px clamp(18px, 3vw, 38px); background: rgba(255,255,255,.88); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: flex-end; gap: 20px; position: sticky; top: 0; z-index: 15; }
+.topbar-brand { display: none; color: var(--green-800); font-size: .82rem; font-weight: 900; letter-spacing: .12em; }
 .topbar-actions { display: flex; align-items: center; gap: 8px; }
 .connection-pill, .pending-pill { min-height: 34px; display: inline-flex; gap: 6px; align-items: center; padding: 7px 10px; border-radius: 999px; font-size: .78rem; font-weight: 700; }
 .connection-pill.online { background: var(--green-50); color: var(--green-700); }
@@ -514,7 +514,8 @@ th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-s
   .offline-banner + .session-banner { top: 32px; }
   .session-banner + .app-shell .topbar { top: 0; }
   .offline-banner + .session-banner + .app-shell .topbar { top: 72px; }
-  .topbar { min-height: 68px; }
+  .topbar { min-height: 60px; justify-content: space-between; }
+  .topbar-brand { display: block; }
   .connection-pill span { display: none; }
   .page-container { padding: 18px; }
   .two-column-grid { grid-template-columns: 1fr; }
@@ -570,7 +571,6 @@ th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-s
   .dashboard-facts dd { margin: 0; }
   .form-grid { grid-template-columns: 1fr; }
   .form-full { grid-column: auto; }
-  .topbar-title { font-size: 1rem; }
   .connection-pill { display: none; }
   .pwa-toast { flex-wrap: wrap; }
   .operation-item { grid-template-columns: 1fr; }
