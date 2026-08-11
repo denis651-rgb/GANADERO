@@ -41,14 +41,14 @@ class HttpSupabaseStorageClientTest {
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.STORAGE_NOT_CONFIGURED));
     }
 
-    private static final String ENC_PATH = "empresas%2Fx%2Fdocumentos%2Fanimals%2Ffoto.jpg";
+    private static final String PATH = "empresas/x/documentos/animals/foto.jpg";
 
     @Test
     void uploadsWhenStorageRespondsOk() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         var storage = client(builder, "clave-secreta");
-        server.expect(requestTo(URL + "/storage/v1/object/" + BUCKET + "/" + ENC_PATH))
+        server.expect(requestTo(URL + "/storage/v1/object/" + BUCKET + "/" + PATH))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(header("apikey", "clave-secreta"))
                 .andExpect(header("Authorization", "Bearer clave-secreta"))
@@ -62,7 +62,7 @@ class HttpSupabaseStorageClientTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         var storage = client(builder, "clave-secreta");
-        server.expect(requestTo(URL + "/storage/v1/object/" + BUCKET + "/" + ENC_PATH))
+        server.expect(requestTo(URL + "/storage/v1/object/" + BUCKET + "/" + PATH))
                 .andRespond(withServerError());
         assertThatThrownBy(() -> storage.upload("empresas/x/documentos/animals/foto.jpg",
                 new byte[]{1, 2, 3}, "image/jpeg"))
@@ -76,7 +76,7 @@ class HttpSupabaseStorageClientTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         var storage = client(builder, "clave-secreta");
-        server.expect(requestTo(URL + "/storage/v1/object/sign/" + BUCKET + "/" + ENC_PATH))
+        server.expect(requestTo(URL + "/storage/v1/object/sign/" + BUCKET + "/" + PATH))
                 .andRespond(withSuccess("{}", org.springframework.http.MediaType.APPLICATION_JSON));
         assertThatThrownBy(() -> storage.signedUrl("empresas/x/documentos/animals/foto.jpg"))
                 .isInstanceOfSatisfying(BusinessException.class,
@@ -90,7 +90,7 @@ class HttpSupabaseStorageClientTest {
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         var storage = client(builder, "clave-secreta");
         String relative = "/object/sign/" + BUCKET + "/foto.webp?token=abc123";
-        server.expect(requestTo(URL + "/storage/v1/object/sign/" + BUCKET + "/" + ENC_PATH))
+        server.expect(requestTo(URL + "/storage/v1/object/sign/" + BUCKET + "/" + PATH))
                 .andRespond(withSuccess("{\"signedURL\":\"" + relative + "\"}",
                         org.springframework.http.MediaType.APPLICATION_JSON));
 
@@ -106,7 +106,7 @@ class HttpSupabaseStorageClientTest {
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         var storage = client(builder, "clave-secreta");
         String relative = "/storage/v1/object/sign/" + BUCKET + "/foto.webp?token=abc123";
-        server.expect(requestTo(URL + "/storage/v1/object/sign/" + BUCKET + "/" + ENC_PATH))
+        server.expect(requestTo(URL + "/storage/v1/object/sign/" + BUCKET + "/" + PATH))
                 .andRespond(withSuccess("{\"signedURL\":\"" + relative + "\"}",
                         org.springframework.http.MediaType.APPLICATION_JSON));
 
@@ -122,13 +122,29 @@ class HttpSupabaseStorageClientTest {
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         var storage = client(builder, "clave-secreta");
         String absolute = "https://cdn.example.com/private/foto.webp?token=abc123";
-        server.expect(requestTo(URL + "/storage/v1/object/sign/" + BUCKET + "/" + ENC_PATH))
+        server.expect(requestTo(URL + "/storage/v1/object/sign/" + BUCKET + "/" + PATH))
                 .andRespond(withSuccess("{\"signedURL\":\"" + absolute + "\"}",
                         org.springframework.http.MediaType.APPLICATION_JSON));
 
         String result = storage.signedUrl("empresas/x/documentos/animals/foto.jpg");
 
         assertThat(result).isEqualTo(absolute);
+        server.verify();
+    }
+
+    @Test
+    void encodesFileNameWithoutEncodingFolderSeparators() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        var storage = client(builder, "clave-secreta");
+        server.expect(requestTo(URL + "/storage/v1/object/sign/" + BUCKET
+                        + "/empresas/x/documentos/animals/mi%20foto.webp"))
+                .andRespond(withSuccess("{\"signedURL\":\"/object/sign/" + BUCKET
+                                + "/empresas/x/documentos/animals/mi%20foto.webp?token=abc123\"}",
+                        org.springframework.http.MediaType.APPLICATION_JSON));
+
+        storage.signedUrl("empresas/x/documentos/animals/mi foto.webp");
+
         server.verify();
     }
 
