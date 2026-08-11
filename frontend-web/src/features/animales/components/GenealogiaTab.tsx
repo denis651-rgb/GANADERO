@@ -1,20 +1,24 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+﻿import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Network, Trash2 } from 'lucide-react'
 import { crearParentesco, eliminarParentesco, listAnimals, listParentescos, listRazas } from '@/features/animales/api'
-import type { TipoParentesco } from '@/features/animales/types'
+import type { Parentesco, TipoParentesco } from '@/features/animales/types'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { Field } from '@/shared/components/Field'
 import { LoadingState } from '@/shared/components/LoadingState'
+import { useToast } from '@/shared/toast/useToast'
 import { normalizeApiError } from '@/shared/api/errors'
 
 export function GenealogiaTab({ animalId }: { animalId: string }) {
   const client = useQueryClient()
+  const { showToast } = useToast()
   const [showForm, setShowForm] = useState(false)
   const [esExterno, setEsExterno] = useState(false)
+  const [removeTarget, setRemoveTarget] = useState<Parentesco | null>(null)
   const query = useQuery({ queryKey: ['animal-parentescos', animalId], queryFn: () => listParentescos(animalId), enabled: Boolean(animalId) })
   const catalogs = useQuery({ queryKey: ['genealogia-catalogs'], queryFn: async () => {
     const [razas, animales] = await Promise.all([listRazas(), listAnimals({ search: undefined, estado: '', sexo: '', page: 0, size: 500 })])
@@ -31,17 +35,19 @@ export function GenealogiaTab({ animalId }: { animalId: string }) {
         registroGenealogico: esExterno ? (String(data.get('registroGenealogico')) || undefined) : undefined,
       })
     },
-    onSuccess: async () => { setShowForm(false); await client.invalidateQueries({ queryKey: ['animal-parentescos', animalId] }) },
+    onSuccess: async () => { setShowForm(false); showToast('Parentesco registrado correctamente.'); await client.invalidateQueries({ queryKey: ['animal-parentescos', animalId] }) },
   })
   const remove = useMutation({
     mutationFn: (parentescoId: string) => eliminarParentesco(animalId, parentescoId),
-    onSuccess: async () => { await client.invalidateQueries({ queryKey: ['animal-parentescos', animalId] }) },
+    onSuccess: async () => {
+      setRemoveTarget(null)
+      await client.invalidateQueries({ queryKey: ['animal-parentescos', animalId] })
+    },
   })
   const error = query.error ?? catalogs.error ?? create.error ?? remove.error
 
   return <div className="page-stack">
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
-    {create.isSuccess && <Alert tone="success">Parentesco registrado correctamente.</Alert>}
     <Card>
       <div className="filter-heading"><span><Network size={18} />Genealogía</span><Button variant="secondary" onClick={() => setShowForm((value) => !value)}>{showForm ? 'Cancelar' : 'Registrar progenitor'}</Button></div>
       {showForm && <form className="form-grid compact-form" onSubmit={(event) => { event.preventDefault(); create.mutate(event.currentTarget) }}>
@@ -58,13 +64,36 @@ export function GenealogiaTab({ animalId }: { animalId: string }) {
       </form>}
       {query.isPending && <LoadingState message="Cargando genealogía…" />}
       {query.data?.length === 0 && !showForm && <EmptyState title="Sin progenitores" description="Registra la madre o el padre del animal." />}
-      {query.data && query.data.length > 0 && <div className="table-wrapper"><table><thead><tr><th>Rol</th><th>Progenitor</th><th>Registro genealógico</th><th>Fecha</th><th></th></tr></thead><tbody>{query.data.map((item) => <tr key={item.id}>
+      {query.data && query.data.length > 0 && <div className="table-wrapper"><table><caption className="visually-hidden">Relaciones genealógicas del animal</caption><thead><tr><th scope="col">Rol</th><th scope="col">Progenitor</th><th scope="col">Registro genealógico</th><th scope="col">Fecha</th><th scope="col">Acciones</th></tr></thead><tbody>{query.data.map((item) => <tr key={item.id}>
         <td><span className="status-badge">{item.tipo}</span></td>
         <td>{item.animalPadreId ? (() => { const padre = catalogs.data?.animales.find((animal) => animal.id === item.animalPadreId); return <strong>{padre ? `${padre.codigo}${padre.nombre ? ` · ${padre.nombre}` : ''}` : 'Animal registrado'}</strong> })() : <strong>{item.nombreExterno ?? 'Progenitor externo'}</strong>}{item.razaExternaId ? ` · ${catalogs.data?.razas.find((raza) => raza.id === item.razaExternaId)?.nombre ?? 'Raza'}` : ''}</td>
         <td>{item.registroGenealogico ?? '—'}</td>
         <td>{new Date(item.fechaRegistro).toLocaleDateString('es-BO')}</td>
-        <td><Button variant="danger" onClick={() => { if (window.confirm('¿Eliminar este parentesco?')) remove.mutate(item.id) }}><Trash2 size={16} />Eliminar</Button></td>
+        <td><Button variant="danger" loading={remove.isPending && remove.variables === item.id} onClick={() => setRemoveTarget(item)}><Trash2 size={16} />Eliminar</Button></td>
       </tr>)}</tbody></table></div>}
     </Card>
+
+    <ConfirmDialog
+      open={Boolean(removeTarget)}
+      title="Eliminar parentesco"
+      confirmLabel="Eliminar parentesco"
+      confirmIcon={<Trash2 size={16} />}
+      loading={remove.isPending}
+      error={remove.error}
+      onClose={() => setRemoveTarget(null)}
+      onConfirm={() => { if (removeTarget) remove.mutate(removeTarget.id) }}
+    >
+      {removeTarget && (
+        <>
+          <p className="muted">
+            ¿Eliminar el parentesco de <strong>{removeTarget.tipo === 'MADRE' ? 'madre' : 'padre'}</strong>:{' '}
+            <strong>{removeTarget.animalPadreId
+              ? (() => { const padre = catalogs.data?.animales.find((animal) => animal.id === removeTarget.animalPadreId); return padre ? `${padre.codigo}${padre.nombre ? ` · ${padre.nombre}` : ''}` : 'Animal registrado' })()
+              : (removeTarget.nombreExterno ?? 'Progenitor externo')}</strong>?
+          </p>
+          <p className="muted">Esta acción no se puede deshacer.</p>
+        </>
+      )}
+    </ConfirmDialog>
   </div>
 }

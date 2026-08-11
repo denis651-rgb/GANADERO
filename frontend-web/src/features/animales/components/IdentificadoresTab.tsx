@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+﻿import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Hash, QrCode } from 'lucide-react'
 import { asignarIdentificador, hacerPrincipalIdentificador, listIdentificadores, retirarIdentificador } from '@/features/animales/api'
@@ -8,16 +8,19 @@ import { AnimalQrCard } from '@/features/animales/qr/components/AnimalQrCard'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { Field } from '@/shared/components/Field'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { Modal } from '@/shared/components/Modal'
+import { useToast } from '@/shared/toast/useToast'
 import { normalizeApiError } from '@/shared/api/errors'
 
 const tiposManuales: TipoIdentificador[] = ['ARETE', 'RFID', 'TATUAJE', 'OTRO']
 
 export function IdentificadoresTab({ animalId, animalCodigo }: { animalId: string; animalCodigo: string }) {
   const client = useQueryClient()
+  const { showToast } = useToast()
   const [showForm, setShowForm] = useState(false)
   const [generateOpen, setGenerateOpen] = useState(false)
   const [replaceTarget, setReplaceTarget] = useState<Identificador | null>(null)
@@ -25,6 +28,8 @@ export function IdentificadoresTab({ animalId, animalCodigo }: { animalId: strin
   const [generatePrincipal, setGeneratePrincipal] = useState(true)
   const [replaceMotivo, setReplaceMotivo] = useState('')
   const [replacePrincipal, setReplacePrincipal] = useState(true)
+  const [retireTarget, setRetireTarget] = useState<Identificador | null>(null)
+  const [retireMotivo, setRetireMotivo] = useState('')
   const query = useQuery({ queryKey: ['animal-identificadores', animalId], queryFn: () => listIdentificadores(animalId), enabled: Boolean(animalId) })
   const assign = useMutation({
     mutationFn: (form: HTMLFormElement) => {
@@ -36,11 +41,16 @@ export function IdentificadoresTab({ animalId, animalCodigo }: { animalId: strin
         observaciones: String(data.get('observaciones') ?? '') || undefined,
       })
     },
-    onSuccess: async () => { setShowForm(false); await client.invalidateQueries({ queryKey: ['animal-identificadores', animalId] }) },
+    onSuccess: async () => { setShowForm(false); showToast('Identificador asignado correctamente.'); await client.invalidateQueries({ queryKey: ['animal-identificadores', animalId] }) },
   })
   const retire = useMutation({
     mutationFn: ({ id, version, motivo }: { id: string; version: number; motivo: string }) => retirarIdentificador(animalId, id, motivo, version),
-    onSuccess: async () => { await client.invalidateQueries({ queryKey: ['animal-identificadores', animalId] }) },
+    onSuccess: async () => {
+      setRetireTarget(null)
+      setRetireMotivo('')
+      showToast('Identificador retirado correctamente.')
+      await client.invalidateQueries({ queryKey: ['animal-identificadores', animalId] })
+    },
   })
   const makePrincipal = useMutation({
     mutationFn: ({ id, version }: { id: string; version: number }) => hacerPrincipalIdentificador(animalId, id, version),
@@ -50,6 +60,7 @@ export function IdentificadoresTab({ animalId, animalCodigo }: { animalId: strin
     mutationFn: () => generarQr(animalId, generatePrincipal),
     onSuccess: async (saved) => {
       setGenerateOpen(false)
+      showToast('Código QR generado correctamente.')
       await client.invalidateQueries({ queryKey: ['animal-identificadores', animalId] })
       setQrView(saved)
     },
@@ -59,6 +70,7 @@ export function IdentificadoresTab({ animalId, animalCodigo }: { animalId: strin
     onSuccess: async (saved) => {
       setReplaceTarget(null)
       setReplaceMotivo('')
+      showToast('Código QR reemplazado correctamente.')
       await client.invalidateQueries({ queryKey: ['animal-identificadores', animalId] })
       setQrView(saved)
     },
@@ -68,17 +80,9 @@ export function IdentificadoresTab({ animalId, animalCodigo }: { animalId: strin
   const activeQr = query.data?.find((item) => item.tipo === 'QR' && item.estado === 'ACTIVO')
 
   const replaceError = replace.error ?? generate.error
-  const promptRetire = (item: Identificador) => {
-    const motivo = window.prompt('Motivo del retiro (mínimo 5 caracteres)') ?? ''
-    if (motivo.trim().length >= 5) retire.mutate({ id: item.id, version: item.version, motivo })
-  }
 
   return <div className="page-stack">
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
-    {assign.isSuccess && <Alert tone="success">Identificador asignado correctamente.</Alert>}
-    {retire.isSuccess && <Alert tone="success">Identificador retirado correctamente.</Alert>}
-    {generate.isSuccess && <Alert tone="success">Código QR generado correctamente.</Alert>}
-    {replace.isSuccess && <Alert tone="success">Código QR reemplazado correctamente.</Alert>}
     {query.data && query.data.length > 0 && !activePrincipal && <Alert>Este animal no tiene un identificador principal activo.</Alert>}
     <Card>
       <div className="filter-heading">
@@ -98,7 +102,7 @@ export function IdentificadoresTab({ animalId, animalCodigo }: { animalId: strin
       </form>}
       {query.isPending && <LoadingState message="Cargando identificadores…" />}
       {query.data?.length === 0 && !showForm && <EmptyState title="Sin identificadores" description="Asigna el primer identificador o genera el código QR del animal." />}
-      {query.data && query.data.length > 0 && <div className="table-wrapper"><table><thead><tr><th>Tipo</th><th>Valor</th><th>Estado</th><th>Asignación</th><th>Retiro</th><th></th></tr></thead><tbody>{query.data.map((item) => <tr key={item.id}>
+      {query.data && query.data.length > 0 && <div className="table-wrapper"><table><caption className="visually-hidden">Identificadores del animal</caption><thead><tr><th scope="col">Tipo</th><th scope="col">Valor</th><th scope="col">Estado</th><th scope="col">Asignación</th><th scope="col">Retiro</th><th scope="col">Acciones</th></tr></thead><tbody>{query.data.map((item) => <tr key={item.id}>
         <td><strong>{item.tipo}</strong></td><td>{item.valor}{item.principal && ' '}<span className="status-badge">Principal</span></td>
         <td><span className="status-badge">{item.estado}</span></td>
         <td>{new Date(item.fechaAsignacion).toLocaleDateString('es-BO')}</td>
@@ -108,7 +112,7 @@ export function IdentificadoresTab({ animalId, animalCodigo }: { animalId: strin
           {item.estado === 'ACTIVO' && <>
             {item.tipo === 'QR' && <Button variant="ghost" onClick={() => setReplaceTarget(item)}>Reemplazar QR</Button>}
             {!item.principal && <Button variant="ghost" onClick={() => makePrincipal.mutate({ id: item.id, version: item.version })}>Hacer principal</Button>}
-            <Button variant="danger" loading={retire.isPending} onClick={() => promptRetire(item)}>Retirar</Button>
+            <Button variant="danger" loading={retire.isPending && retire.variables?.id === item.id} onClick={() => { setRetireTarget(item); setRetireMotivo('') }}>Retirar</Button>
           </>}
         </div></td>
       </tr>)}</tbody></table></div>}
@@ -141,8 +145,32 @@ export function IdentificadoresTab({ animalId, animalCodigo }: { animalId: strin
         identificador={qrView}
         showPayload
         onReplace={() => { setQrView(null); setReplaceTarget(qrView) }}
-        onRetire={() => { setQrView(null); promptRetire(qrView) }}
+        onRetire={() => { setQrView(null); setRetireTarget(qrView); setRetireMotivo('') }}
       />}
     </Modal>
+
+    <ConfirmDialog
+      open={Boolean(retireTarget)}
+      title="Retirar identificador"
+      confirmLabel="Retirar identificador"
+      loading={retire.isPending}
+      disabled={retireMotivo.trim().length < 5}
+      error={retire.error}
+      onClose={() => { setRetireTarget(null); setRetireMotivo('') }}
+      onConfirm={() => { if (retireTarget) retire.mutate({ id: retireTarget.id, version: retireTarget.version, motivo: retireMotivo }) }}
+    >
+      {retireTarget && (
+        <>
+          <p className="muted">
+            Se retirará el identificador <strong>{retireTarget.valor}</strong> ({retireTarget.tipo}).
+            {retireTarget.tipo === 'QR' && ' El código QR dejará de ser válido.'}
+            {retireTarget.principal && ' Este animal quedará sin identificador principal.'}
+          </p>
+          <Field label="Motivo del retiro">
+            <textarea value={retireMotivo} onChange={(event) => setRetireMotivo(event.target.value)} rows={3} required minLength={5} placeholder="Motivo del retiro (mínimo 5 caracteres)" />
+          </Field>
+        </>
+      )}
+    </ConfirmDialog>
   </div>
 }

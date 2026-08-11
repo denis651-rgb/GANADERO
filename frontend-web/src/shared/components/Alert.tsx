@@ -10,7 +10,7 @@ export function Alert({ tone = 'info', title, children }: PropsWithChildren<Aler
   const Icon = tone === 'danger' ? AlertCircle : tone === 'success' ? CheckCircle2 : Info
   return (
     <div className={`alert alert-${tone}`} role={tone === 'danger' ? 'alert' : 'status'}>
-      <Icon size={20} />
+      <Icon size={20} aria-hidden="true" />
       <div>{title && <strong>{title}</strong>}<span>{children}</span></div>
     </div>
   )

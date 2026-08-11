@@ -89,6 +89,7 @@ export function QrScanner() {
 
   async function startCamera() {
     if (streamRef.current) return
+    lockedRef.current = false
     setStatus('starting')
     setResult(null)
     setStatusMessage('')
@@ -113,6 +114,15 @@ export function QrScanner() {
     }
   }
 
+  async function scanAnother() {
+    stopCamera()
+    lockedRef.current = false
+    setResult(null)
+    setStatusMessage('')
+    setStatus('idle')
+    await startCamera()
+  }
+
   useEffect(() => {
     return () => {
       cancelAnimationFrame(rafRef.current)
@@ -130,17 +140,17 @@ export function QrScanner() {
       {!result && (
         <>
           <div>
-            <video ref={videoRef} muted playsInline />
+            <video ref={videoRef} muted playsInline aria-label="Vista de cámara para escanear el código QR del animal" />
             <canvas ref={canvasRef} className="qr-scanner-canvas" />
           </div>
-          <div className="qr-scanner-caption">
-            <ScanLine size={16} />
+          <div className="qr-scanner-caption" role={status === 'camera-error' ? 'alert' : 'status'} aria-live={status === 'camera-error' ? undefined : 'polite'} aria-atomic="true">
+            <ScanLine size={16} aria-hidden="true" />
             {status === 'scanning' ? 'Apuntando a un código QR de Ganadero…' : statusMessage || 'El escáner resuelve el QR verificando su firma en el servidor y usa los datos locales si estás sin conexión.'}
           </div>
           {status !== 'scanning' && (
             <div>
               <Button onClick={() => void startCamera()} loading={status === 'starting'}>
-                <CameraOff size={16} /> {status === 'camera-error' ? 'Reintentar cámara' : 'Activar cámara'}
+                <CameraOff size={16} aria-hidden="true" /> {status === 'camera-error' ? 'Reintentar cámara' : 'Activar cámara'}
               </Button>
             </div>
           )}
@@ -159,7 +169,7 @@ export function QrScanner() {
       )}
 
       {result && (
-        <div className={result.valid ? 'alert alert-success' : 'alert alert-danger'}>
+        <div className={result.valid ? 'alert alert-success' : 'alert alert-danger'} role={result.valid ? 'status' : 'alert'} aria-live={result.valid ? 'polite' : undefined}>
           <div>
             <span><strong>{result.message}</strong></span>
             {result.animal && (
@@ -182,12 +192,12 @@ export function QrScanner() {
       {result && result.animal && (
         <div className="row-actions">
           <Link className="button button-secondary" to={`/animales/${result.animal.id}`}>Ver ficha del animal</Link>
-          {!result.valid && <Button variant="primary" onClick={() => { setResult(null); setStatus('idle') }}>Escanear otro QR</Button>}
+          <Button variant="primary" onClick={() => void scanAnother()}>Escanear otro</Button>
         </div>
       )}
       {result && !result.animal && (
         <div>
-          <Button variant="secondary" onClick={() => { setResult(null); setStatus('idle') }}>Escanear otro QR</Button>
+          <Button variant="secondary" onClick={() => void scanAnother()}>Escanear otro</Button>
         </div>
       )}
     </div>

@@ -1,20 +1,24 @@
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MailPlus, Power } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { useAuth } from '@/auth/auth-context'
-import { listUsuarios, setUsuarioEstado } from '@/features/usuarios/api'
+import { listUsuarios, setUsuarioEstado, type Miembro } from '@/features/usuarios/api'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { EmptyState } from '@/shared/components/EmptyState'
-import { LoadingState } from '@/shared/components/LoadingState'
+import { TableSkeleton } from '@/shared/components/Skeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { MobileEntityCard } from '@/shared/components/MobileEntityCard'
 import { normalizeApiError } from '@/shared/api/errors'
 
 export function UsuariosPage() {
   const client = useQueryClient()
   const navigate = useNavigate()
   const { can } = useAuth()
+  const [blockTarget, setBlockTarget] = useState<Miembro | null>(null)
   const query = useQuery({ queryKey: ['usuarios-completos'], queryFn: listUsuarios })
   const state = useMutation({
     mutationFn: ({ id, action, version }: { id: string; action: 'activar' | 'bloquear'; version: number }) =>
@@ -38,22 +42,22 @@ export function UsuariosPage() {
       {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
 
       <Card>
-        {query.isPending && <LoadingState message="Consultando usuarios…" />}
+        {query.isPending && <TableSkeleton rows={6} columns={7} />}
         {query.data?.length === 0 && (
           <EmptyState title="No hay miembros" description="Invita al primer usuario de la empresa." />
         )}
         {query.data && query.data.length > 0 && (
-          <div className="table-wrapper">
-            <table>
+          <><div className="table-wrapper desktop-only">
+            <table><caption className="visually-hidden">Usuarios de la empresa</caption>
               <thead>
                 <tr>
-                  <th>Usuario</th>
-                  <th>Cargo</th>
-                  <th>Roles</th>
-                  <th>Acceso</th>
-                  <th>Último acceso</th>
-                  <th>Estado</th>
-                  <th />
+                  <th scope="col">Usuario</th>
+                  <th scope="col">Cargo</th>
+                  <th scope="col">Roles</th>
+                  <th scope="col">Acceso</th>
+                  <th scope="col">Último acceso</th>
+                  <th scope="col">Estado</th>
+                  <th scope="col">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -68,23 +72,40 @@ export function UsuariosPage() {
                     <td>
                       <Button
                         variant="ghost"
-                        loading={state.isPending}
-                        onClick={() => state.mutate({
-                          id: user.id,
-                          action: user.estado === 'ACTIVO' ? 'bloquear' : 'activar',
-                          version: user.version,
-                        })}
+                        loading={state.isPending && state.variables?.id === user.id}
+                        onClick={() => {
+                          if (user.estado === 'ACTIVO') setBlockTarget(user)
+                          else state.mutate({ id: user.id, action: 'activar', version: user.version })
+                        }}
                       >
-                        <Power size={16} />{user.estado === 'ACTIVO' ? 'Bloquear' : 'Activar'}
+                        <Power size={16} aria-hidden="true" />{user.estado === 'ACTIVO' ? `Bloquear a ${user.nombres}` : `Activar a ${user.nombres}`}
                       </Button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </div><div className="mobile-only"><div className="mobile-entity-list">{query.data.map((user) => <MobileEntityCard key={user.id} title={`${user.nombres} ${user.apellidos}`} status={<span className="status-badge">{user.estado}</span>} subtitle={user.cargo || 'Sin cargo'} metadata={<><span>{user.roles.map((role) => role.nombre).join(', ') || 'Sin roles'}</span><span>{user.accesoTodasPropiedades ? 'Todas las propiedades' : `${user.propiedadesPermitidas.length} propiedades asignadas`}</span><span>Último acceso: {user.ultimoAccesoAt ? new Date(user.ultimoAccesoAt).toLocaleString('es-BO') : 'Nunca'}</span></>} action={<Button variant="ghost" onClick={() => { if (user.estado === 'ACTIVO') setBlockTarget(user); else state.mutate({ id: user.id, action: 'activar', version: user.version }) }}>{user.estado === 'ACTIVO' ? 'Bloquear' : 'Activar'}</Button>} />)}</div></div></>
         )}
       </Card>
+
+      <ConfirmDialog
+        open={Boolean(blockTarget)}
+        title="Bloquear acceso"
+        confirmLabel="Bloquear acceso"
+        confirmIcon={<Power size={16} />}
+        loading={state.isPending}
+        error={state.error}
+        onClose={() => setBlockTarget(null)}
+        onConfirm={() => { if (blockTarget) state.mutate({ id: blockTarget.id, action: 'bloquear', version: blockTarget.version }) }}
+      >
+        {blockTarget && (
+          <p className="muted">
+            ¿Bloquear el acceso de <strong>{blockTarget.nombres} {blockTarget.apellidos}</strong>? Esta persona dejará de
+            poder ingresar a la aplicación inmediatamente.
+          </p>
+        )}
+      </ConfirmDialog>
     </div>
   )
 }

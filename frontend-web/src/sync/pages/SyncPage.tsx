@@ -11,11 +11,22 @@ import {
 } from '@/sync/sync.service'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { Alert } from '@/shared/components/Alert'
 import { useOnlineStatus } from '@/shared/hooks/useOnlineStatus'
 import { useAuth } from '@/auth/auth-context'
+import type { PendingOperation } from '@/offline/offline.types'
+
+const statusLabel: Record<string, string> = {
+  PENDING: 'Pendiente',
+  PROCESSING: 'Procesando',
+  SYNCED: 'Sincronizada',
+  CONFLICT: 'Conflicto',
+  REJECTED: 'Rechazada',
+  RETRYABLE: 'Reintentable',
+}
 
 export function SyncPage() {
   const { sessionExpired } = useAuth()
@@ -25,6 +36,10 @@ export function SyncPage() {
   const lastSync = useLiveQuery(() => db.estadoSincronizacion.get('lastSyncAt'))
   const online = useOnlineStatus()
   const [syncing, setSyncing] = useState(false)
+  const [confirmClear, setConfirmClear] = useState(false)
+  const [conflictTarget, setConflictTarget] = useState<{ operation: PendingOperation; resolution: 'server' | 'local' } | null>(null)
+  const [resolvingConflict, setResolvingConflict] = useState(false)
+  const [conflictError, setConflictError] = useState<unknown>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [syncError, setSyncError] = useState<string | null>(null)
 
@@ -61,10 +76,28 @@ export function SyncPage() {
     await db.operacionesPendientes.where('status').equals('SYNCED').delete()
   }
 
+  async function confirmConflictResolution() {
+    if (!conflictTarget || resolvingConflict) return
+    setResolvingConflict(true)
+    setConflictError(null)
+    try {
+      if (conflictTarget.resolution === 'server') {
+        await resolveConflictAcceptServer(conflictTarget.operation.operationId)
+      } else {
+        await resolveConflictKeepLocal(conflictTarget.operation.operationId)
+      }
+      setConflictTarget(null)
+    } catch (reason) {
+      setConflictError(reason)
+    } finally {
+      setResolvingConflict(false)
+    }
+  }
+
   return (
     <div className="page-stack">
       <PageHeader
-        eyebrow="Fase 2 preparada"
+        eyebrow="Offline-first"
         title="Sincronización"
         description={`Última sincronización: ${lastSync?.value ? new Date(lastSync.value).toLocaleString('es-BO') : 'todavía no realizada'}`}
         actions={<Button onClick={() => void sync()} loading={syncing} disabled={!online || sessionExpired}><RefreshCw size={18} />Sincronizar</Button>}
@@ -75,7 +108,7 @@ export function SyncPage() {
       {message && <Alert tone="info">{message}</Alert>}
       <Alert tone="info">El escáner de QR resuelve códigos sin conexión usando {identifiersCount} identificador(es) locales sincronizados.</Alert>
       <Card>
-        <div className="section-heading"><h3>Cola local</h3><Button variant="ghost" onClick={() => void clearSynced()}><Trash2 size={17} />Limpiar sincronizadas</Button></div>
+        <div className="section-heading"><h3>Cola local</h3><Button variant="ghost" onClick={() => setConfirmClear(true)}><Trash2 size={17} />Limpiar sincronizadas</Button></div>
         {!operations?.length ? (
           <EmptyState title="No hay operaciones locales" description="Las operaciones realizadas sin conexión aparecerán aquí." />
         ) : (
@@ -84,7 +117,7 @@ export function SyncPage() {
               <article key={operation.operationId} className="operation-item">
                 <div><strong>{operation.tipo}</strong><span>{operation.entidad}{operation.entidadId ? ` · ${operation.entidadId}` : ''} · {operation.attempts} intento(s)</span></div>
                 <div className="operation-meta">
-                  <span className={`status-badge status-${operation.status.toLowerCase()}`}>{operation.status}</span>
+                  <span className={`status-badge status-${operation.status.toLowerCase()}`}>{statusLabel[operation.status] ?? operation.status}</span>
                   <small>{new Date(operation.createdAt).toLocaleString('es-BO')}</small>
                   {['RETRYABLE', 'CONFLICT', 'REJECTED'].includes(operation.status) && (
                     <Button variant="ghost" onClick={() => void retryOperation(operation.operationId)}><RefreshCw size={14} />Reintentar</Button>
@@ -102,8 +135,8 @@ export function SyncPage() {
                       </details>
                     )}
                     <div className="operation-actions">
-                      <Button variant="ghost" onClick={() => void resolveConflictAcceptServer(operation.operationId)}><Check size={14} />Aceptar servidor</Button>
-                      <Button variant="ghost" onClick={() => void resolveConflictKeepLocal(operation.operationId)}><Upload size={14} />Conservar la local</Button>
+                      <Button variant="ghost" onClick={() => { setConflictError(null); setConflictTarget({ operation, resolution: 'server' }) }}><Check size={14} />Usar versión servidor</Button>
+                      <Button variant="ghost" onClick={() => { setConflictError(null); setConflictTarget({ operation, resolution: 'local' }) }}><Upload size={14} />Conservar versión local</Button>
                     </div>
                   </div>
                 )}
@@ -122,7 +155,7 @@ export function SyncPage() {
               <article key={file.localId} className="operation-item">
                 <div><strong>{file.fileName}</strong><span>{file.entityType} {file.entityId} · {(file.file.size / 1024).toFixed(1)} KB</span></div>
                 <div className="operation-meta">
-                  <span className={`status-badge status-${file.status.toLowerCase()}`}>{file.status}</span>
+                  <span className={`status-badge status-${file.status.toLowerCase()}`}>{statusLabel[file.status] ?? file.status}</span>
                   {file.status === 'PROCESSING' && <small>{file.progress}%</small>}
                   <small>{new Date(file.createdAt).toLocaleString('es-BO')}</small>
                   {file.status === 'RETRYABLE' && (
@@ -135,6 +168,39 @@ export function SyncPage() {
           </div>
         )}
       </Card>
+
+      <ConfirmDialog
+        open={confirmClear}
+        title="Limpiar sincronizadas"
+        confirmLabel="Limpiar sincronizadas"
+        confirmIcon={<Trash2 size={17} />}
+        onClose={() => setConfirmClear(false)}
+        onConfirm={() => { setConfirmClear(false); void clearSynced() }}
+      >
+        <p className="muted">¿Eliminar las operaciones ya sincronizadas de la cola local? Esta acción no se puede deshacer, pero no afecta a los datos ya enviados al servidor.</p>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={Boolean(conflictTarget)}
+        title={conflictTarget?.resolution === 'local' ? 'Conservar versión local' : 'Usar versión del servidor'}
+        confirmLabel={conflictTarget?.resolution === 'local' ? 'Conservar versión local' : 'Usar versión del servidor'}
+        variant={conflictTarget?.resolution === 'server' ? 'danger' : 'warning'}
+        loading={resolvingConflict}
+        error={conflictError}
+        onClose={() => { setConflictError(null); setConflictTarget(null) }}
+        onConfirm={() => void confirmConflictResolution()}
+      >
+        {conflictTarget && <div className="page-stack">
+          <p className="muted">{conflictTarget.resolution === 'local'
+            ? 'Se intentará conservar la información registrada en este dispositivo según el flujo de resolución actual.'
+            : 'La información local de esta operación será descartada.'}</p>
+          <div className="two-column-grid">
+            {conflictTarget.operation.datos != null && <div><h3>Información del dispositivo</h3><pre className="code-block">{JSON.stringify(conflictTarget.operation.datos, null, 2)}</pre></div>}
+            {conflictTarget.operation.datosServidor != null && <div><h3>Información del servidor</h3><pre className="code-block">{JSON.stringify(conflictTarget.operation.datosServidor, null, 2)}</pre></div>}
+          </div>
+          {conflictTarget.resolution === 'local' && <Alert tone="danger">La versión del servidor puede ser reemplazada o descartada según esta resolución.</Alert>}
+        </div>}
+      </ConfirmDialog>
     </div>
   )
 }

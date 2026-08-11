@@ -18,6 +18,8 @@ public enum ErrorCode {
     IDEMPOTENCY_CONFLICT(HttpStatus.CONFLICT, "La clave de idempotencia ya fue usada con otra solicitud."),
     SUPABASE_AUTH_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "El servicio de identidad no está disponible."),
     STORAGE_FILE_INVALID(HttpStatus.UNPROCESSABLE_CONTENT, "El archivo no cumple la política de seguridad."),
+    STORAGE_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "El almacenamiento de archivos no está configurado."),
+    STORAGE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "El servicio de almacenamiento no está disponible. Intenta nuevamente."),
     SYSTEM_STATUS_DISABLED(HttpStatus.NOT_FOUND, "El recurso no existe."),
     ROLE_NOT_FOUND(HttpStatus.NOT_FOUND, "El rol no existe o no está disponible para la empresa."),
     ROLE_CODE_ALREADY_EXISTS(HttpStatus.CONFLICT, "Ya existe un rol con ese código."),
