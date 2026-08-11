@@ -89,6 +89,9 @@ export function NuevoAnimalPage() {
       <Card>
         <form className="form-grid" onSubmit={handleSubmit(submit)} noValidate>
           {message && <div className="form-full"><Alert tone={message.tone}>{message.text}</Alert></div>}
+          {!navigator.onLine && catalogs.data && (!catalogs.data.breeds.length || !catalogs.data.categories.length || !catalogs.data.properties.length) && (
+            <div className="form-full"><Alert tone="info" title="Faltan datos para registrar animales sin conexión">Este dispositivo no descargó los catálogos necesarios. Conéctalo a internet y utiliza “Preparar datos offline” en Sincronización.</Alert></div>
+          )}
           <div className="form-section-title form-full"><h2>Información básica</h2></div>
           <Field label="Código interno" error={errors.codigo?.message}>
             <input {...register('codigo')} placeholder="A-0001" />

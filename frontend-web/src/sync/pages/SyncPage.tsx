@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Check, RefreshCw, Trash2, Upload } from 'lucide-react'
 import { db } from '@/offline/db'
@@ -18,6 +18,7 @@ import { Alert } from '@/shared/components/Alert'
 import { useOnlineStatus } from '@/shared/hooks/useOnlineStatus'
 import { useAuth } from '@/auth/auth-context'
 import type { PendingOperation } from '@/offline/offline.types'
+import { getOfflinePreparationStatus, prepareOfflineData, type OfflinePreparationStatus } from '@/offline/offlinePreparation'
 
 const statusLabel: Record<string, string> = {
   PENDING: 'Pendiente',
@@ -42,12 +43,38 @@ export function SyncPage() {
   const [conflictError, setConflictError] = useState<unknown>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [syncError, setSyncError] = useState<string | null>(null)
+  const [preparingOffline, setPreparingOffline] = useState(false)
+  const [preparationStatus, setPreparationStatus] = useState<OfflinePreparationStatus | null>(null)
+
+  useEffect(() => {
+    void refreshPreparationStatus()
+  }, [])
+
+  async function refreshPreparationStatus() {
+    setPreparationStatus(await getOfflinePreparationStatus())
+  }
+
+  async function prepareDevice() {
+    setSyncError(null)
+    setMessage(null)
+    setPreparingOffline(true)
+    try {
+      await prepareOfflineData({ force: true })
+      await refreshPreparationStatus()
+      setMessage('Dispositivo preparado para trabajar sin conexión.')
+    } catch (reason) {
+      setSyncError(reason instanceof Error ? reason.message : 'No se pudieron preparar los datos offline.')
+    } finally {
+      setPreparingOffline(false)
+    }
+  }
 
   async function sync() {
     setMessage(null)
     setSyncError(null)
     setSyncing(true)
     try {
+      await prepareOfflineData()
       const [operationsResult, filesResult] = await Promise.all([synchronizePendingOperations(), synchronizePendingFiles()])
       const { permisosActualizados } = await pullChanges()
       const failed = operationsResult.filter((item) => !item.success).length + filesResult.filter((item) => !item.success).length
@@ -107,6 +134,11 @@ export function SyncPage() {
       {syncError && <Alert tone="danger">{syncError}</Alert>}
       {message && <Alert tone="info">{message}</Alert>}
       <Alert tone="info">El escáner de QR resuelve códigos sin conexión usando {identifiersCount} identificador(es) locales sincronizados.</Alert>
+      <Card>
+        <div className="section-heading"><div><h3>Preparación offline</h3><p className="muted">Descarga razas, categorías, propiedades, potreros, animales e identificadores en este dispositivo.</p></div><Button variant="secondary" loading={preparingOffline} disabled={!online || sessionExpired} onClick={() => void prepareDevice()}>Preparar datos offline</Button></div>
+        {preparationStatus && <div className="offline-data-grid"><div><span>Razas</span><strong>{preparationStatus.breeds}</strong></div><div><span>Categorías</span><strong>{preparationStatus.categories}</strong></div><div><span>Propiedades</span><strong>{preparationStatus.properties}</strong></div><div><span>Potreros</span><strong>{preparationStatus.paddocks}</strong></div></div>}
+        <Button variant="ghost" onClick={() => void refreshPreparationStatus()}>Verificar datos guardados</Button>
+      </Card>
       <Card>
         <div className="section-heading"><h3>Cola local</h3><Button variant="ghost" onClick={() => setConfirmClear(true)}><Trash2 size={17} />Limpiar sincronizadas</Button></div>
         {!operations?.length ? (
