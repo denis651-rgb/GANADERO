@@ -15,7 +15,7 @@ describe('PropiedadesPage operational protection', () => {
     updatePropiedad.mockReset().mockResolvedValue({})
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={client}><PropiedadesPage /></QueryClientProvider>)
-    fireEvent.click(await screen.findByRole('button', { name: 'Desactivar' }))
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Desactivar' }))[0])
     expect(updatePropiedad).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Desactivar propiedad' }))
     await waitFor(() => expect(updatePropiedad).toHaveBeenCalledOnce())

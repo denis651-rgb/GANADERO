@@ -11,6 +11,7 @@ import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { TableSkeleton } from '@/shared/components/Skeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { MobileEntityCard } from '@/shared/components/MobileEntityCard'
 import { normalizeApiError } from '@/shared/api/errors'
 
 export function UsuariosPage() {
@@ -46,17 +47,17 @@ export function UsuariosPage() {
           <EmptyState title="No hay miembros" description="Invita al primer usuario de la empresa." />
         )}
         {query.data && query.data.length > 0 && (
-          <div className="table-wrapper">
-            <table>
+          <><div className="table-wrapper desktop-only">
+            <table><caption className="visually-hidden">Usuarios de la empresa</caption>
               <thead>
                 <tr>
-                  <th>Usuario</th>
-                  <th>Cargo</th>
-                  <th>Roles</th>
-                  <th>Acceso</th>
-                  <th>Último acceso</th>
-                  <th>Estado</th>
-                  <th />
+                  <th scope="col">Usuario</th>
+                  <th scope="col">Cargo</th>
+                  <th scope="col">Roles</th>
+                  <th scope="col">Acceso</th>
+                  <th scope="col">Último acceso</th>
+                  <th scope="col">Estado</th>
+                  <th scope="col">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -77,14 +78,14 @@ export function UsuariosPage() {
                           else state.mutate({ id: user.id, action: 'activar', version: user.version })
                         }}
                       >
-                        <Power size={16} />{user.estado === 'ACTIVO' ? 'Bloquear' : 'Activar'}
+                        <Power size={16} aria-hidden="true" />{user.estado === 'ACTIVO' ? `Bloquear a ${user.nombres}` : `Activar a ${user.nombres}`}
                       </Button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </div><div className="mobile-only"><div className="mobile-entity-list">{query.data.map((user) => <MobileEntityCard key={user.id} title={`${user.nombres} ${user.apellidos}`} status={<span className="status-badge">{user.estado}</span>} subtitle={user.cargo || 'Sin cargo'} metadata={<><span>{user.roles.map((role) => role.nombre).join(', ') || 'Sin roles'}</span><span>{user.accesoTodasPropiedades ? 'Todas las propiedades' : `${user.propiedadesPermitidas.length} propiedades asignadas`}</span><span>Último acceso: {user.ultimoAccesoAt ? new Date(user.ultimoAccesoAt).toLocaleString('es-BO') : 'Nunca'}</span></>} action={<Button variant="ghost" onClick={() => { if (user.estado === 'ACTIVO') setBlockTarget(user); else state.mutate({ id: user.id, action: 'activar', version: user.version }) }}>{user.estado === 'ACTIVO' ? 'Bloquear' : 'Activar'}</Button>} />)}</div></div></>
         )}
       </Card>
 

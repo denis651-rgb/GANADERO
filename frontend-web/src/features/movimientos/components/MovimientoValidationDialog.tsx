@@ -24,7 +24,7 @@ export function MovimientoValidationDialog({ open, onClose, validation, loading,
           </div>
           <div className="table-wrapper" style={{ maxHeight: 320, overflowY: 'auto' }}>
             <table>
-              <thead><tr><th>Animal</th><th>Estado</th><th>Código</th><th>Mensaje</th></tr></thead>
+              <thead><tr><th scope="col">Animal</th><th scope="col">Estado</th><th scope="col">Código</th><th scope="col">Mensaje</th></tr></thead>
               <tbody>
                 {validation.resultados.map((resultado) => (
                   <tr key={resultado.animalId}>

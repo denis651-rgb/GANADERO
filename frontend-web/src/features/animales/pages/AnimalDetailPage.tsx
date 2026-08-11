@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+﻿import { useRef, useState, type KeyboardEvent } from 'react'
 import { Link, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, CalendarClock, Edit3, MapPin, RefreshCw } from 'lucide-react'
@@ -22,10 +22,12 @@ import { normalizeApiError } from '@/shared/api/errors'
 const states: AnimalState[] = ['ACTIVO', 'VENDIDO', 'MUERTO', 'PERDIDO', 'TRANSFERIDO', 'DESCARTADO']
 const criticalStates = new Set<AnimalState>(['VENDIDO', 'MUERTO', 'PERDIDO', 'TRANSFERIDO', 'DESCARTADO'])
 type Tab = 'timeline' | 'identificadores' | 'genealogia' | 'fotos'
+const animalTabs: Tab[] = ['timeline', 'identificadores', 'fotos', 'genealogia']
 
 export function AnimalDetailPage() {
   const { id = '' } = useParams()
   const [tab, setTab] = useState<Tab>('timeline')
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const [filtroTipo, setFiltroTipo] = useState('')
   const [filtroModulo, setFiltroModulo] = useState('')
   const [desde, setDesde] = useState('')
@@ -82,8 +84,21 @@ export function AnimalDetailPage() {
     stateMutation.mutate(next)
   }
 
+  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, currentTab: Tab) {
+    const currentIndex = animalTabs.indexOf(currentTab)
+    let nextIndex: number | null = null
+    if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % animalTabs.length
+    if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + animalTabs.length) % animalTabs.length
+    if (event.key === 'Home') nextIndex = 0
+    if (event.key === 'End') nextIndex = animalTabs.length - 1
+    if (nextIndex == null) return
+    event.preventDefault()
+    setTab(animalTabs[nextIndex])
+    tabRefs.current[nextIndex]?.focus()
+  }
+
   return <div className="page-stack">
-    <PageHeader eyebrow="Ficha animal" title={`${value.codigo}${value.nombre ? ` · ${value.nombre}` : ''}`} description="Información, estado e historial cronológico." actions={<><Link to="/animales"><Button variant="ghost"><ArrowLeft size={18} />Volver</Button></Link><Link to={`/animales/${id}/editar`}><Button><Edit3 size={18} />Editar</Button></Link></>} />
+    <PageHeader eyebrow="Ficha animal" title={`${value.codigo}${value.nombre ? ` · ${value.nombre}` : ''}`} description="Información, estado e historial cronológico." actions={<><Link className="button button-ghost" to="/animales"><ArrowLeft size={18} aria-hidden="true" />Volver</Link><Link className="button button-primary" to={`/animales/${id}/editar`}><Edit3 size={18} aria-hidden="true" />Editar</Link></>} />
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
     <div className="two-column-grid">
       <Card><div className="detail-heading"><h3>Datos principales</h3><span className={`status-badge status-${value.estado.toLowerCase()}`}>{value.estado}</span></div><dl className="detail-list">
@@ -116,10 +131,10 @@ export function AnimalDetailPage() {
       </div>}
     </ConfirmDialog>
     <div className="tabs" role="tablist" aria-label="Secciones del animal">
-      <button type="button" role="tab" id="tab-timeline" aria-selected={tab === 'timeline'} aria-controls="panel-timeline" className={`tab-button ${tab === 'timeline' ? 'active' : ''}`} onClick={() => setTab('timeline')}><CalendarClock size={17} /> Línea de tiempo</button>
-      <button type="button" role="tab" id="tab-identificadores" aria-selected={tab === 'identificadores'} aria-controls="panel-identificadores" className={`tab-button ${tab === 'identificadores' ? 'active' : ''}`} onClick={() => setTab('identificadores')}>Identificadores</button>
-      <button type="button" role="tab" id="tab-fotos" aria-selected={tab === 'fotos'} aria-controls="panel-fotos" className={`tab-button ${tab === 'fotos' ? 'active' : ''}`} onClick={() => setTab('fotos')}>Fotografías</button>
-      <button type="button" role="tab" id="tab-genealogia" aria-selected={tab === 'genealogia'} aria-controls="panel-genealogia" className={`tab-button ${tab === 'genealogia' ? 'active' : ''}`} onClick={() => setTab('genealogia')}>Genealogía</button>
+      <button ref={(node) => { tabRefs.current[0] = node }} type="button" role="tab" id="tab-timeline" aria-selected={tab === 'timeline'} aria-controls="panel-timeline" tabIndex={tab === 'timeline' ? 0 : -1} className={`tab-button ${tab === 'timeline' ? 'active' : ''}`} onKeyDown={(event) => handleTabKeyDown(event, 'timeline')} onClick={() => setTab('timeline')}><CalendarClock size={17} aria-hidden="true" /> Línea de tiempo</button>
+      <button ref={(node) => { tabRefs.current[1] = node }} type="button" role="tab" id="tab-identificadores" aria-selected={tab === 'identificadores'} aria-controls="panel-identificadores" tabIndex={tab === 'identificadores' ? 0 : -1} className={`tab-button ${tab === 'identificadores' ? 'active' : ''}`} onKeyDown={(event) => handleTabKeyDown(event, 'identificadores')} onClick={() => setTab('identificadores')}>Identificadores</button>
+      <button ref={(node) => { tabRefs.current[2] = node }} type="button" role="tab" id="tab-fotos" aria-selected={tab === 'fotos'} aria-controls="panel-fotos" tabIndex={tab === 'fotos' ? 0 : -1} className={`tab-button ${tab === 'fotos' ? 'active' : ''}`} onKeyDown={(event) => handleTabKeyDown(event, 'fotos')} onClick={() => setTab('fotos')}>Fotografías</button>
+      <button ref={(node) => { tabRefs.current[3] = node }} type="button" role="tab" id="tab-genealogia" aria-selected={tab === 'genealogia'} aria-controls="panel-genealogia" tabIndex={tab === 'genealogia' ? 0 : -1} className={`tab-button ${tab === 'genealogia' ? 'active' : ''}`} onKeyDown={(event) => handleTabKeyDown(event, 'genealogia')} onClick={() => setTab('genealogia')}>Genealogía</button>
     </div>
     {tab === 'identificadores' && <div role="tabpanel" id="panel-identificadores" aria-labelledby="tab-identificadores"><IdentificadoresTab animalId={id} animalCodigo={value.codigo} /></div>}
     {tab === 'fotos' && <div role="tabpanel" id="panel-fotos" aria-labelledby="tab-fotos"><FotosTab animalId={id} /></div>}

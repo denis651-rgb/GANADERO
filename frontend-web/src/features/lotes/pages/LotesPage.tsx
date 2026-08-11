@@ -12,6 +12,7 @@ import { EmptyState } from '@/shared/components/EmptyState'
 import { Field } from '@/shared/components/Field'
 import { TableSkeleton } from '@/shared/components/Skeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { MobileEntityCard } from '@/shared/components/MobileEntityCard'
 import { useToast } from '@/shared/toast/useToast'
 import { normalizeApiError } from '@/shared/api/errors'
 
@@ -57,16 +58,16 @@ export function LotesPage() {
       <div className="form-actions"><Button type="submit" loading={create.isPending}>Crear lote</Button></div>
     </form></Card>}
     <Card>
-      <div className="filter-heading"><span className="search-box"><Search size={18} /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(0) }} placeholder="Buscar por código o nombre" /></span>
+      <div className="filter-heading"><span className="search-box"><Search size={18} aria-hidden="true" /><input type="search" aria-label="Buscar lotes" value={search} onChange={(event) => { setSearch(event.target.value); setPage(0) }} placeholder="Buscar por código o nombre…" /></span>
         <select aria-label="Filtrar por estado" value={estado} onChange={(event) => { setEstado(event.target.value as EstadoLote | ''); setPage(0) }}><option value="">Todos los estados</option><option value="ACTIVO">Activo</option><option value="CERRADO">Cerrado</option></select></div>
       {query.isPending && <TableSkeleton rows={7} columns={6} />}
       {query.data?.content.length === 0 && <EmptyState title="No hay lotes" description="Crea el primer lote para agrupar animales." />}
       {query.data && query.data.content.length > 0 && <>
-        <div className="table-wrapper"><table><thead><tr><th>Código</th><th>Nombre</th><th>Propiedad</th><th>Estado</th><th>Apertura</th><th>Cierre</th><th></th></tr></thead><tbody>{query.data.content.map((lote) => <tr key={lote.id}>
+        <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Lotes que coinciden con los filtros</caption><thead><tr><th scope="col">Código</th><th scope="col">Nombre</th><th scope="col">Propiedad</th><th scope="col">Estado</th><th scope="col">Apertura</th><th scope="col">Cierre</th><th scope="col">Acciones</th></tr></thead><tbody>{query.data.content.map((lote) => <tr key={lote.id}>
           <td><strong>{lote.codigo}</strong></td><td>{lote.nombre}</td><td>{propiedades.data?.find((item) => item.id === lote.propiedadId)?.nombre ?? '—'}</td>
           <td><span className="status-badge">{lote.estado}</span></td><td>{new Date(lote.fechaApertura).toLocaleDateString('es-BO')}</td><td>{lote.fechaCierre ? new Date(lote.fechaCierre).toLocaleDateString('es-BO') : '—'}</td>
-          <td><Link to={`/lotes/${lote.id}`}><Button variant="ghost"><Eye size={16} />Ver</Button></Link></td>
-        </tr>)}</tbody></table></div>
+          <td><Link className="button button-ghost" to={`/lotes/${lote.id}`} aria-label={`Ver lote ${lote.codigo}, ${lote.nombre}`}><Eye size={16} aria-hidden="true" />Ver</Link></td>
+        </tr>)}</tbody></table></div><div className="mobile-only"><div className="mobile-entity-list">{query.data.content.map((lote) => <MobileEntityCard key={lote.id} title={`${lote.codigo} · ${lote.nombre}`} status={<span className="status-badge">{lote.estado}</span>} subtitle={propiedades.data?.find((item) => item.id === lote.propiedadId)?.nombre ?? 'Propiedad no disponible'} metadata={<><span>Apertura: {new Date(lote.fechaApertura).toLocaleDateString('es-BO')}</span>{lote.fechaCierre && <span>Cierre: {new Date(lote.fechaCierre).toLocaleDateString('es-BO')}</span>}</>} action={<Link className="button button-ghost" to={`/lotes/${lote.id}`}>Ver lote →</Link>} />)}</div></div>
         <div className="pagination"><span>Página {query.data.page + 1} de {Math.max(query.data.totalPages, 1)}</span><div><Button variant="ghost" disabled={page === 0 || query.isFetching} onClick={() => setPage((value) => value - 1)}><ChevronLeft size={17} />Anterior</Button><Button variant="ghost" disabled={page + 1 >= query.data.totalPages || query.isFetching} onClick={() => setPage((value) => value + 1)}>Siguiente<ChevronRight size={17} /></Button></div></div>
       </>}
     </Card>

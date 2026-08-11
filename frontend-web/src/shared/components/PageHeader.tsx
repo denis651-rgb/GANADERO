@@ -12,7 +12,7 @@ export function PageHeader({ title, description, eyebrow, actions }: PageHeaderP
     <header className="page-header">
       <div>
         {eyebrow && <span className="eyebrow">{eyebrow}</span>}
-        <h2>{title}</h2>
+        <h1>{title}</h1>
         <p>{description}</p>
       </div>
       {actions && <div className="page-actions">{actions}</div>}

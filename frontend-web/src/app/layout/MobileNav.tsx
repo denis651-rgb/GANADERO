@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router'
-import { Beef, House, LayoutGrid, MapPinned, RefreshCw, X } from 'lucide-react'
+import { Beef, House, LayoutGrid, MapPinned, RefreshCw } from 'lucide-react'
 import { appModules, MODULE_STATUS_LABEL } from '@/app/modules'
 import { useAuth } from '@/auth/auth-context'
 import { cn } from '@/shared/utils/cn'
+import { Modal } from '@/shared/components/Modal'
 
 const pinned = [
   { path: '/', label: 'Inicio', icon: House, end: true },
@@ -16,23 +17,9 @@ export function MobileNav() {
   const { can } = useAuth()
   const location = useLocation()
   const [open, setOpen] = useState(false)
-  const [lastPath, setLastPath] = useState(location.pathname)
-  if (lastPath !== location.pathname) {
-    setLastPath(location.pathname)
-    setOpen(false)
-  }
   const isPinnedRoute = pinned.some((item) => (
     item.end ? location.pathname === item.path : location.pathname.startsWith(item.path)
   ))
-
-  useEffect(() => {
-    if (!open) return
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [open])
 
   const modules = appModules.filter((module) => !module.permission || can(module.permission))
 
@@ -48,7 +35,7 @@ export function MobileNav() {
               end={item.end}
               className={({ isActive }) => cn('mobile-nav-item', isActive && 'active')}
             >
-              <Icon size={21} />
+              <Icon size={21} aria-hidden="true" />
               <span>{item.label}</span>
             </NavLink>
           )
@@ -60,26 +47,12 @@ export function MobileNav() {
           aria-expanded={open}
           aria-haspopup="dialog"
         >
-          <LayoutGrid size={21} />
+          <LayoutGrid size={21} aria-hidden="true" />
           <span>Más</span>
         </button>
       </nav>
 
-      {open && (
-        <div className="mobile-drawer-overlay" onClick={() => setOpen(false)}>
-          <div
-            className="mobile-drawer"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Todos los módulos"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mobile-drawer-header">
-              <strong>Todos los módulos</strong>
-              <button type="button" className="icon-button" onClick={() => setOpen(false)} aria-label="Cerrar menú">
-                <X size={19} />
-              </button>
-            </div>
+      <Modal open={open} title="Todos los módulos" description="Selecciona un módulo de GANADERO." onClose={() => setOpen(false)} variant="drawer">
             <nav className="mobile-drawer-nav" aria-label="Módulos">
               {modules.map((module) => {
                 const Icon = module.icon
@@ -88,6 +61,7 @@ export function MobileNav() {
                     key={module.key}
                     to={module.path}
                     end={module.path === '/'}
+                    onClick={() => setOpen(false)}
                     className={({ isActive }) => cn('mobile-drawer-item', isActive && 'active')}
                   >
                     <Icon size={19} aria-hidden="true" />
@@ -99,9 +73,7 @@ export function MobileNav() {
                 )
               })}
             </nav>
-          </div>
-        </div>
-      )}
+      </Modal>
     </>
   )
 }

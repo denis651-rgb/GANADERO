@@ -93,7 +93,7 @@ export function PesajeLoteForm({ onSaved, onCancel }: PesajeLoteFormProps) {
           <select {...register('loteId')}><option value="">Selecciona un lote…</option>{lots.data?.content.filter((item) => item.estado === 'ACTIVO').map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
         </Field>
         <Field label="Peso (kg)" error={errors.pesoKg?.message} hint="El mismo peso se aplicará a todos los animales activos del lote.">
-          <input type="number" min="1" step="0.1" {...register('pesoKg')} placeholder="250" />
+          <input type="number" inputMode="decimal" min="1" step="0.1" {...register('pesoKg')} placeholder="250" />
         </Field>
         <Field label="Fecha" error={errors.fecha?.message}>
           <input type="date" {...register('fecha')} />
@@ -105,7 +105,7 @@ export function PesajeLoteForm({ onSaved, onCancel }: PesajeLoteFormProps) {
         </div>
         {resultado && resultado.conError > 0 && <div className="form-full">
           <Alert tone="danger">No se pudo registrar a {resultado.conError} animal(es). Revisa el motivo y reintenta solo los fallidos.</Alert>
-          <div className="table-wrapper"><table><thead><tr><th>Animal</th><th>Motivo</th></tr></thead><tbody>{resultado.items.filter((item) => !item.ok).map((item) => <tr key={item.animalId}>
+          <div className="table-wrapper"><table><caption className="visually-hidden">Animales cuyo pesaje no pudo registrarse</caption><thead><tr><th scope="col">Animal</th><th scope="col">Motivo</th></tr></thead><tbody>{resultado.items.filter((item) => !item.ok).map((item) => <tr key={item.animalId}>
             <td><strong>{item.codigoAnimal ?? item.nombreAnimal ?? item.animalId}</strong></td>
             <td>{item.errorMessage ?? item.errorCode}</td>
           </tr>)}</tbody></table></div>

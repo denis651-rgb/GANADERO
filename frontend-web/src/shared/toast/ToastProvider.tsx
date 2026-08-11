@@ -31,9 +31,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="toast-region" aria-live="polite">
+      <div className="toast-region">
         {toasts.map((toast) => (
-          <div key={toast.id} className={`toast toast-${toast.tone}`} role="status">
+          <div key={toast.id} className={`toast toast-${toast.tone}`} role={toast.tone === 'danger' ? 'alert' : 'status'}>
             {toastIcons[toast.tone]}
             <span>{toast.message}</span>
             <button type="button" className="toast-close" onClick={() => dismiss(toast.id)} aria-label="Cerrar notificación">

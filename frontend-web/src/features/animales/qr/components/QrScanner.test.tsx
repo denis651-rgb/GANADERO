@@ -30,4 +30,12 @@ describe('QrScanner', () => {
     expect(screen.queryByText('Animal encontrado')).not.toBeInTheDocument()
     expect(screen.getByText('Apuntando a un código QR de Ganadero…')).toBeInTheDocument()
   })
+
+  it('expone estados significativos y errores de cámara a tecnologías de asistencia', async () => {
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: vi.fn().mockRejectedValue(new Error('denied')) } })
+    render(<MemoryRouter><QrScanner /></MemoryRouter>)
+    expect(screen.getByLabelText('Vista de cámara para escanear el código QR del animal')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Activar cámara' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo acceder a la cámara')
+  })
 })

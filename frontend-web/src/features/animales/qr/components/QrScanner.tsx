@@ -140,17 +140,17 @@ export function QrScanner() {
       {!result && (
         <>
           <div>
-            <video ref={videoRef} muted playsInline />
+            <video ref={videoRef} muted playsInline aria-label="Vista de cámara para escanear el código QR del animal" />
             <canvas ref={canvasRef} className="qr-scanner-canvas" />
           </div>
-          <div className="qr-scanner-caption">
-            <ScanLine size={16} />
+          <div className="qr-scanner-caption" role={status === 'camera-error' ? 'alert' : 'status'} aria-live={status === 'camera-error' ? undefined : 'polite'} aria-atomic="true">
+            <ScanLine size={16} aria-hidden="true" />
             {status === 'scanning' ? 'Apuntando a un código QR de Ganadero…' : statusMessage || 'El escáner resuelve el QR verificando su firma en el servidor y usa los datos locales si estás sin conexión.'}
           </div>
           {status !== 'scanning' && (
             <div>
               <Button onClick={() => void startCamera()} loading={status === 'starting'}>
-                <CameraOff size={16} /> {status === 'camera-error' ? 'Reintentar cámara' : 'Activar cámara'}
+                <CameraOff size={16} aria-hidden="true" /> {status === 'camera-error' ? 'Reintentar cámara' : 'Activar cámara'}
               </Button>
             </div>
           )}
@@ -169,7 +169,7 @@ export function QrScanner() {
       )}
 
       {result && (
-        <div className={result.valid ? 'alert alert-success' : 'alert alert-danger'}>
+        <div className={result.valid ? 'alert alert-success' : 'alert alert-danger'} role={result.valid ? 'status' : 'alert'} aria-live={result.valid ? 'polite' : undefined}>
           <div>
             <span><strong>{result.message}</strong></span>
             {result.animal && (

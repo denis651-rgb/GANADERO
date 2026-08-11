@@ -7,12 +7,15 @@ interface ModalProps {
   onClose: () => void
   children: ReactNode
   wide?: boolean
+  description?: string
+  variant?: 'dialog' | 'drawer'
 }
 
-export function Modal({ open, title, onClose, children, wide }: ModalProps) {
+export function Modal({ open, title, onClose, children, wide, description, variant = 'dialog' }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
   const titleId = useId()
+  const descriptionId = useId()
 
   useEffect(() => {
     onCloseRef.current = onClose
@@ -60,23 +63,25 @@ export function Modal({ open, title, onClose, children, wide }: ModalProps) {
 
   if (!open) return null
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className={variant === 'drawer' ? 'mobile-drawer-overlay' : 'modal-overlay'} onClick={onClose}>
       <div
         ref={dialogRef}
-        className={`modal ${wide ? 'modal-wide' : ''}`}
+        className={variant === 'drawer' ? 'mobile-drawer' : `modal ${wide ? 'modal-wide' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-describedby={description ? descriptionId : undefined}
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="modal-header">
+        <div className={variant === 'drawer' ? 'mobile-drawer-header' : 'modal-header'}>
           <h2 id={titleId}>{title}</h2>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Cerrar">
-            <X size={18} />
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
-        <div className="modal-body">{children}</div>
+        {description && <p id={descriptionId} className="visually-hidden">{description}</p>}
+        <div className={variant === 'drawer' ? 'mobile-drawer-body' : 'modal-body'}>{children}</div>
       </div>
     </div>
   )

@@ -9,6 +9,7 @@ import { EmptyState } from '@/shared/components/EmptyState'
 import { Field } from '@/shared/components/Field'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { MobileEntityCard } from '@/shared/components/MobileEntityCard'
 import { useToast } from '@/shared/toast/useToast'
 import { normalizeApiError } from '@/shared/api/errors'
 
@@ -87,7 +88,7 @@ export function RolesPage() {
       <Card>
         {query.isPending && <LoadingState message="Cargando roles…" />}
         {query.data?.roles.length === 0 && <EmptyState title="No hay roles" description="Crea el primer rol empresarial." />}
-        {query.data && <div className="table-wrapper"><table><thead><tr><th>Rol</th><th>Tipo</th><th>Permisos</th><th>Estado</th><th></th></tr></thead><tbody>{query.data.roles.map((role) => <tr key={role.id}><td><strong>{role.nombre}</strong><span className="table-secondary">{role.codigo}</span></td><td>{role.sistema ? 'Sistema' : 'Personalizado'}</td><td>{role.permisos.length}</td><td><span className="status-badge">{role.activo ? 'ACTIVO' : 'INACTIVO'}</span></td><td><Button variant="ghost" onClick={() => configureRole(role.id)}><ShieldCheck size={16} />Configurar</Button></td></tr>)}</tbody></table></div>}
+        {query.data && <><div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Roles disponibles</caption><thead><tr><th scope="col">Rol</th><th scope="col">Tipo</th><th scope="col">Permisos</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead><tbody>{query.data.roles.map((role) => <tr key={role.id}><td><strong>{role.nombre}</strong><span className="table-secondary">{role.codigo}</span></td><td>{role.sistema ? 'Sistema' : 'Personalizado'}</td><td>{role.permisos.length}</td><td><span className="status-badge">{role.activo ? 'ACTIVO' : 'INACTIVO'}</span></td><td><Button variant="ghost" aria-label={`Configurar permisos del rol ${role.nombre}`} onClick={() => configureRole(role.id)}><ShieldCheck size={16} aria-hidden="true" />Configurar</Button></td></tr>)}</tbody></table></div><div className="mobile-only"><div className="mobile-entity-list">{query.data.roles.map((role) => <MobileEntityCard key={role.id} title={role.nombre} status={<span className="status-badge">{role.activo ? 'ACTIVO' : 'INACTIVO'}</span>} subtitle={role.codigo} metadata={<><span>{role.sistema ? 'Rol del sistema' : 'Rol personalizado'}</span><span>{role.permisos.length} permisos</span></>} action={<Button variant="ghost" onClick={() => configureRole(role.id)}>Configurar →</Button>} />)}</div></div></>}
       </Card>
 
       {selectedRole && <div ref={permissionSectionRef} tabIndex={-1} className="permission-section"><Card>

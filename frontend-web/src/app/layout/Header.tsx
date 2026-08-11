@@ -14,11 +14,11 @@ export function Header() {
     <header className="topbar">
       <div>
         <span className="eyebrow">GANADERO</span>
-        <h1>{current?.label ?? 'Panel principal'}</h1>
+        <div className="topbar-title">{current?.label ?? 'Panel principal'}</div>
       </div>
       <div className="topbar-actions">
         <span className={online ? 'connection-pill online' : 'connection-pill offline'}>
-          {online ? <RefreshCw size={15} /> : <CloudOff size={15} />}
+          {online ? <RefreshCw size={15} aria-hidden="true" /> : <CloudOff size={15} aria-hidden="true" />}
           {online ? 'En línea' : 'Sin conexión'}
         </span>
         <PendingOperationsBadge />

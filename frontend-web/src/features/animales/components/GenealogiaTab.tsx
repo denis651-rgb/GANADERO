@@ -64,7 +64,7 @@ export function GenealogiaTab({ animalId }: { animalId: string }) {
       </form>}
       {query.isPending && <LoadingState message="Cargando genealogía…" />}
       {query.data?.length === 0 && !showForm && <EmptyState title="Sin progenitores" description="Registra la madre o el padre del animal." />}
-      {query.data && query.data.length > 0 && <div className="table-wrapper"><table><thead><tr><th>Rol</th><th>Progenitor</th><th>Registro genealógico</th><th>Fecha</th><th></th></tr></thead><tbody>{query.data.map((item) => <tr key={item.id}>
+      {query.data && query.data.length > 0 && <div className="table-wrapper"><table><caption className="visually-hidden">Relaciones genealógicas del animal</caption><thead><tr><th scope="col">Rol</th><th scope="col">Progenitor</th><th scope="col">Registro genealógico</th><th scope="col">Fecha</th><th scope="col">Acciones</th></tr></thead><tbody>{query.data.map((item) => <tr key={item.id}>
         <td><span className="status-badge">{item.tipo}</span></td>
         <td>{item.animalPadreId ? (() => { const padre = catalogs.data?.animales.find((animal) => animal.id === item.animalPadreId); return <strong>{padre ? `${padre.codigo}${padre.nombre ? ` · ${padre.nombre}` : ''}` : 'Animal registrado'}</strong> })() : <strong>{item.nombreExterno ?? 'Progenitor externo'}</strong>}{item.razaExternaId ? ` · ${catalogs.data?.razas.find((raza) => raza.id === item.razaExternaId)?.nombre ?? 'Raza'}` : ''}</td>
         <td>{item.registroGenealogico ?? '—'}</td>

@@ -16,6 +16,7 @@ import { Card } from '@/shared/components/Card'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { TableSkeleton } from '@/shared/components/Skeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { MobileEntityCard } from '@/shared/components/MobileEntityCard'
 import { Alert } from '@/shared/components/Alert'
 import { normalizeApiError } from '@/shared/api/errors'
 import { printRoute } from '@/features/animales/qr/print-utils'
@@ -140,15 +141,15 @@ export function AnimalesPage() {
 
   return <div className="page-stack">
     <PageHeader eyebrow="Ganado" title="Animales" description="Consulta, filtra y administra el historial del hato." actions={<>
-      <Link to="/qr/escanear"><Button variant="secondary"><ScanLine size={18} />Escanear QR</Button></Link>
+      <Link className="button button-secondary" to="/qr/escanear"><ScanLine size={18} aria-hidden="true" />Escanear QR</Link>
       <Button variant="secondary" loading={printing} disabled={selected.size === 0} onClick={() => void printSelected()}><Printer size={18} />Imprimir QR ({selected.size})</Button>
-      <Link to="/animales/nuevo"><Button><Plus size={18} />Nuevo animal</Button></Link>
+      <Link className="button button-primary" to="/animales/nuevo"><Plus size={18} aria-hidden="true" />Nuevo animal</Link>
     </>} />
     <Card>
       <div className="filter-heading"><span><SlidersHorizontal size={18} />Filtros</span>{displayData && <strong>{displayData.totalElements} animales</strong>}</div>
       {printError && <Alert tone="danger">{printError}</Alert>}
       <div className="animal-filters">
-        <label className="search-box"><Search size={18} /><input value={search} onChange={(event) => { setSearch(event.target.value); resetPage() }} placeholder="Código o nombre" /></label>
+        <label className="search-box"><Search size={18} aria-hidden="true" /><input type="search" aria-label="Buscar animales" value={search} onChange={(event) => { setSearch(event.target.value); resetPage() }} placeholder="Código o nombre…" /></label>
         <select aria-label="Filtrar por estado" value={estado} onChange={(event) => { setEstado(event.target.value as AnimalState | ''); resetPage() }}><option value="">Todos los estados</option>{states.map((value) => <option key={value}>{value}</option>)}</select>
         <select aria-label="Filtrar por sexo" value={sexo} onChange={(event) => { setSexo(event.target.value as typeof sexo); resetPage() }}><option value="">Todos los sexos</option><option value="HEMBRA">Hembra</option><option value="MACHO">Macho</option></select>
         <select aria-label="Filtrar por propiedad" value={propertyId} onChange={(event) => { setPropertyId(event.target.value); setPaddockId(''); resetPage() }}><option value="">Todas las propiedades</option>{cats?.properties?.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
@@ -160,11 +161,24 @@ export function AnimalesPage() {
       {error && !offline && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
       {displayData?.content.length === 0 && <EmptyState title="No hay resultados" description="Cambia los filtros o registra un nuevo animal." />}
       {displayData && displayData.content.length > 0 && <>
-        <div className="table-wrapper"><table><thead><tr><th className="table-select-col"><input type="checkbox" aria-label="Seleccionar todos de la página" checked={displayData.content.every((animal) => selected.has(animal.id))} onChange={(event) => setSelected(event.target.checked ? new Set(displayData.content.map((animal) => animal.id)) : new Set())} /></th><th>Código</th><th>Nombre</th><th>Sexo</th><th>Categoría</th><th>Ubicación</th><th>Estado</th><th></th></tr></thead><tbody>{displayData.content.map((animal) => <tr key={animal.id}>
+        <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Animales que coinciden con los filtros</caption><thead><tr><th scope="col" className="table-select-col"><input type="checkbox" aria-label="Seleccionar todos de la página" checked={displayData.content.every((animal) => selected.has(animal.id))} onChange={(event) => setSelected(event.target.checked ? new Set(displayData.content.map((animal) => animal.id)) : new Set())} /></th><th scope="col">Código</th><th scope="col">Nombre</th><th scope="col">Sexo</th><th scope="col">Categoría</th><th scope="col">Ubicación</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead><tbody>{displayData.content.map((animal) => <tr key={animal.id}>
           <td><input type="checkbox" aria-label={`Seleccionar ${animal.codigo}`} checked={selected.has(animal.id)} onChange={() => toggleSelected(animal.id)} /></td><td><strong>{animal.codigo}</strong></td><td>{animal.nombre || '—'}</td><td>{animal.sexo}</td><td>{cats?.categories?.find((item) => item.id === animal.categoriaActualId)?.nombre ?? '—'}</td>
           <td>{[cats?.properties?.find((item) => item.id === animal.propiedadActualId)?.nombre, cats?.paddocks?.find((item) => item.id === animal.potreroActualId)?.nombre].filter(Boolean).join(' / ') || '—'}</td><td><span className={`status-badge status-${animal.estado.toLowerCase()}`}>{animal.estado}</span></td>
-          <td><Link to={`/animales/${animal.id}`}><Button variant="ghost"><Eye size={16} />Ver</Button></Link></td>
+          <td><Link className="button button-ghost" to={`/animales/${animal.id}`} aria-label={`Ver animal ${animal.codigo}${animal.nombre ? `, ${animal.nombre}` : ''}`}><Eye size={16} aria-hidden="true" />Ver</Link></td>
         </tr>)}</tbody></table></div>
+        <div className="mobile-only"><div className="mobile-entity-list">{displayData.content.map((animal) => {
+          const category = cats?.categories?.find((item) => item.id === animal.categoriaActualId)?.nombre
+          const location = [cats?.properties?.find((item) => item.id === animal.propiedadActualId)?.nombre, cats?.paddocks?.find((item) => item.id === animal.potreroActualId)?.nombre].filter(Boolean).join(' / ')
+          return <MobileEntityCard
+            key={animal.id}
+            title={<>{animal.codigo}{animal.nombre ? ` · ${animal.nombre}` : ''}</>}
+            status={<span className={`status-badge status-${animal.estado.toLowerCase()}`}>{animal.estado}</span>}
+            subtitle={`${category ?? 'Sin categoría'} · ${animal.sexo}`}
+            metadata={location ? <span>Ubicación: {location}</span> : <span>Ubicación no disponible</span>}
+            selection={<input type="checkbox" aria-label={`Seleccionar ${animal.codigo}`} checked={selected.has(animal.id)} onChange={() => toggleSelected(animal.id)} />}
+            action={<Link className="button button-ghost" to={`/animales/${animal.id}`}>Ver animal →</Link>}
+          />
+        })}</div></div>
         <div className="pagination"><span>Página {displayData.page + 1} de {Math.max(displayData.totalPages, 1)}</span><div><Button variant="ghost" disabled={page === 0 || query.isFetching} onClick={() => setPage((value) => value - 1)}><ChevronLeft size={17} />Anterior</Button><Button variant="ghost" disabled={page + 1 >= displayData.totalPages || query.isFetching} onClick={() => setPage((value) => value + 1)}>Siguiente<ChevronRight size={17} /></Button></div></div>
       </>}
     </Card>

@@ -51,7 +51,7 @@ export function MovimientoDetailModal({ open, onClose, movimiento, detalles, cat
       <h4>Animales ({detalles?.length ?? 0})</h4>
       <div className="table-wrapper" style={{ maxHeight: 260, overflowY: 'auto' }}>
         <table>
-          <thead><tr><th>Código</th><th>Versión esperada</th><th>Estado</th><th>Resultado</th></tr></thead>
+          <thead><tr><th scope="col">Código</th><th scope="col">Versión esperada</th><th scope="col">Estado</th><th scope="col">Resultado</th></tr></thead>
           <tbody>
             {detalles?.map((detalle) => (
               <tr key={detalle.id}>

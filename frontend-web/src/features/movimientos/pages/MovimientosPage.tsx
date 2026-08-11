@@ -18,6 +18,7 @@ import { EmptyState } from '@/shared/components/EmptyState'
 import { Field } from '@/shared/components/Field'
 import { TableSkeleton } from '@/shared/components/Skeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { MobileEntityCard } from '@/shared/components/MobileEntityCard'
 import { useToast } from '@/shared/toast/useToast'
 import { normalizeApiError } from '@/shared/api/errors'
 
@@ -140,7 +141,7 @@ export function MovimientosPage() {
       {(req === 'lote' || req === 'potrero-o-lote') && <Field label="Destino (lote)" hint={req === 'lote' ? 'Requerido' : undefined}><select name="destinoLoteId"><option value="">Sin especificar</option>{catalogs.data?.lotes.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>}
       <Field label={`Animales a mover (${animalesSeleccionados.size} seleccionados)`}>
         <div style={{ display: 'grid', gap: 8 }}>
-          <span className="search-box"><Search size={18} /><input value={animalSearch} onChange={(event) => setAnimalSearch(event.target.value)} placeholder="Buscar por código o nombre" /></span>
+          <span className="search-box"><Search size={18} aria-hidden="true" /><input type="search" aria-label="Buscar animales para el movimiento" value={animalSearch} onChange={(event) => setAnimalSearch(event.target.value)} placeholder="Buscar por código o nombre…" /></span>
           <div className="checkbox-stack" style={{ maxHeight: 220, overflowY: 'auto' }}>{animalesFiltrados.map((animal) => <label key={animal.id}><input type="checkbox" name="animales" value={animal.id} checked={animalesSeleccionados.has(animal.id)} onChange={(event) => { setAnimalesSeleccionados((prev) => { const next = new Set(prev); if (event.target.checked) next.add(animal.id); else next.delete(animal.id); return next }) }} /> {animal.codigo}{animal.nombre ? ` · ${animal.nombre}` : ''}</label>)}</div>
         </div>
       </Field>
@@ -153,13 +154,18 @@ export function MovimientosPage() {
       {query.isPending && <TableSkeleton rows={8} columns={6} />}
       {query.data?.content.length === 0 && <EmptyState title="No hay movimientos" description="Crea el primer movimiento de animales." />}
       {query.data && query.data.content.length > 0 && <>
-        <div className="table-wrapper"><table><thead><tr><th>Tipo</th><th>Estado</th><th>Fecha</th><th>Origen</th><th>Destino</th><th></th></tr></thead><tbody>{query.data.content.map((item) => {
+        <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Movimientos que coinciden con los filtros</caption><thead><tr><th scope="col">Tipo</th><th scope="col">Estado</th><th scope="col">Fecha</th><th scope="col">Origen</th><th scope="col">Destino</th><th scope="col">Acciones</th></tr></thead><tbody>{query.data.content.map((item) => {
           const origen = [item.origenPropiedadId ? catalogs.data?.propiedades.find((p) => p.id === item.origenPropiedadId)?.nombre : null, item.origenPotreroId ? catalogs.data?.potreros.find((p) => p.id === item.origenPotreroId)?.nombre : null, item.origenLoteId ? catalogs.data?.lotes.find((l) => l.id === item.origenLoteId)?.nombre : null].filter(Boolean).join(' / ')
           const destino = [item.destinoPropiedadId ? catalogs.data?.propiedades.find((p) => p.id === item.destinoPropiedadId)?.nombre : null, item.destinoPotreroId ? catalogs.data?.potreros.find((p) => p.id === item.destinoPotreroId)?.nombre : null, item.destinoLoteId ? catalogs.data?.lotes.find((l) => l.id === item.destinoLoteId)?.nombre : null].filter(Boolean).join(' / ')
           return <tr key={item.id}><td><strong>{item.tipo.replaceAll('_', ' ')}</strong></td><td><MovimientoStatusBadge estado={item.estado} /></td><td>{new Date(item.fechaMovimiento).toLocaleDateString('es-BO')}</td><td className="table-secondary">{origen || '—'}</td><td className="table-secondary">{destino || '—'}</td>
-            <td><Button variant="ghost" onClick={() => setSelected(item)}><Eye size={16} />Detalle</Button></td>
+            <td><Button variant="ghost" aria-label={`Ver detalle del movimiento ${item.tipo.replaceAll('_', ' ')} del ${new Date(item.fechaMovimiento).toLocaleDateString('es-BO')}`} onClick={() => setSelected(item)}><Eye size={16} aria-hidden="true" />Detalle</Button></td>
           </tr>
         })}</tbody></table></div>
+        <div className="mobile-only"><div className="mobile-entity-list">{query.data.content.map((item) => {
+          const origin = [item.origenPropiedadId ? catalogs.data?.propiedades.find((p) => p.id === item.origenPropiedadId)?.nombre : null, item.origenPotreroId ? catalogs.data?.potreros.find((p) => p.id === item.origenPotreroId)?.nombre : null, item.origenLoteId ? catalogs.data?.lotes.find((l) => l.id === item.origenLoteId)?.nombre : null].filter(Boolean).join(' / ')
+          const destination = [item.destinoPropiedadId ? catalogs.data?.propiedades.find((p) => p.id === item.destinoPropiedadId)?.nombre : null, item.destinoPotreroId ? catalogs.data?.potreros.find((p) => p.id === item.destinoPotreroId)?.nombre : null, item.destinoLoteId ? catalogs.data?.lotes.find((l) => l.id === item.destinoLoteId)?.nombre : null].filter(Boolean).join(' / ')
+          return <MobileEntityCard key={item.id} title={`Movimiento ${item.id.slice(0, 8)}`} status={<MovimientoStatusBadge estado={item.estado} />} subtitle={item.tipo.replaceAll('_', ' ')} metadata={<><span>{new Date(item.fechaMovimiento).toLocaleString('es-BO')}</span><span>{origin || 'Sin origen'} → {destination || 'Sin destino'}</span></>} action={<Button variant="ghost" onClick={() => setSelected(item)}>Ver detalle →</Button>} />
+        })}</div></div>
         <div className="pagination"><span>Página {query.data.page + 1} de {Math.max(query.data.totalPages, 1)}</span><div><Button variant="ghost" disabled={page === 0 || query.isFetching} onClick={() => setPage((value) => value - 1)}><ChevronLeft size={17} />Anterior</Button><Button variant="ghost" disabled={page + 1 >= query.data.totalPages || query.isFetching} onClick={() => setPage((value) => value + 1)}>Siguiente<ChevronRight size={17} /></Button></div></div>
       </>}
     </Card>

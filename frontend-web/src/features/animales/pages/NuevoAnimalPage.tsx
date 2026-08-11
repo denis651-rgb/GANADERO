@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useWatch } from 'react-hook-form'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -19,19 +19,23 @@ import { Field } from '@/shared/components/Field'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { Alert } from '@/shared/components/Alert'
 import { normalizeApiError } from '@/shared/api/errors'
+import { useUnsavedChanges } from '@/shared/hooks/useUnsavedChanges'
+import { UnsavedChangesDialog } from '@/shared/components/UnsavedChangesDialog'
 
 export function NuevoAnimalPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [message, setMessage] = useState<{ tone: 'success' | 'info' | 'danger'; text: string } | null>(null)
-  const { register, handleSubmit, control, formState: { errors, isSubmitting } } = useForm<CreateAnimalInput>({
+  const { register, handleSubmit, control, reset, formState: { errors, isSubmitting, isDirty } } = useForm<CreateAnimalInput>({
     resolver: zodResolver(createAnimalSchema),
+    shouldFocusError: true,
     defaultValues: {
       sexo: 'HEMBRA',
       proposito: 'CARNE',
       origen: 'NACIDO',
     },
   })
+  const unsaved = useUnsavedChanges(isDirty)
   const propertyId = useWatch({ control, name: 'propiedadActualId' })
   const catalogs = useQuery({ queryKey: ['animal-form-catalogs'], queryFn: async () => {
     if (!navigator.onLine) return offlineFormCatalogs()
@@ -51,6 +55,7 @@ export function NuevoAnimalPage() {
           datos: { ...values, id },
         })
         setMessage({ tone: 'info', text: 'Animal guardado en el dispositivo. Quedó pendiente de sincronización.' })
+        reset()
         return
       }
       const created = await createAnimal(values)
@@ -79,11 +84,12 @@ export function NuevoAnimalPage() {
         eyebrow="Animales"
         title="Registrar animal"
         description="Completa la ficha del animal y guárdala para sumarlo al hato de tu empresa."
-        actions={<Link to="/animales"><Button variant="ghost"><ArrowLeft size={18} />Volver</Button></Link>}
+        actions={<Button variant="ghost" onClick={() => unsaved.requestLeave(() => navigate('/animales'))}><ArrowLeft size={18} aria-hidden="true" />Volver</Button>}
       />
       <Card>
         <form className="form-grid" onSubmit={handleSubmit(submit)} noValidate>
           {message && <div className="form-full"><Alert tone={message.tone}>{message.text}</Alert></div>}
+          <div className="form-section-title form-full"><h2>Información básica</h2></div>
           <Field label="Código interno" error={errors.codigo?.message}>
             <input {...register('codigo')} placeholder="A-0001" />
           </Field>
@@ -96,6 +102,7 @@ export function NuevoAnimalPage() {
           <Field label="Fecha de nacimiento" error={errors.fechaNacimiento?.message}>
             <input type="date" {...register('fechaNacimiento')} />
           </Field>
+          <div className="form-section-title form-full"><h2>Clasificación</h2></div>
           <Field label="Propósito" error={errors.proposito?.message}>
             <select {...register('proposito')}>
               <option value="CARNE">Carne</option><option value="LECHE">Leche</option><option value="REPRODUCCION">Reproducción</option><option value="DOBLE_PROPOSITO">Doble propósito</option>
@@ -110,12 +117,14 @@ export function NuevoAnimalPage() {
           <Field label="Categoría" error={errors.categoriaActualId?.message}>
             <select {...register('categoriaActualId')}><option value="">Selecciona…</option>{catalogs.data?.categories.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
           </Field>
+          <div className="form-section-title form-full"><h2>Ubicación</h2></div>
           <Field label="Propiedad" error={errors.propiedadActualId?.message}>
             <select {...register('propiedadActualId')}><option value="">Selecciona…</option>{catalogs.data?.properties.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
           </Field>
           <Field label="Potrero" error={errors.potreroActualId?.message} hint="Debe pertenecer a la propiedad seleccionada.">
             <select {...register('potreroActualId')}><option value="">Selecciona…</option>{catalogs.data?.paddocks.filter((item) => item.activo && item.propiedadId === propertyId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
           </Field>
+          <div className="form-section-title form-full"><h2>Información adicional</h2></div>
           <div className="form-full">
             <Field label="Observaciones" error={errors.observaciones?.message}>
               <textarea rows={4} {...register('observaciones')} />
@@ -126,6 +135,7 @@ export function NuevoAnimalPage() {
           </div>
         </form>
       </Card>
+      <UnsavedChangesDialog open={unsaved.open} onStay={unsaved.cancelLeave} onLeave={unsaved.discardAndLeave} />
     </div>
   )
 }

@@ -1,4 +1,5 @@
 ﻿import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { supabase } from '@/auth/supabase'
 import { getPerfil, updatePerfil } from '@/features/perfil/api'
 import { Alert } from '@/shared/components/Alert'
@@ -7,9 +8,13 @@ import { Card } from '@/shared/components/Card'
 import { Field } from '@/shared/components/Field'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { useUnsavedChanges } from '@/shared/hooks/useUnsavedChanges'
 import { useToast } from '@/shared/toast/useToast'
 
 export function PerfilPage() {
+  const [profileDirty, setProfileDirty] = useState(false)
+  const [passwordDirty, setPasswordDirty] = useState(false)
+  useUnsavedChanges(profileDirty || passwordDirty)
   const client = useQueryClient()
   const { showToast } = useToast()
   const query = useQuery({ queryKey: ['perfil'], queryFn: getPerfil })
@@ -25,6 +30,7 @@ export function PerfilPage() {
       })
     },
     onSuccess: () => {
+      setProfileDirty(false)
       showToast('Perfil actualizado.')
       client.invalidateQueries({ queryKey: ['perfil'] })
     },
@@ -41,7 +47,10 @@ export function PerfilPage() {
       const { error } = await supabase.auth.updateUser({ password: value })
       if (error) throw new Error('No se pudo cambiar la contraseña.')
     },
-    onSuccess: () => showToast('Contraseña actualizada.'),
+    onSuccess: () => {
+      setPasswordDirty(false)
+      showToast('Contraseña actualizada.')
+    },
   })
 
   if (query.isPending) return <LoadingState message="Cargando perfil…" />
@@ -53,12 +62,12 @@ export function PerfilPage() {
     <div className="page-stack">
       <PageHeader eyebrow="Cuenta" title="Mi perfil" description={`${p.empresa} · ${p.estado}`} />
       <Card>
-        <form className="form-grid" onSubmit={(event) => { event.preventDefault(); save.mutate(event.currentTarget) }}>
-          <Field label="Correo"><input value={p.email ?? ''} disabled /></Field>
+        <form className="form-grid" onChange={() => setProfileDirty(true)} onSubmit={(event) => { event.preventDefault(); save.mutate(event.currentTarget) }}>
+          <Field label="Correo" disabled><input type="email" autoComplete="email" value={p.email ?? ''} disabled /></Field>
           <Field label="Cargo"><input value={p.cargo ?? ''} disabled /></Field>
-          <Field label="Nombres"><input name="nombres" required defaultValue={p.nombres} /></Field>
-          <Field label="Apellidos"><input name="apellidos" required defaultValue={p.apellidos} /></Field>
-          <Field label="Teléfono"><input name="telefono" defaultValue={p.telefono ?? ''} /></Field>
+          <Field label="Nombres" required><input name="nombres" autoComplete="given-name" required defaultValue={p.nombres} /></Field>
+          <Field label="Apellidos" required><input name="apellidos" autoComplete="family-name" required defaultValue={p.apellidos} /></Field>
+          <Field label="Teléfono"><input name="telefono" type="tel" autoComplete="tel" inputMode="tel" defaultValue={p.telefono ?? ''} /></Field>
           <div><strong>Roles:</strong> {p.roles.join(', ') || 'Sin roles'}</div>
           <div className="form-actions"><Button type="submit" loading={save.isPending}>Guardar perfil</Button></div>
         </form>
@@ -66,9 +75,9 @@ export function PerfilPage() {
       <Card>
         <h2>Cambiar contraseña</h2>
         {password.error && <Alert tone="danger">{password.error.message}</Alert>}
-        <form className="form-grid" onSubmit={(event) => { event.preventDefault(); password.mutate(event.currentTarget) }}>
-          <Field label="Nueva contraseña"><input name="password" type="password" minLength={10} required /></Field>
-          <Field label="Confirmación"><input name="confirmation" type="password" minLength={10} required /></Field>
+        <form className="form-grid" onChange={() => setPasswordDirty(true)} onSubmit={(event) => { event.preventDefault(); password.mutate(event.currentTarget) }}>
+          <Field label="Nueva contraseña" required><input name="password" type="password" autoComplete="new-password" minLength={10} required /></Field>
+          <Field label="Confirmación" required><input name="confirmation" type="password" autoComplete="new-password" minLength={10} required /></Field>
           <div className="form-actions"><Button type="submit" loading={password.isPending}>Cambiar contraseña</Button></div>
         </form>
       </Card>

@@ -134,7 +134,7 @@ export function PesajeDetailPage() {
         <h3>Historial de pesajes del animal</h3>
         {historyQuery.isPending && <LoadingState message="Cargando historial…" />}
         {historyQuery.data?.length === 0 && <EmptyState title="Sin historial" description="Este animal aún no tiene otros pesajes registrados." />}
-        {historyQuery.data && historyQuery.data.length > 0 && <div className="table-wrapper"><table><thead><tr><th>Fecha</th><th>Peso</th><th>Tipo</th><th>Estado</th><th></th></tr></thead><tbody>{historyQuery.data.map((item) => <tr key={item.id}>
+        {historyQuery.data && historyQuery.data.length > 0 && <div className="table-wrapper"><table><caption className="visually-hidden">Historial de pesajes del animal</caption><thead><tr><th scope="col">Fecha</th><th scope="col">Peso</th><th scope="col">Tipo</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead><tbody>{historyQuery.data.map((item) => <tr key={item.id}>
           <td>{formatDate(item.fecha)}</td>
           <td><strong>{item.pesoKg} kg</strong></td>
           <td>{tipoLabel[item.tipo] ?? item.tipo}</td>

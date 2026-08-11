@@ -40,6 +40,7 @@ export function RegistrarPesajeForm({ onSaved, onCancel }: RegistrarPesajeFormPr
   const [message, setMessage] = useState<{ tone: 'success' | 'info' | 'danger'; text: string } | null>(null)
   const { register, handleSubmit, control, setValue, reset, formState: { errors, isSubmitting } } = useForm<RegistrarPesajeFormInput, unknown, RegistrarPesajeForm>({
     resolver: zodResolver(registrarPesajeSchema),
+    shouldFocusError: true,
     defaultValues: { animalId: '', tipo: 'RUTINA' },
   })
   const propertyId = useWatch({ control, name: 'propiedadId' })
@@ -114,13 +115,13 @@ export function RegistrarPesajeForm({ onSaved, onCancel }: RegistrarPesajeFormPr
           <input type="date" {...register('fecha')} />
         </Field>
         <Field label="Peso (kg)" error={errors.pesoKg?.message}>
-          <input type="number" min="1" step="0.1" {...register('pesoKg')} placeholder="250" />
+          <input type="number" inputMode="decimal" min="1" step="0.1" {...register('pesoKg')} placeholder="250" />
         </Field>
         <Field label="Tipo" error={errors.tipo?.message}>
           <select {...register('tipo')}>{tipos.map((tipo) => <option key={tipo.value} value={tipo.value}>{tipo.label}</option>)}</select>
         </Field>
         <Field label="Condición corporal" error={errors.condicionCorporal?.message} hint="Escala del 1 al 9.">
-          <input type="number" min="1" max="9" step="0.25" {...register('condicionCorporal')} placeholder="3.5" />
+          <input type="number" inputMode="decimal" min="1" max="9" step="0.25" {...register('condicionCorporal')} placeholder="3.5" />
         </Field>
         <Field label="Báscula" error={errors.bascula?.message}>
           <input {...register('bascula')} placeholder="Báscula 1" />

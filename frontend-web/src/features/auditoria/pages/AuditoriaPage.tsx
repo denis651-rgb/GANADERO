@@ -10,6 +10,7 @@ import { Card } from '@/shared/components/Card'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { MobileEntityCard } from '@/shared/components/MobileEntityCard'
 import { normalizeApiError } from '@/shared/api/errors'
 
 function diffObjects(antes: Record<string, unknown> | undefined, nuevo: Record<string, unknown> | undefined) {
@@ -68,12 +69,12 @@ export function AuditoriaPage() {
       {query.isPending && <LoadingState message="Consultando auditoría…" />}
       {query.data?.content.length === 0 && <EmptyState title="Sin registros" description="No hay acciones que coincidan con los filtros." />}
       {query.data && query.data.content.length > 0 && <>
-        <div className="table-wrapper"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Módulo</th><th>Acción</th><th>Entidad</th><th>Resultado</th><th></th></tr></thead><tbody>{query.data.content.map((item) => {
+        <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Registros de auditoría</caption><thead><tr><th scope="col">Fecha</th><th scope="col">Usuario</th><th scope="col">Módulo</th><th scope="col">Acción</th><th scope="col">Entidad</th><th scope="col">Resultado</th><th scope="col">Acciones</th></tr></thead><tbody>{query.data.content.map((item) => {
           const user = usuarios.data?.find((u) => u.usuarioId === item.usuarioId)
           const isOpen = expanded === item.id
           return <Fragment key={item.id}>
             <tr><td>{new Date(item.createdAt).toLocaleString('es-BO')}</td><td>{user ? `${user.nombres} ${user.apellidos}` : '—'}</td><td>{item.modulo}</td><td><span className="status-badge">{item.accion}</span></td><td>{item.entidad}</td><td><span className="status-badge">{item.resultado}</span></td>
-              <td>{(item.datosAnteriores || item.datosNuevos || item.datos) && <Button variant="ghost" onClick={() => setExpanded(isOpen ? null : item.id)}>{isOpen ? <ChevronUp size={17} /> : <ChevronDown size={17} />}Detalle</Button>}</td></tr>
+              <td>{(item.datosAnteriores || item.datosNuevos || item.datos) && <Button variant="ghost" aria-label={`${isOpen ? 'Ocultar' : 'Mostrar'} detalle del registro de auditoría ${item.id}`} onClick={() => setExpanded(isOpen ? null : item.id)}>{isOpen ? <ChevronUp size={17} aria-hidden="true" /> : <ChevronDown size={17} aria-hidden="true" />}Detalle</Button>}</td></tr>
             {isOpen && <tr className="selected-row"><td colSpan={7}><div className="permission-section">
               <div className="two-column-grid">
                 {item.datosAnteriores && <div><h4>Datos anteriores</h4><pre className="code-block">{JSON.stringify(item.datosAnteriores, null, 2)}</pre></div>}
@@ -83,7 +84,11 @@ export function AuditoriaPage() {
               <p className="table-secondary">IP: {item.ip ?? '—'} · Dispositivo: {item.dispositivo ?? '—'} · Correlation: {item.correlationId ?? '—'}{item.userAgent ? ` · UA: ${item.userAgent}` : ''}</p>
             </div></td></tr>}
           </Fragment>
-        })}</tbody></table></div>
+        })}</tbody></table></div><div className="mobile-only"><div className="mobile-entity-list">{query.data.content.map((item) => {
+          const user = usuarios.data?.find((entry) => entry.usuarioId === item.usuarioId)
+          const isOpen = expanded === item.id
+          return <MobileEntityCard key={item.id} title={item.accion} status={<span className="status-badge">{item.resultado}</span>} subtitle={`${item.modulo} · ${item.entidad}`} metadata={<><span>{user ? `${user.nombres} ${user.apellidos}` : 'Usuario no disponible'}</span><span>{new Date(item.createdAt).toLocaleString('es-BO')}</span>{isOpen && <div className="audit-mobile-detail">{item.datosAnteriores && <><strong>Datos anteriores</strong><pre className="code-block">{JSON.stringify(item.datosAnteriores, null, 2)}</pre></>}{item.datosNuevos && <><strong>Datos nuevos</strong><pre className="code-block">{JSON.stringify(item.datosNuevos, null, 2)}</pre></>}</div>}</>} action={(item.datosAnteriores || item.datosNuevos || item.datos) ? <Button variant="ghost" onClick={() => setExpanded(isOpen ? null : item.id)}>{isOpen ? 'Ocultar detalle' : 'Ver detalle →'}</Button> : undefined} />
+        })}</div></div>
         <div className="pagination"><span>Página {query.data.page + 1} de {Math.max(query.data.totalPages, 1)}</span><div><Button variant="ghost" disabled={page === 0 || query.isFetching} onClick={() => setPage((value) => value - 1)}><ChevronLeft size={17} />Anterior</Button><Button variant="ghost" disabled={page + 1 >= query.data.totalPages || query.isFetching} onClick={() => setPage((value) => value + 1)}>Siguiente<ChevronRight size={17} /></Button></div></div>
       </>}
     </Card>

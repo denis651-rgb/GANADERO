@@ -18,7 +18,7 @@ describe('ConfirmDialog', () => {
     const onConfirm = vi.fn()
     render(<ConfirmDialog open title="Confirmar operación" confirmLabel="Confirmar" loading onClose={vi.fn()} onConfirm={onConfirm}>Detalle</ConfirmDialog>)
 
-    const confirm = screen.getByRole('button', { name: 'Confirmar' })
+    const confirm = screen.getByRole('button', { name: 'Procesando: Confirmar…' })
     expect(confirm).toBeDisabled()
     fireEvent.click(confirm)
     fireEvent.click(confirm)
