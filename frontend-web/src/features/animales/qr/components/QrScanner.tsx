@@ -89,6 +89,7 @@ export function QrScanner() {
 
   async function startCamera() {
     if (streamRef.current) return
+    lockedRef.current = false
     setStatus('starting')
     setResult(null)
     setStatusMessage('')
@@ -111,6 +112,15 @@ export function QrScanner() {
       setStatus('camera-error')
       setStatusMessage('No se pudo acceder a la cámara. Usa el campo manual para pegar el contenido del QR.')
     }
+  }
+
+  async function scanAnother() {
+    stopCamera()
+    lockedRef.current = false
+    setResult(null)
+    setStatusMessage('')
+    setStatus('idle')
+    await startCamera()
   }
 
   useEffect(() => {
@@ -182,12 +192,12 @@ export function QrScanner() {
       {result && result.animal && (
         <div className="row-actions">
           <Link className="button button-secondary" to={`/animales/${result.animal.id}`}>Ver ficha del animal</Link>
-          {!result.valid && <Button variant="primary" onClick={() => { setResult(null); setStatus('idle') }}>Escanear otro QR</Button>}
+          <Button variant="primary" onClick={() => void scanAnother()}>Escanear otro</Button>
         </div>
       )}
       {result && !result.animal && (
         <div>
-          <Button variant="secondary" onClick={() => { setResult(null); setStatus('idle') }}>Escanear otro QR</Button>
+          <Button variant="secondary" onClick={() => void scanAnother()}>Escanear otro</Button>
         </div>
       )}
     </div>

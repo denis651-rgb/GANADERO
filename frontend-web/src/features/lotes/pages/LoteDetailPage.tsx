@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from 'react'
+﻿import { useDeferredValue, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Plus, Search, Trash2 } from 'lucide-react'
@@ -14,10 +14,12 @@ import { Field } from '@/shared/components/Field'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { Modal } from '@/shared/components/Modal'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { useToast } from '@/shared/toast/useToast'
 import { normalizeApiError } from '@/shared/api/errors'
 
 export function LoteDetailPage() {
   const { id = '' } = useParams()
+  const { showToast } = useToast()
   const client = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
   const [addSearch, setAddSearch] = useState('')
@@ -66,6 +68,7 @@ export function LoteDetailPage() {
         setAddFechaIngreso('')
         setAddMotivo('')
         setAddObservacion('')
+        showToast(`${result.ingresados} animal(es) ingresado(s) al lote.`)
       }
       void client.invalidateQueries({ queryKey: ['lote-miembros', id] })
       void client.invalidateQueries({ queryKey: ['animals'] })
@@ -86,6 +89,7 @@ export function LoteDetailPage() {
         setRetiroSelected(new Set())
         setRetiroFechaSalida('')
         setRetiroMotivo('')
+        showToast(`${result.retirados} animal(es) retirado(s) del lote.`)
       }
       void client.invalidateQueries({ queryKey: ['lote-miembros', id] })
       void client.invalidateQueries({ queryKey: ['animals'] })
@@ -128,8 +132,6 @@ export function LoteDetailPage() {
   return <div className="page-stack">
     <PageHeader eyebrow="Lotes" title={`${value.codigo} · ${value.nombre}`} description={value.descripcion || 'Sin descripción.'} actions={<><Link to="/lotes"><Button variant="ghost"><ArrowLeft size={18} />Volver</Button></Link>{value.estado === 'ACTIVO' && <Button variant="danger" onClick={() => setShowClose(true)}>Cerrar lote</Button>}</>} />
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
-    {add.isSuccess && add.data?.ok && <Alert tone="success">{add.data.ingresados} animal(es) ingresado(s) al lote.</Alert>}
-    {retirar.isSuccess && retirar.data?.ok && <Alert tone="success">{retirar.data.retirados} animal(es) retirado(s) del lote.</Alert>}
     <div className="two-column-grid">
       <Card><dl className="detail-list"><div><dt>Propiedad</dt><dd>{catalogs.data?.propiedades.find((item) => item.id === value.propiedadId)?.nombre ?? '—'}</dd></div><div><dt>Estado</dt><dd>{value.estado}</dd></div><div><dt>Apertura</dt><dd>{new Date(value.fechaApertura).toLocaleDateString('es-BO')}</dd></div><div><dt>Cierre</dt><dd>{value.fechaCierre ? new Date(value.fechaCierre).toLocaleDateString('es-BO') : '—'}</dd></div></dl></Card>
       <Card><h3>Miembros activos</h3>{miembros.isPending && <LoadingState message="Cargando animales…" />}{miembros.data && <p className="muted">{miembros.data.length} animal(es) en el lote.</p>}</Card>

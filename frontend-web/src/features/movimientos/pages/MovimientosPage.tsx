@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from 'react'
+﻿import { useMemo, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Eye, Plus, Search } from 'lucide-react'
 import { anularMovimiento, confirmarMovimiento, createMovimiento, getMovimiento, listDetalles, listMovimientos, revertirMovimiento, validarMovimiento } from '@/features/movimientos/api'
@@ -18,10 +18,12 @@ import { EmptyState } from '@/shared/components/EmptyState'
 import { Field } from '@/shared/components/Field'
 import { TableSkeleton } from '@/shared/components/Skeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { useToast } from '@/shared/toast/useToast'
 import { normalizeApiError } from '@/shared/api/errors'
 
 const tipos: TipoMovimiento[] = ['CAMBIO_POTRERO', 'CAMBIO_LOTE', 'TRANSFERENCIA_PROPIEDAD', 'INGRESO_COMPRA', 'SALIDA_VENTA', 'CUARENTENA', 'RETORNO_CUARENTENA']
 const estados: EstadoMovimiento[] = ['PENDIENTE', 'CONFIRMADO', 'ANULADO', 'REVERTIDO']
+export const movementSearchAvailable = false
 
 function destinoRequerido(tipo: TipoMovimiento): 'propiedad' | 'potrero' | 'lote' | 'potrero-o-lote' {
   if (tipo === 'CAMBIO_LOTE') return 'lote'
@@ -32,8 +34,7 @@ function destinoRequerido(tipo: TipoMovimiento): 'propiedad' | 'potrero' | 'lote
 
 export function MovimientosPage() {
   const client = useQueryClient()
-  const [search, setSearch] = useState('')
-  const deferredSearch = useDeferredValue(search)
+  const { showToast } = useToast()
   const [page, setPage] = useState(0)
   const [estado, setEstado] = useState<EstadoMovimiento | ''>('')
   const [tipoFiltro, setTipoFiltro] = useState<TipoMovimiento | ''>('')
@@ -53,7 +54,7 @@ export function MovimientosPage() {
   }
 
   const query = useQuery({
-    queryKey: ['movimientos', { search: deferredSearch, estado: estado, tipo: tipoFiltro, page, size }],
+    queryKey: ['movimientos', { estado, tipo: tipoFiltro, page, size }],
     queryFn: () => listMovimientos({ estado, tipo: tipoFiltro, page, size }),
     placeholderData: keepPreviousData,
   })
@@ -91,7 +92,7 @@ export function MovimientosPage() {
         animales,
       })
     },
-    onSuccess: async () => { setShowForm(false); setAnimalesSeleccionados(new Set()); await invalidateMovimientos() },
+    onSuccess: async () => { setShowForm(false); setAnimalesSeleccionados(new Set()); showToast('Movimiento creado correctamente.'); await invalidateMovimientos() },
   })
   const validar = useMutation({
     mutationFn: (id: string) => validarMovimiento(id),
@@ -99,7 +100,7 @@ export function MovimientosPage() {
   })
   const confirm = useMutation({
     mutationFn: ({ id, version }: { id: string; version: number }) => confirmarMovimiento(id, version),
-    onSuccess: async () => { setValidation(null); setSelected(null); await invalidateMovimientos() },
+    onSuccess: async () => { setValidation(null); setSelected(null); showToast('Movimiento confirmado.'); await invalidateMovimientos() },
   })
   const annul = useMutation({
     mutationFn: ({ id, motivo, version }: { id: string; motivo: string; version: number }) => anularMovimiento(id, motivo, version),
@@ -107,7 +108,7 @@ export function MovimientosPage() {
   })
   const revert = useMutation({
     mutationFn: ({ id, motivo, version }: { id: string; motivo: string; version: number }) => revertirMovimiento(id, motivo, version),
-    onSuccess: async () => { setRevertirTarget(null); setSelected(null); await invalidateMovimientos() },
+    onSuccess: async () => { setRevertirTarget(null); setSelected(null); showToast('Movimiento revertido.'); await invalidateMovimientos() },
   })
   const error = query.error ?? catalogs.error ?? create.error ?? validar.error ?? confirm.error ?? annul.error ?? revert.error
 
@@ -126,9 +127,6 @@ export function MovimientosPage() {
   return <div className="page-stack">
     <PageHeader eyebrow="Ganado" title="Movimientos" description="Traslados entre propiedades, potreros y lotes." actions={<Button onClick={() => { setShowForm((value) => { if (!value) { setAnimalesSeleccionados(new Set()); setAnimalSearch('') } return !value }) }}><Plus size={18} />Nuevo movimiento</Button>} />
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
-    {create.isSuccess && <Alert tone="success">Movimiento creado correctamente.</Alert>}
-    {confirm.isSuccess && <Alert tone="success">Movimiento confirmado.</Alert>}
-    {revert.isSuccess && <Alert tone="success">Movimiento revertido.</Alert>}
     {showForm && <Card><h3>Crear movimiento</h3><form className="form-grid compact-form" onSubmit={(event) => { event.preventDefault(); create.mutate(event.currentTarget) }}>
       <Field label="Tipo"><select name="tipo" required value={tipoForm} onChange={(event) => setTipoForm(event.target.value as TipoMovimiento)}>{tipos.map((tipo) => <option key={tipo}>{tipo}</option>)}</select></Field>
       <Field label="Fecha"><input name="fecha" type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></Field>
@@ -149,7 +147,7 @@ export function MovimientosPage() {
       <div className="form-actions"><Button type="submit" loading={create.isPending}>Crear movimiento</Button></div>
     </form></Card>}
     <Card>
-      <div className="filter-heading"><span className="search-box"><Search size={18} /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(0) }} placeholder="Filtrar" /></span>
+      <div className="filter-heading"><span>Filtros de movimientos</span>
         <select aria-label="Filtrar por estado" value={estado} onChange={(event) => { setEstado(event.target.value as EstadoMovimiento | ''); setPage(0) }}><option value="">Todos los estados</option>{estados.map((value) => <option key={value}>{value}</option>)}</select>
         <select aria-label="Filtrar por tipo" value={tipoFiltro} onChange={(event) => { setTipoFiltro(event.target.value as TipoMovimiento | ''); setPage(0) }}><option value="">Todos los tipos</option>{tipos.map((value) => <option key={value}>{value}</option>)}</select></div>
       {query.isPending && <TableSkeleton rows={8} columns={6} />}

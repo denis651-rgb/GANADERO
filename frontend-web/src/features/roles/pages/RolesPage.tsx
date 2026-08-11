@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+﻿import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, ShieldCheck } from 'lucide-react'
 import { assignPermisos, createRol, listPermisos, listRoles, type Permiso } from '@/features/roles/api'
@@ -9,14 +9,15 @@ import { EmptyState } from '@/shared/components/EmptyState'
 import { Field } from '@/shared/components/Field'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { useToast } from '@/shared/toast/useToast'
 import { normalizeApiError } from '@/shared/api/errors'
 
 export function RolesPage() {
   const client = useQueryClient()
+  const { showToast } = useToast()
   const [showForm, setShowForm] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
   const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(new Set())
-  const [toast, setToast] = useState<string | null>(null)
   const permissionSectionRef = useRef<HTMLDivElement>(null)
 
   const query = useQuery({
@@ -43,7 +44,7 @@ export function RolesPage() {
     },
     onSuccess: async (role) => {
       setSelectedPermissions(new Set(role.permisos.map((permission) => permission.id)))
-      setToast(`Los permisos de ${role.nombre} se actualizaron correctamente.`)
+      showToast(`Los permisos de ${role.nombre} se actualizaron correctamente.`)
       await client.invalidateQueries({ queryKey: ['roles-completos'] })
     },
   })
@@ -56,12 +57,6 @@ export function RolesPage() {
     groups.set(permission.modulo, values)
     return groups
   }, new Map())
-
-  useEffect(() => {
-    if (!toast) return
-    const timeoutId = window.setTimeout(() => setToast(null), 3500)
-    return () => window.clearTimeout(timeoutId)
-  }, [toast])
 
   function configureRole(roleId: string) {
     const role = query.data?.roles.find((item) => item.id === roleId)
@@ -102,8 +97,6 @@ export function RolesPage() {
           <div className="form-actions"><Button type="submit" loading={permissions.isPending}>Guardar permisos</Button></div>
         </form>
       </Card></div>}
-
-      {toast && <div className="success-toast" role="status" aria-live="polite"><ShieldCheck size={21} /><div><strong>Permisos actualizados</strong><span>{toast}</span></div></div>}
     </div>
   )
 }

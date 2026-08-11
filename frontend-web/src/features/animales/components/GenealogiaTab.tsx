@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+﻿import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Network, Trash2 } from 'lucide-react'
 import { crearParentesco, eliminarParentesco, listAnimals, listParentescos, listRazas } from '@/features/animales/api'
@@ -6,14 +6,16 @@ import type { Parentesco, TipoParentesco } from '@/features/animales/types'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { Field } from '@/shared/components/Field'
 import { LoadingState } from '@/shared/components/LoadingState'
-import { Modal } from '@/shared/components/Modal'
+import { useToast } from '@/shared/toast/useToast'
 import { normalizeApiError } from '@/shared/api/errors'
 
 export function GenealogiaTab({ animalId }: { animalId: string }) {
   const client = useQueryClient()
+  const { showToast } = useToast()
   const [showForm, setShowForm] = useState(false)
   const [esExterno, setEsExterno] = useState(false)
   const [removeTarget, setRemoveTarget] = useState<Parentesco | null>(null)
@@ -33,7 +35,7 @@ export function GenealogiaTab({ animalId }: { animalId: string }) {
         registroGenealogico: esExterno ? (String(data.get('registroGenealogico')) || undefined) : undefined,
       })
     },
-    onSuccess: async () => { setShowForm(false); await client.invalidateQueries({ queryKey: ['animal-parentescos', animalId] }) },
+    onSuccess: async () => { setShowForm(false); showToast('Parentesco registrado correctamente.'); await client.invalidateQueries({ queryKey: ['animal-parentescos', animalId] }) },
   })
   const remove = useMutation({
     mutationFn: (parentescoId: string) => eliminarParentesco(animalId, parentescoId),
@@ -46,7 +48,6 @@ export function GenealogiaTab({ animalId }: { animalId: string }) {
 
   return <div className="page-stack">
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
-    {create.isSuccess && <Alert tone="success">Parentesco registrado correctamente.</Alert>}
     <Card>
       <div className="filter-heading"><span><Network size={18} />Genealogía</span><Button variant="secondary" onClick={() => setShowForm((value) => !value)}>{showForm ? 'Cancelar' : 'Registrar progenitor'}</Button></div>
       {showForm && <form className="form-grid compact-form" onSubmit={(event) => { event.preventDefault(); create.mutate(event.currentTarget) }}>
@@ -72,25 +73,27 @@ export function GenealogiaTab({ animalId }: { animalId: string }) {
       </tr>)}</tbody></table></div>}
     </Card>
 
-    <Modal
+    <ConfirmDialog
       open={Boolean(removeTarget)}
       title="Eliminar parentesco"
-      onClose={() => { if (!remove.isPending) setRemoveTarget(null) }}
+      confirmLabel="Eliminar parentesco"
+      confirmIcon={<Trash2 size={16} />}
+      loading={remove.isPending}
+      error={remove.error}
+      onClose={() => setRemoveTarget(null)}
+      onConfirm={() => { if (removeTarget) remove.mutate(removeTarget.id) }}
     >
-      {removeTarget && <div className="page-stack">
-        <p className="muted">
-          ¿Eliminar el parentesco de <strong>{removeTarget.tipo === 'MADRE' ? 'madre' : 'padre'}</strong>:{' '}
-          <strong>{removeTarget.animalPadreId
-            ? (() => { const padre = catalogs.data?.animales.find((animal) => animal.id === removeTarget.animalPadreId); return padre ? `${padre.codigo}${padre.nombre ? ` · ${padre.nombre}` : ''}` : 'Animal registrado' })()
-            : (removeTarget.nombreExterno ?? 'Progenitor externo')}</strong>?
-        </p>
-        <p className="muted">Esta acción no se puede deshacer.</p>
-        {remove.error && <Alert tone="danger">{normalizeApiError(remove.error).message}</Alert>}
-        <div className="form-actions">
-          <Button variant="ghost" onClick={() => setRemoveTarget(null)} disabled={remove.isPending}>Cancelar</Button>
-          <Button variant="danger" loading={remove.isPending} onClick={() => remove.mutate(removeTarget.id)}><Trash2 size={16} />Eliminar parentesco</Button>
-        </div>
-      </div>}
-    </Modal>
+      {removeTarget && (
+        <>
+          <p className="muted">
+            ¿Eliminar el parentesco de <strong>{removeTarget.tipo === 'MADRE' ? 'madre' : 'padre'}</strong>:{' '}
+            <strong>{removeTarget.animalPadreId
+              ? (() => { const padre = catalogs.data?.animales.find((animal) => animal.id === removeTarget.animalPadreId); return padre ? `${padre.codigo}${padre.nombre ? ` · ${padre.nombre}` : ''}` : 'Animal registrado' })()
+              : (removeTarget.nombreExterno ?? 'Progenitor externo')}</strong>?
+          </p>
+          <p className="muted">Esta acción no se puede deshacer.</p>
+        </>
+      )}
+    </ConfirmDialog>
   </div>
 }

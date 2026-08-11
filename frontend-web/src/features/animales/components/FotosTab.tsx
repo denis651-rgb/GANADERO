@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+﻿import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Image as ImageIcon, Maximize2, RefreshCw, Star, Trash2, Upload } from 'lucide-react'
@@ -14,10 +14,12 @@ import { EmptyState } from '@/shared/components/EmptyState'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { Modal } from '@/shared/components/Modal'
 import { useOnlineStatus } from '@/shared/hooks/useOnlineStatus'
+import { useToast } from '@/shared/toast/useToast'
 
 export function FotosTab({ animalId }: { animalId: string }) {
   const client = useQueryClient()
   const online = useOnlineStatus()
+  const { showToast } = useToast()
   const inputRef = useRef<HTMLInputElement>(null)
   const [replacing, setReplacing] = useState(false)
   const [selected, setSelected] = useState<Documento | null>(null)
@@ -54,6 +56,7 @@ export function FotosTab({ animalId }: { animalId: string }) {
     },
     onSuccess: async () => {
       setReplacing(false)
+      showToast(`Fotografías ${replacing ? 'reemplazadas' : 'subidas'} correctamente.`)
       await invalidateFotos()
     },
     onError: (reason) => setLastError(normalizeApiError(reason).message),
@@ -93,7 +96,6 @@ export function FotosTab({ animalId }: { animalId: string }) {
 
   return <div className="page-stack">
     {lastError && <Alert tone="danger">{lastError}</Alert>}
-    {upload.isSuccess && <Alert tone="success">Fotografías {replacing ? 'reemplazadas' : 'subidas'} correctamente.</Alert>}
     {!online && <Alert tone="info">Sin conexión: las fotos se guardarán en la cola local y se subirán al sincronizar.</Alert>}
 
     <Card>

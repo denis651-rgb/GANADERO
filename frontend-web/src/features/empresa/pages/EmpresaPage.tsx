@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+﻿import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlarmClock, Building2, Coins, FileText, Hash, Image, Info, Mail, MapPin, Phone,
   RotateCcw, Save, Scale, ShieldCheck, SlidersHorizontal, Store, Syringe,
@@ -10,10 +10,12 @@ import { Card } from '@/shared/components/Card'
 import { Field } from '@/shared/components/Field'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { useToast } from '@/shared/toast/useToast'
 import { normalizeApiError } from '@/shared/api/errors'
 
 export function EmpresaPage() {
   const client = useQueryClient()
+  const { showToast } = useToast()
   const query = useQuery({
     queryKey: ['empresa-completa'],
     queryFn: async () => {
@@ -45,7 +47,10 @@ export function EmpresaPage() {
         }),
       ])
     },
-    onSuccess: () => client.invalidateQueries({ queryKey: ['empresa-completa'] }),
+    onSuccess: () => {
+      showToast('Cambios guardados correctamente.')
+      client.invalidateQueries({ queryKey: ['empresa-completa'] })
+    },
   })
   const error = query.error ?? mutation.error
   const empresa = query.data?.empresa
@@ -63,7 +68,6 @@ export function EmpresaPage() {
       />
       {query.isPending && <LoadingState message="Cargando empresa…" />}
       {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
-      {mutation.isSuccess && !query.isPending && <Alert tone="success">Cambios guardados correctamente.</Alert>}
 
       {query.data && empresa && configuracion && (
         <form

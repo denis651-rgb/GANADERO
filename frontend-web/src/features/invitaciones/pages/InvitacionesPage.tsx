@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+﻿import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye, MailPlus, RefreshCw, X, XCircle } from 'lucide-react'
 import { useAuth } from '@/auth/auth-context'
@@ -18,6 +18,7 @@ import { EmptyState } from '@/shared/components/EmptyState'
 import { Field } from '@/shared/components/Field'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { useToast } from '@/shared/toast/useToast'
 import { normalizeApiError } from '@/shared/api/errors'
 
 const PAGE_SIZE = 20
@@ -54,19 +55,13 @@ function fecha(iso?: string) {
 export function InvitacionesPage() {
   const client = useQueryClient()
   const { can } = useAuth()
+  const { showToast } = useToast()
   const [estado, setEstado] = useState<EstadoInvitacion | ''>('')
   const [email, setEmail] = useState('')
   const [page, setPage] = useState(0)
   const [showForm, setShowForm] = useState(false)
   const [detalle, setDetalle] = useState<InvitacionResponse | null>(null)
   const [cancelando, setCancelando] = useState<InvitacionResponse | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!toast) return
-    const timeoutId = window.setTimeout(() => setToast(null), 3500)
-    return () => window.clearTimeout(timeoutId)
-  }, [toast])
 
   const query = useQuery({
     queryKey: ['invitaciones', estado, email, page],
@@ -87,7 +82,7 @@ export function InvitacionesPage() {
     onSuccess: () => {
       setShowForm(false)
       setPage(0)
-      setToast('Invitación enviada correctamente.')
+      showToast('Invitación enviada correctamente.')
       client.invalidateQueries({ queryKey: ['invitaciones'] })
     },
   })
@@ -95,7 +90,7 @@ export function InvitacionesPage() {
   const resend = useMutation({
     mutationFn: (inv: InvitacionResponse) => reenviarInvitacion(inv.id, inv.version),
     onSuccess: () => {
-      setToast('Invitación reenviada.')
+      showToast('Invitación reenviada.')
       client.invalidateQueries({ queryKey: ['invitaciones'] })
     },
   })
@@ -105,7 +100,7 @@ export function InvitacionesPage() {
       cancelarInvitacion(inv.id, motivo, inv.version),
     onSuccess: () => {
       setCancelando(null)
-      setToast('Invitación cancelada.')
+      showToast('Invitación cancelada.')
       client.invalidateQueries({ queryKey: ['invitaciones'] })
     },
   })
@@ -146,14 +141,6 @@ export function InvitacionesPage() {
       />
 
       {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
-      {toast && (
-        <div className="success-toast" role="status" aria-live="polite">
-          <div>
-            <strong>Correcto</strong>
-            <span>{toast}</span>
-          </div>
-        </div>
-      )}
 
       {showForm && (
         <Card>

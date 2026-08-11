@@ -7,8 +7,8 @@ import { listUsuarios, setUsuarioEstado, type Miembro } from '@/features/usuario
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { EmptyState } from '@/shared/components/EmptyState'
-import { Modal } from '@/shared/components/Modal'
 import { TableSkeleton } from '@/shared/components/Skeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { normalizeApiError } from '@/shared/api/errors'
@@ -88,27 +88,23 @@ export function UsuariosPage() {
         )}
       </Card>
 
-      <Modal
+      <ConfirmDialog
         open={Boolean(blockTarget)}
         title="Bloquear acceso"
-        onClose={() => { if (!state.isPending) setBlockTarget(null) }}
+        confirmLabel="Bloquear acceso"
+        confirmIcon={<Power size={16} />}
+        loading={state.isPending}
+        error={state.error}
+        onClose={() => setBlockTarget(null)}
+        onConfirm={() => { if (blockTarget) state.mutate({ id: blockTarget.id, action: 'bloquear', version: blockTarget.version }) }}
       >
         {blockTarget && (
-          <div className="page-stack">
-            <p className="muted">
-              ¿Bloquear el acceso de <strong>{blockTarget.nombres} {blockTarget.apellidos}</strong>? Esta persona dejará de
-              poder ingresar a la aplicación inmediatamente.
-            </p>
-            {state.error && <Alert tone="danger">{normalizeApiError(state.error).message}</Alert>}
-            <div className="form-actions">
-              <Button variant="ghost" onClick={() => setBlockTarget(null)} disabled={state.isPending}>Cancelar</Button>
-              <Button variant="danger" loading={state.isPending} onClick={() => state.mutate({ id: blockTarget.id, action: 'bloquear', version: blockTarget.version })}>
-                <Power size={16} />Bloquear acceso
-              </Button>
-            </div>
-          </div>
+          <p className="muted">
+            ¿Bloquear el acceso de <strong>{blockTarget.nombres} {blockTarget.apellidos}</strong>? Esta persona dejará de
+            poder ingresar a la aplicación inmediatamente.
+          </p>
         )}
-      </Modal>
+      </ConfirmDialog>
     </div>
   )
 }

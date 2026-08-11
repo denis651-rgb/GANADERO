@@ -72,7 +72,7 @@ export function Modal({ open, title, onClose, children, wide }: ModalProps) {
       >
         <div className="modal-header">
           <h2 id={titleId}>{title}</h2>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Cerrar">
+          <button type="button" className="modal-close" onClick={onClose} aria-label="Cerrar">
             <X size={18} />
           </button>
         </div>

@@ -1,2 +1,77 @@
-import{useState}from'react';import{useMutation,useQuery,useQueryClient}from'@tanstack/react-query';import{supabase}from'@/auth/supabase';import{getPerfil,updatePerfil}from'@/features/perfil/api';import{Alert}from'@/shared/components/Alert';import{Button}from'@/shared/components/Button';import{Card}from'@/shared/components/Card';import{Field}from'@/shared/components/Field';import{LoadingState}from'@/shared/components/LoadingState';import{PageHeader}from'@/shared/components/PageHeader'
-export function PerfilPage(){const client=useQueryClient(),query=useQuery({queryKey:['perfil'],queryFn:getPerfil});const[message,setMessage]=useState<string|null>(null);const save=useMutation({mutationFn:(form:HTMLFormElement)=>{const d=new FormData(form);return updatePerfil({nombres:String(d.get('nombres')),apellidos:String(d.get('apellidos')),telefono:String(d.get('telefono')??''),version:query.data!.version})},onSuccess:()=>{setMessage('Perfil actualizado.');client.invalidateQueries({queryKey:['perfil']})}});const password=useMutation({mutationFn:async(form:HTMLFormElement)=>{const d=new FormData(form),value=String(d.get('password')),confirmation=String(d.get('confirmation'));if(value.length<10)throw new Error('La contraseña debe tener al menos 10 caracteres.');if(value!==confirmation)throw new Error('Las contraseñas no coinciden.');if(!supabase)throw new Error('Supabase no está configurado.');const{error}=await supabase.auth.updateUser({password:value});if(error)throw new Error('No se pudo cambiar la contraseña.')},onSuccess:()=>setMessage('Contraseña actualizada.')});if(query.isPending)return<LoadingState message="Cargando perfil…"/>;if(!query.data)return<Alert tone="danger">No se pudo cargar el perfil.</Alert>;const p=query.data;return<div className="page-stack"><PageHeader eyebrow="Cuenta" title="Mi perfil" description={`${p.empresa} · ${p.estado}`}/>{message&&<Alert tone="success">{message}</Alert>}<Card><form className="form-grid" onSubmit={e=>{e.preventDefault();save.mutate(e.currentTarget)}}><Field label="Correo"><input value={p.email??''} disabled/></Field><Field label="Cargo"><input value={p.cargo??''} disabled/></Field><Field label="Nombres"><input name="nombres" required defaultValue={p.nombres}/></Field><Field label="Apellidos"><input name="apellidos" required defaultValue={p.apellidos}/></Field><Field label="Teléfono"><input name="telefono" defaultValue={p.telefono??''}/></Field><div><strong>Roles:</strong> {p.roles.join(', ')||'Sin roles'}</div><div className="form-actions"><Button type="submit" loading={save.isPending}>Guardar perfil</Button></div></form></Card><Card><h2>Cambiar contraseña</h2>{password.error&&<Alert tone="danger">{password.error.message}</Alert>}<form className="form-grid" onSubmit={e=>{e.preventDefault();password.mutate(e.currentTarget)}}><Field label="Nueva contraseña"><input name="password" type="password" minLength={10} required/></Field><Field label="Confirmación"><input name="confirmation" type="password" minLength={10} required/></Field><div className="form-actions"><Button type="submit" loading={password.isPending}>Cambiar contraseña</Button></div></form></Card></div>}
+﻿import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { supabase } from '@/auth/supabase'
+import { getPerfil, updatePerfil } from '@/features/perfil/api'
+import { Alert } from '@/shared/components/Alert'
+import { Button } from '@/shared/components/Button'
+import { Card } from '@/shared/components/Card'
+import { Field } from '@/shared/components/Field'
+import { LoadingState } from '@/shared/components/LoadingState'
+import { PageHeader } from '@/shared/components/PageHeader'
+import { useToast } from '@/shared/toast/useToast'
+
+export function PerfilPage() {
+  const client = useQueryClient()
+  const { showToast } = useToast()
+  const query = useQuery({ queryKey: ['perfil'], queryFn: getPerfil })
+
+  const save = useMutation({
+    mutationFn: (form: HTMLFormElement) => {
+      const d = new FormData(form)
+      return updatePerfil({
+        nombres: String(d.get('nombres')),
+        apellidos: String(d.get('apellidos')),
+        telefono: String(d.get('telefono') ?? ''),
+        version: query.data!.version,
+      })
+    },
+    onSuccess: () => {
+      showToast('Perfil actualizado.')
+      client.invalidateQueries({ queryKey: ['perfil'] })
+    },
+  })
+
+  const password = useMutation({
+    mutationFn: async (form: HTMLFormElement) => {
+      const d = new FormData(form)
+      const value = String(d.get('password'))
+      const confirmation = String(d.get('confirmation'))
+      if (value.length < 10) throw new Error('La contraseña debe tener al menos 10 caracteres.')
+      if (value !== confirmation) throw new Error('Las contraseñas no coinciden.')
+      if (!supabase) throw new Error('Supabase no está configurado.')
+      const { error } = await supabase.auth.updateUser({ password: value })
+      if (error) throw new Error('No se pudo cambiar la contraseña.')
+    },
+    onSuccess: () => showToast('Contraseña actualizada.'),
+  })
+
+  if (query.isPending) return <LoadingState message="Cargando perfil…" />
+  if (!query.data) return <Alert tone="danger">No se pudo cargar el perfil.</Alert>
+
+  const p = query.data
+
+  return (
+    <div className="page-stack">
+      <PageHeader eyebrow="Cuenta" title="Mi perfil" description={`${p.empresa} · ${p.estado}`} />
+      <Card>
+        <form className="form-grid" onSubmit={(event) => { event.preventDefault(); save.mutate(event.currentTarget) }}>
+          <Field label="Correo"><input value={p.email ?? ''} disabled /></Field>
+          <Field label="Cargo"><input value={p.cargo ?? ''} disabled /></Field>
+          <Field label="Nombres"><input name="nombres" required defaultValue={p.nombres} /></Field>
+          <Field label="Apellidos"><input name="apellidos" required defaultValue={p.apellidos} /></Field>
+          <Field label="Teléfono"><input name="telefono" defaultValue={p.telefono ?? ''} /></Field>
+          <div><strong>Roles:</strong> {p.roles.join(', ') || 'Sin roles'}</div>
+          <div className="form-actions"><Button type="submit" loading={save.isPending}>Guardar perfil</Button></div>
+        </form>
+      </Card>
+      <Card>
+        <h2>Cambiar contraseña</h2>
+        {password.error && <Alert tone="danger">{password.error.message}</Alert>}
+        <form className="form-grid" onSubmit={(event) => { event.preventDefault(); password.mutate(event.currentTarget) }}>
+          <Field label="Nueva contraseña"><input name="password" type="password" minLength={10} required /></Field>
+          <Field label="Confirmación"><input name="confirmation" type="password" minLength={10} required /></Field>
+          <div className="form-actions"><Button type="submit" loading={password.isPending}>Cambiar contraseña</Button></div>
+        </form>
+      </Card>
+    </div>
+  )
+}

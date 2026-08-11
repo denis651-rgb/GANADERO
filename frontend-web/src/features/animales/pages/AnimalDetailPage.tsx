@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, CalendarClock, Edit3, MapPin, RefreshCw } from 'lucide-react'
@@ -12,12 +12,15 @@ import { listPotreros } from '@/features/potreros/api'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { useToast } from '@/shared/toast/useToast'
 import { normalizeApiError } from '@/shared/api/errors'
 
 const states: AnimalState[] = ['ACTIVO', 'VENDIDO', 'MUERTO', 'PERDIDO', 'TRANSFERIDO', 'DESCARTADO']
+const criticalStates = new Set<AnimalState>(['VENDIDO', 'MUERTO', 'PERDIDO', 'TRANSFERIDO', 'DESCARTADO'])
 type Tab = 'timeline' | 'identificadores' | 'genealogia' | 'fotos'
 
 export function AnimalDetailPage() {
@@ -28,8 +31,10 @@ export function AnimalDetailPage() {
   const [desde, setDesde] = useState('')
   const [hasta, setHasta] = useState('')
   const [page, setPage] = useState(0)
+  const [pendingStateChange, setPendingStateChange] = useState<{ estado: AnimalState; motivo: string } | null>(null)
   const timelineSize = 10
   const client = useQueryClient()
+  const { showToast } = useToast()
   const animal = useQuery({ queryKey: ['animal', id], queryFn: () => getAnimal(id), enabled: Boolean(id) })
   const history = useQuery({
     queryKey: ['animal-timeline', id, { tipo: filtroTipo, modulo: filtroModulo, desde, hasta, page, size: timelineSize }],
@@ -48,11 +53,11 @@ export function AnimalDetailPage() {
     return { breeds, categories, properties, paddocks }
   } })
   const stateMutation = useMutation({
-    mutationFn: (form: HTMLFormElement) => {
-      const data = new FormData(form)
-      return changeAnimalState(id, String(data.get('estado')) as AnimalState, String(data.get('motivo')), animal.data!.version)
-    },
+    mutationFn: ({ estado, motivo }: { estado: AnimalState; motivo: string }) =>
+      changeAnimalState(id, estado, motivo, animal.data!.version),
     onSuccess: async () => {
+      setPendingStateChange(null)
+      showToast('Estado actualizado correctamente.')
       await Promise.all([
         client.invalidateQueries({ queryKey: ['animal', id] }),
         client.invalidateQueries({ queryKey: ['animal-timeline', id] }),
@@ -67,10 +72,19 @@ export function AnimalDetailPage() {
   const value = animal.data
   const location = [catalogs.data?.properties.find((item) => item.id === value.propiedadActualId)?.nombre, catalogs.data?.paddocks.find((item) => item.id === value.potreroActualId)?.nombre].filter(Boolean).join(' / ')
 
+  function requestStateChange(form: HTMLFormElement) {
+    const data = new FormData(form)
+    const next = { estado: String(data.get('estado')) as AnimalState, motivo: String(data.get('motivo')) }
+    if (criticalStates.has(next.estado)) {
+      setPendingStateChange(next)
+      return
+    }
+    stateMutation.mutate(next)
+  }
+
   return <div className="page-stack">
     <PageHeader eyebrow="Ficha animal" title={`${value.codigo}${value.nombre ? ` · ${value.nombre}` : ''}`} description="Información, estado e historial cronológico." actions={<><Link to="/animales"><Button variant="ghost"><ArrowLeft size={18} />Volver</Button></Link><Link to={`/animales/${id}/editar`}><Button><Edit3 size={18} />Editar</Button></Link></>} />
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
-    {stateMutation.isSuccess && <Alert tone="success">Estado actualizado correctamente.</Alert>}
     <div className="two-column-grid">
       <Card><div className="detail-heading"><h3>Datos principales</h3><span className={`status-badge status-${value.estado.toLowerCase()}`}>{value.estado}</span></div><dl className="detail-list">
         <div><dt>Sexo</dt><dd>{value.sexo}</dd></div><div><dt>Raza</dt><dd>{catalogs.data?.breeds.find((item) => item.id === value.razaPrincipalId)?.nombre ?? '—'}</dd></div>
@@ -80,7 +94,27 @@ export function AnimalDetailPage() {
       </dl></Card>
       <Card><h3><MapPin size={19} /> Ubicación y observaciones</h3><p><strong>{location || 'Ubicación no disponible'}</strong></p><p className="muted">{value.observaciones || 'Sin observaciones registradas.'}</p></Card>
     </div>
-    <Card><h3><RefreshCw size={19} /> Cambiar estado</h3><form className="state-form" onSubmit={(event) => { event.preventDefault(); stateMutation.mutate(event.currentTarget) }}><select name="estado" defaultValue="" required><option value="" disabled>Selecciona el nuevo estado…</option>{states.filter((state) => state !== value.estado).map((state) => <option key={state}>{state}</option>)}</select><input name="motivo" required maxLength={1000} placeholder="Motivo del cambio" /><Button type="submit" loading={stateMutation.isPending}>Actualizar estado</Button></form></Card>
+    <Card><h3><RefreshCw size={19} /> Cambiar estado</h3><form className="state-form" onSubmit={(event) => { event.preventDefault(); requestStateChange(event.currentTarget) }}><select name="estado" defaultValue="" required><option value="" disabled>Selecciona el nuevo estado…</option>{states.filter((state) => state !== value.estado).map((state) => <option key={state}>{state}</option>)}</select><input name="motivo" required maxLength={1000} placeholder="Motivo del cambio…" /><Button type="submit" loading={stateMutation.isPending}>Actualizar estado</Button></form></Card>
+    <ConfirmDialog
+      open={Boolean(pendingStateChange)}
+      title="Confirmar cambio de estado"
+      confirmLabel="Confirmar cambio"
+      variant={pendingStateChange?.estado === 'MUERTO' ? 'danger' : 'warning'}
+      loading={stateMutation.isPending}
+      error={stateMutation.error}
+      onClose={() => setPendingStateChange(null)}
+      onConfirm={() => { if (pendingStateChange && !stateMutation.isPending) stateMutation.mutate(pendingStateChange) }}
+    >
+      {pendingStateChange && <div className="page-stack">
+        <dl className="detail-list">
+          <div><dt>Animal</dt><dd>{value.codigo}{value.nombre ? ` · ${value.nombre}` : ''}</dd></div>
+          <div><dt>Estado actual</dt><dd>{value.estado}</dd></div>
+          <div><dt>Nuevo estado</dt><dd>{pendingStateChange.estado}</dd></div>
+          <div><dt>Motivo</dt><dd>{pendingStateChange.motivo}</dd></div>
+        </dl>
+        <Alert tone={pendingStateChange.estado === 'MUERTO' ? 'danger' : 'info'}>Esta operación afectará el estado operativo del animal y quedará registrada en su historial.</Alert>
+      </div>}
+    </ConfirmDialog>
     <div className="tabs" role="tablist" aria-label="Secciones del animal">
       <button type="button" role="tab" id="tab-timeline" aria-selected={tab === 'timeline'} aria-controls="panel-timeline" className={`tab-button ${tab === 'timeline' ? 'active' : ''}`} onClick={() => setTab('timeline')}><CalendarClock size={17} /> Línea de tiempo</button>
       <button type="button" role="tab" id="tab-identificadores" aria-selected={tab === 'identificadores'} aria-controls="panel-identificadores" className={`tab-button ${tab === 'identificadores' ? 'active' : ''}`} onClick={() => setTab('identificadores')}>Identificadores</button>

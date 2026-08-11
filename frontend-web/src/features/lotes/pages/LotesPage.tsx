@@ -1,4 +1,4 @@
-import { useDeferredValue, useState } from 'react'
+﻿import { useDeferredValue, useState } from 'react'
 import { Link } from 'react-router'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Eye, Plus, Search } from 'lucide-react'
@@ -12,10 +12,12 @@ import { EmptyState } from '@/shared/components/EmptyState'
 import { Field } from '@/shared/components/Field'
 import { TableSkeleton } from '@/shared/components/Skeleton'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { useToast } from '@/shared/toast/useToast'
 import { normalizeApiError } from '@/shared/api/errors'
 
 export function LotesPage() {
   const client = useQueryClient()
+  const { showToast } = useToast()
   const [search, setSearch] = useState('')
   const deferredSearch = useDeferredValue(search)
   const [page, setPage] = useState(0)
@@ -39,14 +41,13 @@ export function LotesPage() {
         fechaApertura: String(data.get('fechaApertura') ?? '') || undefined,
       })
     },
-    onSuccess: async () => { setShowForm(false); await client.invalidateQueries({ queryKey: ['lotes'] }) },
+    onSuccess: async () => { setShowForm(false); showToast('Lote creado correctamente.'); await client.invalidateQueries({ queryKey: ['lotes'] }) },
   })
   const error = query.error ?? propiedades.error ?? create.error
 
   return <div className="page-stack">
     <PageHeader eyebrow="Ganado" title="Lotes" description="Agrupación operativa de animales y membresías históricas." actions={<Button onClick={() => setShowForm((value) => !value)}><Plus size={18} />Nuevo lote</Button>} />
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
-    {create.isSuccess && <Alert tone="success">Lote creado correctamente.</Alert>}
     {showForm && <Card><form className="form-grid compact-form" onSubmit={(event) => { event.preventDefault(); create.mutate(event.currentTarget) }}>
       <Field label="Propiedad"><select name="propiedadId" required><option value="">Selecciona una propiedad…</option>{propiedades.data?.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
       <Field label="Código"><input name="codigo" required maxLength={60} placeholder="Ej. L-2026-01" /></Field>
