@@ -12,7 +12,9 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
 import java.util.Map;
 
 @Component
@@ -37,7 +39,7 @@ public class HttpSupabaseStorageClient implements SupabaseStorageClient {
     public void upload(String path, byte[] content, String contentType) {
         configured();
         try {
-            client.post().uri("/storage/v1/object/{bucket}/{path}", properties.storage().bucket(), path)
+            client.post().uri(storageObjectUri(null, path))
                     .header("apikey", key)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + key)
                     .header("x-upsert", "true")
@@ -54,8 +56,7 @@ public class HttpSupabaseStorageClient implements SupabaseStorageClient {
         configured();
         try {
             @SuppressWarnings("unchecked")
-            Map<String, Object> response = client.post().uri("/storage/v1/object/sign/{bucket}/{path}",
-                            properties.storage().bucket(), path)
+            Map<String, Object> response = client.post().uri(storageObjectUri("sign", path))
                     .header("apikey", key)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + key)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -75,7 +76,7 @@ public class HttpSupabaseStorageClient implements SupabaseStorageClient {
     public void delete(String path) {
         configured();
         try {
-            client.delete().uri("/storage/v1/object/{bucket}/{path}", properties.storage().bucket(), path)
+            client.delete().uri(storageObjectUri(null, path))
                     .header("apikey", key)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + key)
                     .retrieve().toBodilessEntity();
@@ -106,6 +107,21 @@ public class HttpSupabaseStorageClient implements SupabaseStorageClient {
             return baseUrl + "/storage/v1" + value;
         }
         return baseUrl + "/storage/v1/" + value;
+    }
+
+    private URI storageObjectUri(String operation, String path) {
+        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(baseUrl)
+                .path("/storage/v1/object");
+        if (operation != null && !operation.isBlank()) {
+            builder.pathSegment(operation);
+        }
+        builder.pathSegment(properties.storage().bucket());
+        for (String segment : path.split("/")) {
+            if (!segment.isBlank()) {
+                builder.pathSegment(segment);
+            }
+        }
+        return builder.build().encode().toUri();
     }
 
     private static String normalizeBaseUrl(String url) {
