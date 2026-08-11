@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MailPlus, Power } from 'lucide-react'
+import { Eye, MailPlus, Power, UserPlus } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { useAuth } from '@/auth/auth-context'
 import { listUsuarios, setUsuarioEstado, type Miembro } from '@/features/usuarios/api'
+import { UsuarioDetailModal } from '@/features/usuarios/components/UsuarioDetailModal'
+import { UsuarioCreateModal } from '@/features/usuarios/components/UsuarioCreateModal'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
@@ -19,6 +21,8 @@ export function UsuariosPage() {
   const navigate = useNavigate()
   const { can } = useAuth()
   const [blockTarget, setBlockTarget] = useState<Miembro | null>(null)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
   const query = useQuery({ queryKey: ['usuarios-completos'], queryFn: listUsuarios })
   const state = useMutation({
     mutationFn: ({ id, action, version }: { id: string; action: 'activar' | 'bloquear'; version: number }) =>
@@ -33,11 +37,10 @@ export function UsuariosPage() {
         eyebrow="Seguridad"
         title="Usuarios"
         description="Administra el acceso de los colaboradores de tu empresa."
-        actions={can('USUARIO_CREAR') && (
-          <Button onClick={() => navigate('/invitaciones')}>
-            <MailPlus size={18} />Nueva invitación
-          </Button>
-        )}
+        actions={<div className="inline-actions">
+          <Button variant="secondary" onClick={() => navigate('/invitaciones')}><MailPlus size={18} aria-hidden="true" />Ver invitaciones</Button>
+          {can('USUARIO_CREAR') && <Button onClick={() => setShowCreate(true)}><UserPlus size={18} aria-hidden="true" />Nuevo usuario</Button>}
+        </div>}
       />
       {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
 
@@ -70,6 +73,10 @@ export function UsuariosPage() {
                     <td>{user.ultimoAccesoAt ? new Date(user.ultimoAccesoAt).toLocaleString('es-BO') : 'Nunca'}</td>
                     <td><span className="status-badge">{user.estado}</span></td>
                     <td>
+                      <div className="inline-actions">
+                      <Button variant="ghost" onClick={() => setSelectedUserId(user.id)}>
+                        <Eye size={16} aria-hidden="true" />Administrar
+                      </Button>
                       <Button
                         variant="ghost"
                         loading={state.isPending && state.variables?.id === user.id}
@@ -80,12 +87,13 @@ export function UsuariosPage() {
                       >
                         <Power size={16} aria-hidden="true" />{user.estado === 'ACTIVO' ? `Bloquear a ${user.nombres}` : `Activar a ${user.nombres}`}
                       </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div><div className="mobile-only"><div className="mobile-entity-list">{query.data.map((user) => <MobileEntityCard key={user.id} title={`${user.nombres} ${user.apellidos}`} status={<span className="status-badge">{user.estado}</span>} subtitle={user.cargo || 'Sin cargo'} metadata={<><span>{user.roles.map((role) => role.nombre).join(', ') || 'Sin roles'}</span><span>{user.accesoTodasPropiedades ? 'Todas las propiedades' : `${user.propiedadesPermitidas.length} propiedades asignadas`}</span><span>Último acceso: {user.ultimoAccesoAt ? new Date(user.ultimoAccesoAt).toLocaleString('es-BO') : 'Nunca'}</span></>} action={<Button variant="ghost" onClick={() => { if (user.estado === 'ACTIVO') setBlockTarget(user); else state.mutate({ id: user.id, action: 'activar', version: user.version }) }}>{user.estado === 'ACTIVO' ? 'Bloquear' : 'Activar'}</Button>} />)}</div></div></>
+          </div><div className="mobile-only"><div className="mobile-entity-list">{query.data.map((user) => <MobileEntityCard key={user.id} title={`${user.nombres} ${user.apellidos}`} status={<span className="status-badge">{user.estado}</span>} subtitle={user.cargo || 'Sin cargo'} metadata={<><span>{user.roles.map((role) => role.nombre).join(', ') || 'Sin roles'}</span><span>{user.accesoTodasPropiedades ? 'Todas las propiedades' : `${user.propiedadesPermitidas.length} propiedades asignadas`}</span><span>Último acceso: {user.ultimoAccesoAt ? new Date(user.ultimoAccesoAt).toLocaleString('es-BO') : 'Nunca'}</span></>} action={<><Button variant="ghost" onClick={() => setSelectedUserId(user.id)}>Administrar</Button><Button variant="ghost" onClick={() => { if (user.estado === 'ACTIVO') setBlockTarget(user); else state.mutate({ id: user.id, action: 'activar', version: user.version }) }}>{user.estado === 'ACTIVO' ? 'Bloquear' : 'Activar'}</Button></>} />)}</div></div></>
         )}
       </Card>
 
@@ -106,6 +114,23 @@ export function UsuariosPage() {
           </p>
         )}
       </ConfirmDialog>
+      <UsuarioDetailModal
+        userId={selectedUserId}
+        onClose={() => setSelectedUserId(null)}
+        onSaved={() => {
+          setSelectedUserId(null)
+          void client.invalidateQueries({ queryKey: ['usuarios-completos'] })
+          void client.invalidateQueries({ queryKey: ['usuario', selectedUserId] })
+        }}
+      />
+      {showCreate && <UsuarioCreateModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreated={() => {
+          setShowCreate(false)
+          void client.invalidateQueries({ queryKey: ['usuarios-completos'] })
+        }}
+      />}
     </div>
   )
 }

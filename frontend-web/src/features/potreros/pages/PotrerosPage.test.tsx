@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { PotrerosPage } from './PotrerosPage'
 
 const updatePotrero = vi.fn()
+vi.mock('@/auth/auth-context', () => ({ useAuth: () => ({ can: () => true }) }))
+vi.mock('@/shared/hooks/useOnlineStatus', () => ({ useOnlineStatus: () => true }))
 vi.mock('@/features/potreros/api', () => ({
   listPotreros: vi.fn().mockResolvedValue([{ id: 'pot-1', propiedadId: 'p-1', codigo: 'P-01', nombre: 'Norte', estado: 'DISPONIBLE', activo: true, tieneAgua: true, version: 1 }]),
   listTiposPasto: vi.fn().mockResolvedValue([]), createPotrero: vi.fn(),

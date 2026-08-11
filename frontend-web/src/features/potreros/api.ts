@@ -12,7 +12,16 @@ export interface Potrero {
   capacidadUa?: number
   tieneAgua: boolean
   estado: 'DISPONIBLE' | 'OCUPADO' | 'DESCANSO' | 'MANTENIMIENTO'
+  geometriaWkt?: string
   activo: boolean
+  version: number
+}
+
+export type UpdatePotreroInput = Partial<Pick<Potrero, 'propiedadId' | 'sectorId' | 'codigo' | 'nombre' | 'superficieHa' | 'tipoPastoId' | 'capacidadUa' | 'tieneAgua' | 'estado' | 'geometriaWkt' | 'activo'>> & {
+  quitarSector?: boolean
+  quitarTipoPasto?: boolean
+  quitarSuperficie?: boolean
+  quitarCapacidad?: boolean
   version: number
 }
 
@@ -30,6 +39,6 @@ export async function createPotrero(input: Omit<Potrero, 'id' | 'activo' | 'vers
   return (await http.post<ApiResponse<Potrero>>('/api/v1/potreros', input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
 }
 
-export async function updatePotrero(id: string, input: Partial<Potrero> & { version: number }) {
+export async function updatePotrero(id: string, input: UpdatePotreroInput) {
   return (await http.patch<ApiResponse<Potrero>>(`/api/v1/potreros/${id}`, input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
 }

@@ -84,6 +84,54 @@ class HttpSupabaseStorageClientTest {
         server.verify();
     }
 
+    @Test
+    void convertsRelativeSignedUrlToAbsoluteSupabaseUrl() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        var storage = client(builder, "clave-secreta");
+        String relative = "/object/sign/" + BUCKET + "/foto.webp?token=abc123";
+        server.expect(requestTo(URL + "/storage/v1/object/sign/" + BUCKET + "/" + ENC_PATH))
+                .andRespond(withSuccess("{\"signedURL\":\"" + relative + "\"}",
+                        org.springframework.http.MediaType.APPLICATION_JSON));
+
+        String result = storage.signedUrl("empresas/x/documentos/animals/foto.jpg");
+
+        assertThat(result).isEqualTo(URL + "/storage/v1" + relative);
+        server.verify();
+    }
+
+    @Test
+    void doesNotDuplicateStoragePrefixInRelativeSignedUrl() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        var storage = client(builder, "clave-secreta");
+        String relative = "/storage/v1/object/sign/" + BUCKET + "/foto.webp?token=abc123";
+        server.expect(requestTo(URL + "/storage/v1/object/sign/" + BUCKET + "/" + ENC_PATH))
+                .andRespond(withSuccess("{\"signedURL\":\"" + relative + "\"}",
+                        org.springframework.http.MediaType.APPLICATION_JSON));
+
+        String result = storage.signedUrl("empresas/x/documentos/animals/foto.jpg");
+
+        assertThat(result).isEqualTo(URL + relative);
+        server.verify();
+    }
+
+    @Test
+    void preservesAbsoluteSignedUrl() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        var storage = client(builder, "clave-secreta");
+        String absolute = "https://cdn.example.com/private/foto.webp?token=abc123";
+        server.expect(requestTo(URL + "/storage/v1/object/sign/" + BUCKET + "/" + ENC_PATH))
+                .andRespond(withSuccess("{\"signedURL\":\"" + absolute + "\"}",
+                        org.springframework.http.MediaType.APPLICATION_JSON));
+
+        String result = storage.signedUrl("empresas/x/documentos/animals/foto.jpg");
+
+        assertThat(result).isEqualTo(absolute);
+        server.verify();
+    }
+
     private HttpSupabaseStorageClient client(String key) {
         return client(RestClient.builder(), key);
     }
