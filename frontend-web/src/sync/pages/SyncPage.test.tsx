@@ -23,6 +23,10 @@ vi.mock('@/sync/sync.service', () => ({
   resolveConflictKeepLocal: (...args: unknown[]) => keepLocal(...args),
   pullChanges: vi.fn(), synchronizePendingFiles: vi.fn(), synchronizePendingOperations: vi.fn(),
 }))
+vi.mock('@/offline/offlinePreparation', () => ({
+  getOfflinePreparationStatus: vi.fn().mockResolvedValue({ prepared: true, breeds: 2, categories: 2, properties: 1, paddocks: 1 }),
+  prepareOfflineData: vi.fn().mockResolvedValue(undefined),
+}))
 vi.mock('@/shared/hooks/useOnlineStatus', () => ({ useOnlineStatus: () => true }))
 vi.mock('@/auth/auth-context', () => ({ useAuth: () => ({ sessionExpired: false }) }))
 

@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { Field } from '@/shared/components/Field'
 import { LoadingState } from '@/shared/components/LoadingState'
+import { MobileEntityCard } from '@/shared/components/MobileEntityCard'
 import { useToast } from '@/shared/toast/useToast'
 import { normalizeApiError } from '@/shared/api/errors'
 
@@ -64,13 +65,18 @@ export function GenealogiaTab({ animalId }: { animalId: string }) {
       </form>}
       {query.isPending && <LoadingState message="Cargando genealogía…" />}
       {query.data?.length === 0 && !showForm && <EmptyState title="Sin progenitores" description="Registra la madre o el padre del animal." />}
-      {query.data && query.data.length > 0 && <div className="table-wrapper"><table><caption className="visually-hidden">Relaciones genealógicas del animal</caption><thead><tr><th scope="col">Rol</th><th scope="col">Progenitor</th><th scope="col">Registro genealógico</th><th scope="col">Fecha</th><th scope="col">Acciones</th></tr></thead><tbody>{query.data.map((item) => <tr key={item.id}>
+      {query.data && query.data.length > 0 && <><div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Relaciones genealógicas del animal</caption><thead><tr><th scope="col">Rol</th><th scope="col">Progenitor</th><th scope="col">Registro genealógico</th><th scope="col">Fecha</th><th scope="col">Acciones</th></tr></thead><tbody>{query.data.map((item) => <tr key={item.id}>
         <td><span className="status-badge">{item.tipo}</span></td>
         <td>{item.animalPadreId ? (() => { const padre = catalogs.data?.animales.find((animal) => animal.id === item.animalPadreId); return <strong>{padre ? `${padre.codigo}${padre.nombre ? ` · ${padre.nombre}` : ''}` : 'Animal registrado'}</strong> })() : <strong>{item.nombreExterno ?? 'Progenitor externo'}</strong>}{item.razaExternaId ? ` · ${catalogs.data?.razas.find((raza) => raza.id === item.razaExternaId)?.nombre ?? 'Raza'}` : ''}</td>
         <td>{item.registroGenealogico ?? '—'}</td>
         <td>{new Date(item.fechaRegistro).toLocaleDateString('es-BO')}</td>
         <td><Button variant="danger" loading={remove.isPending && remove.variables === item.id} onClick={() => setRemoveTarget(item)}><Trash2 size={16} />Eliminar</Button></td>
-      </tr>)}</tbody></table></div>}
+      </tr>)}</tbody></table></div><div className="mobile-only"><div className="mobile-entity-list">{query.data.map((item) => {
+        const padre = item.animalPadreId ? catalogs.data?.animales.find((animal) => animal.id === item.animalPadreId) : undefined
+        const progenitor = item.animalPadreId ? (padre ? `${padre.codigo}${padre.nombre ? ` · ${padre.nombre}` : ''}` : 'Animal registrado') : (item.nombreExterno ?? 'Progenitor externo')
+        const raza = item.razaExternaId ? catalogs.data?.razas.find((value) => value.id === item.razaExternaId)?.nombre : undefined
+        return <MobileEntityCard key={item.id} title={progenitor} status={<span className="status-badge">{item.tipo}</span>} subtitle={raza} metadata={<><span>Registro: {item.registroGenealogico ?? 'Sin registro'}</span><span>Registrado: {new Date(item.fechaRegistro).toLocaleDateString('es-BO')}</span></>} action={<Button variant="danger" loading={remove.isPending && remove.variables === item.id} onClick={() => setRemoveTarget(item)}><Trash2 size={16} aria-hidden="true" />Eliminar</Button>} />
+      })}</div></div></>}
     </Card>
 
     <ConfirmDialog
