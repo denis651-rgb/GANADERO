@@ -5,4 +5,5 @@ public interface AnimalRepository {AnimalPage findAll(UUID empresa,Set<UUID> per
  void updateLote(UUID animalId,UUID empresa,UUID loteId,UUID actor);
  void updateFotoPrincipal(UUID animalId,UUID empresa,String path,UUID actor);
  void move(UUID animalId,UUID empresa,UUID propiedadId,UUID potreroId,UUID loteId,UUID actor);
- void restoreLocation(UUID animalId,UUID empresa,UUID propiedadId,UUID potreroId,UUID loteId,UUID actor);}
+ void restoreLocation(UUID animalId,UUID empresa,UUID propiedadId,UUID potreroId,UUID loteId,UUID actor);
+ List<Animal> findEligible(UUID empresa,UUID propiedad,UUID lote,UUID categoria,SexoAnimal sexo);}

@@ -1,0 +1,2 @@
+package bo.com.ganadero.sanidad.api; import bo.com.ganadero.sanidad.application.CrearEnfermedadCommand; import jakarta.validation.constraints.*;
+public record CrearEnfermedadRequest(@NotBlank @Size(max=60) String codigo,@NotBlank @Size(max=160) String nombre,@Size(max=2000) String descripcion,boolean esNotificable){CrearEnfermedadCommand command(){return new CrearEnfermedadCommand(codigo,nombre,descripcion,esNotificable);}}

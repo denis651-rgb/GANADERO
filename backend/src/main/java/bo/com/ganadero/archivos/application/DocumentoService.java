@@ -150,7 +150,7 @@ public class DocumentoService {
                 from archivos.documentos d
                 left join seguridad.perfiles_usuario pu on pu.id = d.created_by
                 where d.empresa_id=:e
-                and (:tipo is null or d.entidad_tipo=:tipo) and (:entidad is null or d.entidad_id=:entidad)
+                and (cast(:tipo as text) is null or d.entidad_tipo=:tipo) and (cast(:entidad as uuid) is null or d.entidad_id=:entidad)
                 order by d.created_at desc
                 """).param("e", user.empresaId()).param("tipo", entidadTipo).param("entidad", entidadId)
                 .query(this::map).list();

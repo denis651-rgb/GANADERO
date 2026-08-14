@@ -6,7 +6,6 @@ const id = '00000000-0000-4000-8000-000000000001'
 describe('createAnimalSchema', () => {
   it('acepta el contrato requerido por CrearAnimalRequest', () => {
     expect(createAnimalSchema.safeParse({
-      codigo: 'A-001',
       sexo: 'HEMBRA',
       proposito: 'CARNE',
       origen: 'NACIDO',

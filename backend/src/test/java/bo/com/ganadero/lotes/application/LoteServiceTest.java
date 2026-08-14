@@ -10,6 +10,7 @@ import bo.com.ganadero.lotes.domain.EstadoLote;
 import bo.com.ganadero.lotes.domain.Lote;
 import bo.com.ganadero.lotes.domain.LoteRepository;
 import bo.com.ganadero.lotes.domain.MembresiaLote;
+import bo.com.ganadero.shared.codigos.CodigoService;
 import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import bo.com.ganadero.shared.security.CurrentUser;
@@ -67,7 +68,11 @@ class LoteServiceTest {
         CurrentUser user = new CurrentUser(userId, company, UUID.randomUUID(), Set.of(),
                 Set.of("LOTE_VER", "LOTE_CREAR", "LOTE_EDITAR", "LOTE_ASIGNAR_ANIMALES"),
                 Set.of(), true);
-        service = new LoteService(lotes, animales, new UserContext(() -> user), published::add, published::add);
+        CodigoService codes = mock(CodigoService.class);
+        when(codes.paraCreacion(any(), any(), any(), any(), any())).thenReturn("L-2");
+        when(codes.paraActualizacion(any(), any(), any(), any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(4));
+        service = new LoteService(lotes, animales, new UserContext(() -> user), published::add, published::add, codes);
     }
 
     @Test

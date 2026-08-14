@@ -36,7 +36,6 @@ export function LotesPage() {
       const data = new FormData(form)
       return createLote({
         propiedadId: String(data.get('propiedadId')),
-        codigo: String(data.get('codigo')),
         nombre: String(data.get('nombre')),
         descripcion: String(data.get('descripcion') ?? '') || undefined,
         fechaApertura: String(data.get('fechaApertura') ?? '') || undefined,
@@ -51,7 +50,7 @@ export function LotesPage() {
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
     {showForm && <Card><form className="form-grid compact-form" onSubmit={(event) => { event.preventDefault(); create.mutate(event.currentTarget) }}>
       <Field label="Propiedad"><select name="propiedadId" required><option value="">Selecciona una propiedad…</option>{propiedades.data?.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
-      <Field label="Código"><input name="codigo" required maxLength={60} placeholder="Ej. L-2026-01" /></Field>
+      <Field label="Código" hint="Se asigna al guardar"><input value="Automático · LOT-AAAA-####" readOnly aria-label="Código automático de lote" /></Field>
       <Field label="Nombre"><input name="nombre" required maxLength={160} placeholder="Ej. Lote de engorde A" /></Field>
       <Field label="Descripción"><input name="descripcion" maxLength={1000} /></Field>
       <Field label="Fecha de apertura"><input name="fechaApertura" type="date" /></Field>

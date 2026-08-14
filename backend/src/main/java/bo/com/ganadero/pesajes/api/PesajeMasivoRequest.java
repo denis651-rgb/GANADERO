@@ -13,7 +13,7 @@ public record PesajeMasivoRequest(
         LocalDate fecha,
         @Size(max = 200) String dispositivo,
         @Size(max = 1000) String observaciones,
-        @NotEmpty @Valid List<PesajeMasivoItemRequest> items) {
+        @NotEmpty List<@Valid PesajeMasivoItemRequest> items) {
 
     PesajeMasivoCommand command() {
         return new PesajeMasivoCommand(fecha, dispositivo, observaciones,

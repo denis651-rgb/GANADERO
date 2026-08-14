@@ -33,6 +33,18 @@ management:
     env:
       enabled: false
 
+ganadero:
+  push:
+    enabled: ${GANADERO_PUSH_ENABLED:false}
+    vapid-public-key: ${GANADERO_PUSH_VAPID_PUBLIC_KEY:}
+    vapid-private-key: ${GANADERO_PUSH_VAPID_PRIVATE_KEY:}
+    subject: ${GANADERO_PUSH_SUBJECT:mailto:soporte@ganadero.bo}
+    max-attempts: ${GANADERO_PUSH_MAX_ATTEMPTS:5}
+    ttl-seconds: ${GANADERO_PUSH_TTL_SECONDS:604800}
+  alertas:
+    cron-activar: ${GANADERO_ALERTAS_CRON_ACTIVAR:0 */5 * * * *}
+    cron-enviar: ${GANADERO_ALERTAS_CRON_ENVIAR:0 */5 * * * *}
+
 app:
   frontend-url: ${APP_FRONTEND_URL:http://localhost:5173}
   bootstrap:

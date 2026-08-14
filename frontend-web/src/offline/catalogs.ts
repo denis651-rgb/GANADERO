@@ -5,7 +5,7 @@ export interface OfflineFormCatalogs {
   categories: Array<{ id: string; nombre: string }>
   properties: Array<{ id: string; nombre: string; activo: boolean }>
   paddocks: Array<{ id: string; nombre: string; activo: boolean; propiedadId: string }>
-  lots: { content: Array<{ id: string; nombre: string; estado: string }> }
+  lots: { content: Array<{ id: string; nombre: string; estado: string; propiedadId: string }> }
 }
 
 export interface LocalAnimalResult {
@@ -28,7 +28,12 @@ export async function offlineFormCatalogs(): Promise<OfflineFormCatalogs> {
     categories: categorias.map((c) => ({ id: c.id, nombre: c.name })),
     properties: propiedades.map((c) => ({ id: c.id, nombre: c.name, activo: c.activo ?? true })),
     paddocks: potreros.map((c) => ({ id: c.id, nombre: c.name, activo: c.activo ?? true, propiedadId: c.propiedadId ?? '' })),
-    lots: { content: lotes.map((c) => ({ id: c.id, nombre: c.name, estado: c.estado ?? 'ACTIVO' })) },
+    lots: { content: lotes.map((c) => ({
+      id: c.id,
+      nombre: c.name,
+      estado: c.estado ?? 'ACTIVO',
+      propiedadId: c.propiedadId ?? '',
+    })) },
   }
 }
 

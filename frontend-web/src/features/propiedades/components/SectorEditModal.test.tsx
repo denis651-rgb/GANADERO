@@ -13,7 +13,9 @@ describe('SectorEditModal', () => {
     fireEvent.change(screen.getByLabelText(/^Nombre/), { target: { value: 'Sector norte' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar sector' }))
 
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ codigo: 'NORTE', nombre: 'Sector norte', activo: true, version: 4 }))
+    expect(screen.getByDisplayValue('NORTE')).toHaveAttribute('readonly')
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ nombre: 'Sector norte', activo: true, version: 4 }))
+    expect(onSubmit.mock.calls[0][0]).not.toHaveProperty('codigo')
   })
 
   it('bloquea el guardado y permite recargar ante un conflicto de versión', () => {

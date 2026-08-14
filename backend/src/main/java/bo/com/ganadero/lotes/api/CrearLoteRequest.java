@@ -10,7 +10,7 @@ import java.util.UUID;
 
 public record CrearLoteRequest(
         @NotNull UUID propiedadId,
-        @NotBlank @Size(max = 60) String codigo,
+        @Size(max = 60) String codigo,
         @NotBlank @Size(max = 160) String nombre,
         @Size(max = 1000) String descripcion,
         LocalDate fechaApertura) {

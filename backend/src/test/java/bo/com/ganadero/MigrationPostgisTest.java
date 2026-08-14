@@ -1,5 +1,8 @@
 package bo.com.ganadero;
 
+import bo.com.ganadero.shared.codigos.CodigoService;
+import bo.com.ganadero.shared.codigos.TipoCodigo;
+import bo.com.ganadero.shared.security.CurrentUser;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
 import org.flywaydb.core.api.output.MigrateResult;
@@ -7,6 +10,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.jdbc.support.JdbcTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -15,8 +22,14 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -66,12 +79,14 @@ class MigrationPostgisTest {
                             .current()
                             .getVersion()
                             .toString()
-            ).isEqualTo("32");
+            ).isEqualTo("45");
 
             assertRequiredTablesExist(postgres);
             assertFlywayHistoryIsSuccessful(postgres);
             assertNoDuplicateTableNames(postgres);
             assertNoDuplicateIndexNames(postgres);
+            assertMovementAuditColumnsExist(postgres);
+            assertCodeGenerationIsAtomic(postgres);
 
             MigrateResult secondMigration = flyway.migrate();
 
@@ -83,7 +98,41 @@ class MigrationPostgisTest {
                             .current()
                             .getVersion()
                             .toString()
-            ).isEqualTo("32");
+            ).isEqualTo("45");
+        }
+    }
+
+    private void assertCodeGenerationIsAtomic(PostgreSQLContainer<?> postgres) throws Exception {
+        UUID empresaId = UUID.randomUUID();
+        try (Connection connection = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(),
+                postgres.getPassword())) {
+            connection.createStatement().executeUpdate("""
+                    insert into core.empresas(id,codigo,razon_social,nombre_comercial)
+                    values ('%s','CONC-001','Empresa concurrente','Empresa concurrente')
+                    """.formatted(empresaId));
+        }
+        DriverManagerDataSource dataSource = new DriverManagerDataSource(postgres.getJdbcUrl(),
+                postgres.getUsername(), postgres.getPassword());
+        CodigoService codigos = new CodigoService(JdbcClient.create(dataSource));
+        TransactionTemplate transactions = new TransactionTemplate(new JdbcTransactionManager(dataSource));
+        CurrentUser user = new CurrentUser(UUID.randomUUID(), empresaId, UUID.randomUUID(), Set.of(), Set.of(),
+                Set.of(), true);
+        ExecutorService executor = Executors.newFixedThreadPool(20);
+        CountDownLatch inicio = new CountDownLatch(1);
+        try {
+            List<Future<String>> futures = java.util.stream.IntStream.range(0, 20)
+                    .mapToObj(ignored -> executor.submit(() -> {
+                        inicio.await();
+                        return transactions.execute(status -> codigos.paraCreacion(user, TipoCodigo.ANIMAL,
+                                null, null, null));
+                    })).toList();
+            inicio.countDown();
+            Set<String> resultados = new HashSet<>();
+            for (Future<String> future : futures) resultados.add(future.get());
+
+            assertThat(resultados).hasSize(20).contains("ANI-000001", "ANI-000020");
+        } finally {
+            executor.shutdownNow();
         }
     }
 
@@ -138,10 +187,11 @@ class MigrationPostgisTest {
                             .current()
                             .getVersion()
                             .toString()
-            ).isEqualTo("32");
+            ).isEqualTo("45");
 
             assertVersionNineVerificationDataStillExists(postgres);
             assertRequiredTablesExist(postgres);
+            assertMovementAuditColumnsExist(postgres);
             assertFlywayHistoryIsSuccessful(postgres);
             assertNoDuplicateTableNames(postgres);
             assertNoDuplicateIndexNames(postgres);
@@ -236,7 +286,7 @@ class MigrationPostgisTest {
                 VERSIONED_MIGRATION_PATTERN.matcher(filename);
         if (!matcher.matches()) {
             throw new IllegalArgumentException(
-                    "Nombre de migraciÃƒÂ³n Flyway invÃƒÂ¡lido: "
+                    "Nombre de migraciÃƒÆ’Ã‚Â³n Flyway invÃƒÆ’Ã‚Â¡lido: "
                             + filename
             );
         }
@@ -265,7 +315,7 @@ class MigrationPostgisTest {
             assertThat(countRows(
                     postgres,
                     """
-                    select coalesce(c.nombre, 'Sin categoría') as nombre, count(*) as total
+                    select coalesce(c.nombre, 'Sin categorÃ­a') as nombre, count(*) as total
                     from ganado.animales a
                     left join ganado.categorias_animal c on c.id = a.categoria_actual_id
                     where a.empresa_id = ? and a.estado = 'ACTIVO'
@@ -344,8 +394,8 @@ class MigrationPostgisTest {
                     """,
                     empresa,
                     "AUD-" + empresa.toString().substring(0, 8),
-                    "Empresa auditoría inmutable S.R.L.",
-                    "Empresa auditoría inmutable"
+                    "Empresa auditorÃ­a inmutable S.R.L.",
+                    "Empresa auditorÃ­a inmutable"
             );
             executeUpdate(
                     postgres,
@@ -369,7 +419,7 @@ class MigrationPostgisTest {
                     """,
                     id
             ))
-                    .as("UPDATE de auditoría debe ser rechazado")
+                    .as("UPDATE de auditorÃ­a debe ser rechazado")
                     .isInstanceOf(java.sql.SQLException.class)
                     .hasMessageContaining("inmutables");
 
@@ -378,7 +428,7 @@ class MigrationPostgisTest {
                     "delete from auditoria.registros where id = ?",
                     id
             ))
-                    .as("DELETE de auditoría debe ser rechazado")
+                    .as("DELETE de auditorÃ­a debe ser rechazado")
                     .isInstanceOf(java.sql.SQLException.class)
                     .hasMessageContaining("inmutables");
 
@@ -525,6 +575,23 @@ class MigrationPostgisTest {
                     )
                     .isEqualTo(1);
         }
+    }
+
+    private void assertMovementAuditColumnsExist(PostgreSQLContainer<?> postgres) throws Exception {
+        int count = queryForInt(
+                postgres,
+                """
+                select count(*)
+                from information_schema.columns
+                where table_schema = 'ganado'
+                  and table_name = 'movimientos'
+                  and column_name in ('created_by', 'updated_by')
+                """
+        );
+
+        assertThat(count)
+                .as("Los movimientos deben conservar las columnas de auditoria usadas por el repositorio")
+                .isEqualTo(2);
     }
 
     private void assertFlywayHistoryIsSuccessful(

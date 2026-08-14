@@ -8,6 +8,7 @@ import { MovimientoStatusBadge } from '@/features/movimientos/components/Movimie
 import { MovimientoValidationDialog } from '@/features/movimientos/components/MovimientoValidationDialog'
 import { MotivoModal } from '@/features/movimientos/components/MotivoModal'
 import { listAnimals } from '@/features/animales/api'
+import type { AnimalSummary } from '@/features/animales/types'
 import { listLotes } from '@/features/lotes/api'
 import { listPropiedades } from '@/features/propiedades/api'
 import { listPotreros } from '@/features/potreros/api'
@@ -33,6 +34,27 @@ function destinoRequerido(tipo: TipoMovimiento): 'propiedad' | 'potrero' | 'lote
   return 'potrero-o-lote'
 }
 
+interface FiltrosOrigen {
+  propiedadId: string
+  potreroId: string
+  loteId: string
+}
+
+type AnimalFiltrable = Pick<AnimalSummary, 'propiedadActualId' | 'potreroActualId' | 'loteActualId' | 'codigo' | 'nombre'>
+
+export function filtrarAnimalesPorOrigen<T extends AnimalFiltrable>(animales: T[], filtros: FiltrosOrigen, busqueda = ''): T[] {
+  if (!filtros.propiedadId) return []
+  const termino = busqueda.trim().toLocaleLowerCase('es-BO')
+  return animales.filter((animal) => {
+    if (animal.propiedadActualId !== filtros.propiedadId) return false
+    if (filtros.potreroId && animal.potreroActualId !== filtros.potreroId) return false
+    if (filtros.loteId && animal.loteActualId !== filtros.loteId) return false
+    if (!termino) return true
+    return animal.codigo.toLocaleLowerCase('es-BO').includes(termino)
+      || (animal.nombre ?? '').toLocaleLowerCase('es-BO').includes(termino)
+  })
+}
+
 export function MovimientosPage() {
   const client = useQueryClient()
   const { showToast } = useToast()
@@ -43,6 +65,12 @@ export function MovimientosPage() {
   const [tipoForm, setTipoForm] = useState<TipoMovimiento>('CAMBIO_POTRERO')
   const [animalSearch, setAnimalSearch] = useState('')
   const [animalesSeleccionados, setAnimalesSeleccionados] = useState<Set<string>>(new Set())
+  const [origenPropiedadId, setOrigenPropiedadId] = useState('')
+  const [origenPotreroId, setOrigenPotreroId] = useState('')
+  const [origenLoteId, setOrigenLoteId] = useState('')
+  const [destinoPropiedadId, setDestinoPropiedadId] = useState('')
+  const [destinoPotreroId, setDestinoPotreroId] = useState('')
+  const [destinoLoteId, setDestinoLoteId] = useState('')
   const [selected, setSelected] = useState<Movimiento | null>(null)
   const [validation, setValidation] = useState<ValidacionMovimiento | null>(null)
   const [anularTarget, setAnularTarget] = useState<Movimiento | null>(null)
@@ -62,12 +90,25 @@ export function MovimientosPage() {
   const catalogs = useQuery({
     queryKey: ['movimientos-catalogs'],
     queryFn: async () => {
-      const [propiedades, potreros, lotesPage, animales] = await Promise.all([
+      const [propiedades, potreros, lotesPage, animalesPage] = await Promise.all([
         listPropiedades(), listPotreros(), listLotes({ search: undefined, estado: 'ACTIVO', page: 0, size: 500 }),
         listAnimals({ search: undefined, estado: 'ACTIVO', sexo: '', page: 0, size: 500 }),
       ])
-      return { propiedades, potreros, lotes: lotesPage.content, animales: animales.content }
+      return { propiedades, potreros, lotes: lotesPage.content, animales: animalesPage.content }
     },
+  })
+  const animalesOrigen = useQuery({
+    queryKey: ['movimientos-animales-origen', origenPropiedadId, origenPotreroId],
+    queryFn: () => listAnimals({
+      search: undefined,
+      estado: 'ACTIVO',
+      propiedadId: origenPropiedadId,
+      potreroId: origenPotreroId || undefined,
+      sexo: '',
+      page: 0,
+      size: 500,
+    }),
+    enabled: showForm && !!origenPropiedadId,
   })
   const detalles = useQuery({
     queryKey: ['movimientos', selected?.id, 'detalles'],
@@ -78,7 +119,7 @@ export function MovimientosPage() {
   const create = useMutation({
     mutationFn: (form: HTMLFormElement) => {
       const data = new FormData(form)
-      const animales = Array.from(animalesSeleccionados).map((id) => ({ animalId: id, version: catalogs.data?.animales.find((animal) => animal.id === id)?.version ?? 0 }))
+      const animales = Array.from(animalesSeleccionados).map((id) => ({ animalId: id, version: animalesOrigen.data?.content.find((animal) => animal.id === id)?.version ?? 0 }))
       return createMovimiento({
         tipo: String(data.get('tipo')) as TipoMovimiento,
         fechaMovimiento: String(data.get('fecha') ?? '') || undefined,
@@ -111,41 +152,100 @@ export function MovimientosPage() {
     mutationFn: ({ id, motivo, version }: { id: string; motivo: string; version: number }) => revertirMovimiento(id, motivo, version),
     onSuccess: async () => { setRevertirTarget(null); setSelected(null); showToast('Movimiento revertido.'); await invalidateMovimientos() },
   })
-  const error = query.error ?? catalogs.error ?? create.error ?? validar.error ?? confirm.error ?? annul.error ?? revert.error
+  const error = query.error ?? catalogs.error ?? animalesOrigen.error ?? create.error ?? validar.error ?? confirm.error ?? annul.error ?? revert.error
 
-  const req = useMemo(() => destinoRequerido(tipoForm), [tipoForm])
+  const req = destinoRequerido(tipoForm)
+  const requiereOrigen = tipoForm !== 'INGRESO_COMPRA'
+  const potrerosOrigen = useMemo(() => (catalogs.data?.potreros ?? [])
+    .filter((item) => item.activo && item.propiedadId === origenPropiedadId), [catalogs.data?.potreros, origenPropiedadId])
+  const lotesOrigen = useMemo(() => (catalogs.data?.lotes ?? [])
+    .filter((item) => item.propiedadId === origenPropiedadId), [catalogs.data?.lotes, origenPropiedadId])
+  const propiedadDestinoEfectiva = destinoPropiedadId || (req === 'potrero' || req === 'lote' || req === 'potrero-o-lote' ? origenPropiedadId : '')
+  const propiedadesDestino = useMemo(() => (catalogs.data?.propiedades ?? [])
+    .filter((item) => item.activo && (tipoForm !== 'TRANSFERENCIA_PROPIEDAD' || item.id !== origenPropiedadId)), [catalogs.data?.propiedades, origenPropiedadId, tipoForm])
+  const potrerosDestino = useMemo(() => (catalogs.data?.potreros ?? [])
+    .filter((item) => item.activo
+      && item.propiedadId === propiedadDestinoEfectiva
+      && (tipoForm !== 'CAMBIO_POTRERO' || item.id !== origenPotreroId)), [catalogs.data?.potreros, origenPotreroId, propiedadDestinoEfectiva, tipoForm])
+  const lotesDestino = useMemo(() => (catalogs.data?.lotes ?? [])
+    .filter((item) => item.propiedadId === propiedadDestinoEfectiva
+      && (tipoForm !== 'CAMBIO_LOTE' || item.id !== origenLoteId)), [catalogs.data?.lotes, origenLoteId, propiedadDestinoEfectiva, tipoForm])
   const animalesFiltrados = useMemo(() => {
-    const all = catalogs.data?.animales ?? []
-    if (!animalSearch.trim()) return all
-    const termino = animalSearch.toLowerCase()
-    return all.filter((animal) => (animal.codigo ?? '').toLowerCase().includes(termino) || (animal.nombre ?? '').toLowerCase().includes(termino))
-  }, [catalogs.data, animalSearch])
+    return filtrarAnimalesPorOrigen(animalesOrigen.data?.content ?? [], {
+      propiedadId: origenPropiedadId,
+      potreroId: origenPotreroId,
+      loteId: origenLoteId,
+    }, animalSearch)
+  }, [animalesOrigen.data?.content, animalSearch, origenLoteId, origenPotreroId, origenPropiedadId])
+
+  const limpiarAnimalesSeleccionados = () => setAnimalesSeleccionados(new Set())
+  const cambiarTipo = (tipo: TipoMovimiento) => {
+    setTipoForm(tipo)
+    setDestinoPropiedadId('')
+    setDestinoPotreroId('')
+    setDestinoLoteId('')
+    limpiarAnimalesSeleccionados()
+  }
+  const cambiarPropiedadOrigen = (propiedadId: string) => {
+    setOrigenPropiedadId(propiedadId)
+    setOrigenPotreroId('')
+    setOrigenLoteId('')
+    if (req !== 'propiedad' || destinoPropiedadId === propiedadId) {
+      setDestinoPropiedadId('')
+      setDestinoPotreroId('')
+      setDestinoLoteId('')
+    }
+    limpiarAnimalesSeleccionados()
+  }
+  const cambiarPotreroOrigen = (potreroId: string) => {
+    setOrigenPotreroId(potreroId)
+    if (tipoForm === 'CAMBIO_POTRERO') setDestinoPotreroId('')
+    limpiarAnimalesSeleccionados()
+  }
+  const cambiarLoteOrigen = (loteId: string) => {
+    setOrigenLoteId(loteId)
+    if (tipoForm === 'CAMBIO_LOTE') setDestinoLoteId('')
+    limpiarAnimalesSeleccionados()
+  }
+  const cambiarPropiedadDestino = (propiedadId: string) => {
+    setDestinoPropiedadId(propiedadId)
+    setDestinoPotreroId('')
+    setDestinoLoteId('')
+  }
 
   const onViewRelated = (id: string) => {
     void getMovimiento(id).then((movimiento) => setSelected(movimiento)).catch(() => undefined)
   }
 
   return <div className="page-stack">
-    <PageHeader eyebrow="Ganado" title="Movimientos" description="Traslados entre propiedades, potreros y lotes." actions={<Button onClick={() => { setShowForm((value) => { if (!value) { setAnimalesSeleccionados(new Set()); setAnimalSearch('') } return !value }) }}><Plus size={18} />Nuevo movimiento</Button>} />
+    <PageHeader eyebrow="Ganado" title="Movimientos" description="Traslados entre propiedades, potreros y lotes." actions={<Button onClick={() => { setShowForm((value) => { if (!value) { setAnimalesSeleccionados(new Set()); setAnimalSearch(''); setOrigenPropiedadId(''); setOrigenPotreroId(''); setOrigenLoteId(''); setDestinoPropiedadId(''); setDestinoPotreroId(''); setDestinoLoteId('') } return !value }) }}><Plus size={18} />Nuevo movimiento</Button>} />
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
-    {showForm && <Card><h3>Crear movimiento</h3><form className="form-grid compact-form" onSubmit={(event) => { event.preventDefault(); create.mutate(event.currentTarget) }}>
-      <Field label="Tipo"><select name="tipo" required value={tipoForm} onChange={(event) => setTipoForm(event.target.value as TipoMovimiento)}>{tipos.map((tipo) => <option key={tipo}>{tipo}</option>)}</select></Field>
+    {showForm && <Card><h3>Crear movimiento</h3><form className="form-grid compact-form movement-form" onSubmit={(event) => { event.preventDefault(); create.mutate(event.currentTarget) }}>
+      <Field label="Tipo"><select name="tipo" required value={tipoForm} onChange={(event) => cambiarTipo(event.target.value as TipoMovimiento)}>{tipos.map((tipo) => <option key={tipo}>{tipo}</option>)}</select></Field>
       <Field label="Fecha"><input name="fecha" type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></Field>
       <Field label="Motivo"><input name="motivo" maxLength={1000} /></Field>
       <Field label="Observación"><input name="observacion" maxLength={1000} /></Field>
-      <Field label="Origen (propiedad)"><select name="origenPropiedadId"><option value="">Sin especificar</option>{catalogs.data?.propiedades.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
-      <Field label="Origen (potrero)"><select name="origenPotreroId"><option value="">Sin especificar</option>{catalogs.data?.potreros.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
-      <Field label="Origen (lote)"><select name="origenLoteId"><option value="">Sin especificar</option>{catalogs.data?.lotes.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
-      {(req === 'propiedad' || req === 'potrero-o-lote') && <Field label="Destino (propiedad)" hint={req === 'propiedad' ? 'Requerido' : undefined}><select name="destinoPropiedadId"><option value="">Sin especificar</option>{catalogs.data?.propiedades.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>}
-      {(req === 'potrero' || req === 'potrero-o-lote' || req === 'propiedad') && <Field label="Destino (potrero)" hint={req === 'potrero' ? 'Requerido' : undefined}><select name="destinoPotreroId"><option value="">Sin especificar</option>{catalogs.data?.potreros.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>}
-      {(req === 'lote' || req === 'potrero-o-lote') && <Field label="Destino (lote)" hint={req === 'lote' ? 'Requerido' : undefined}><select name="destinoLoteId"><option value="">Sin especificar</option>{catalogs.data?.lotes.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>}
-      <Field label={`Animales a mover (${animalesSeleccionados.size} seleccionados)`}>
-        <div style={{ display: 'grid', gap: 8 }}>
-          <span className="search-box"><Search size={18} aria-hidden="true" /><input type="search" aria-label="Buscar animales para el movimiento" value={animalSearch} onChange={(event) => setAnimalSearch(event.target.value)} placeholder="Buscar por código o nombre…" /></span>
-          <div className="checkbox-stack" style={{ maxHeight: 220, overflowY: 'auto' }}>{animalesFiltrados.map((animal) => <label key={animal.id}><input type="checkbox" name="animales" value={animal.id} checked={animalesSeleccionados.has(animal.id)} onChange={(event) => { setAnimalesSeleccionados((prev) => { const next = new Set(prev); if (event.target.checked) next.add(animal.id); else next.delete(animal.id); return next }) }} /> {animal.codigo}{animal.nombre ? ` · ${animal.nombre}` : ''}</label>)}</div>
+      <Field label="Origen (propiedad)" required={requiereOrigen} hint={requiereOrigen ? 'Define qué animales pueden seleccionarse.' : 'Opcional para ingresos por compra.'}><select name="origenPropiedadId" value={origenPropiedadId} onChange={(event) => cambiarPropiedadOrigen(event.target.value)}><option value="">Sin especificar</option>{catalogs.data?.propiedades.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
+      <Field label="Origen (potrero)" hint="Opcional: limita los animales al potrero."><select name="origenPotreroId" value={origenPotreroId} disabled={!origenPropiedadId} onChange={(event) => cambiarPotreroOrigen(event.target.value)}><option value="">{origenPropiedadId ? 'Todos los potreros' : 'Selecciona primero una propiedad'}</option>{potrerosOrigen.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
+      <Field label="Origen (lote)" hint="Opcional: limita los animales al lote."><select name="origenLoteId" value={origenLoteId} disabled={!origenPropiedadId} onChange={(event) => cambiarLoteOrigen(event.target.value)}><option value="">{origenPropiedadId ? 'Todos los lotes' : 'Selecciona primero una propiedad'}</option>{lotesOrigen.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
+      {(req === 'propiedad' || req === 'potrero-o-lote') && <Field label="Destino (propiedad)" required={req === 'propiedad'}><select name="destinoPropiedadId" value={destinoPropiedadId} onChange={(event) => cambiarPropiedadDestino(event.target.value)}><option value="">Sin especificar</option>{propiedadesDestino.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>}
+      {(req === 'potrero' || req === 'potrero-o-lote' || req === 'propiedad') && <Field label="Destino (potrero)" required={req === 'potrero' || tipoForm === 'TRANSFERENCIA_PROPIEDAD'} hint={propiedadDestinoEfectiva ? undefined : 'Selecciona primero la propiedad correspondiente.'}><select name="destinoPotreroId" value={destinoPotreroId} disabled={!propiedadDestinoEfectiva} onChange={(event) => setDestinoPotreroId(event.target.value)}><option value="">Sin especificar</option>{potrerosDestino.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>}
+      {(req === 'lote' || req === 'potrero-o-lote') && <Field label="Destino (lote)" required={req === 'lote'} hint={propiedadDestinoEfectiva ? undefined : 'Selecciona primero la propiedad correspondiente.'}><select name="destinoLoteId" value={destinoLoteId} disabled={!propiedadDestinoEfectiva} onChange={(event) => setDestinoLoteId(event.target.value)}><option value="">Sin especificar</option>{lotesDestino.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>}
+      <fieldset className="movement-animal-picker form-full">
+        <legend>Animales a mover</legend>
+        <div className="movement-picker-toolbar">
+          <span className="search-box"><Search size={18} aria-hidden="true" /><input name="animalSearch" type="search" autoComplete="off" aria-label="Buscar animales para el movimiento" value={animalSearch} disabled={!origenPropiedadId || animalesOrigen.isPending} onChange={(event) => setAnimalSearch(event.target.value)} placeholder="Buscar por código o nombre…" /></span>
+          <span className="movement-selection-summary" aria-live="polite">{animalesSeleccionados.size} seleccionados · {animalesFiltrados.length} disponibles</span>
         </div>
-      </Field>
-      <div className="form-actions"><Button type="submit" loading={create.isPending}>Crear movimiento</Button></div>
+        {!origenPropiedadId
+          ? <p className="movement-picker-empty" role="status">Selecciona una propiedad de origen para mostrar sus animales.</p>
+          : animalesOrigen.isPending
+            ? <p className="movement-picker-empty" role="status">Cargando animales…</p>
+            : animalesFiltrados.length > 0
+          ? <div className="movement-animal-list">{animalesFiltrados.map((animal) => <label key={animal.id} className="movement-animal-option"><input type="checkbox" name="animales" value={animal.id} checked={animalesSeleccionados.has(animal.id)} onChange={(event) => { setAnimalesSeleccionados((prev) => { const next = new Set(prev); if (event.target.checked) next.add(animal.id); else next.delete(animal.id); return next }) }} /><span><strong>{animal.codigo}</strong>{animal.nombre ? ` · ${animal.nombre}` : ''}</span></label>)}</div>
+          : <p className="movement-picker-empty" role="status">No hay animales que coincidan con la búsqueda.</p>}
+      </fieldset>
+      <div className="form-actions form-full"><Button type="submit" loading={create.isPending}>Crear movimiento</Button></div>
     </form></Card>}
     <Card>
       <div className="filter-heading"><span>Filtros de movimientos</span>

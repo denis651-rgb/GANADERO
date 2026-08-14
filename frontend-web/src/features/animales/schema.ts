@@ -6,7 +6,6 @@ const backendUuid = (message: string) => z.string().regex(
 )
 
 export const createAnimalSchema = z.object({
-  codigo: z.string().trim().min(1, 'El código es obligatorio.').max(50),
   nombre: z.string().trim().max(100).optional(),
   sexo: z.enum(['MACHO', 'HEMBRA']),
   fechaNacimiento: z.string().optional(),

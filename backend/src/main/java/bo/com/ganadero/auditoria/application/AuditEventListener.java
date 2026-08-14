@@ -9,6 +9,8 @@ import bo.com.ganadero.movimientos.application.MovimientoAuditEvent;
 import bo.com.ganadero.pesajes.application.PesajeAuditEvent;
 import bo.com.ganadero.potreros.application.PotreroAuditEvent;
 import bo.com.ganadero.propiedades.application.CampoAuditEvent;
+import bo.com.ganadero.reproduccion.application.ReproduccionAuditEvent;
+import bo.com.ganadero.sanidad.application.SanidadAuditEvent;
 import bo.com.ganadero.seguridad.application.SeguridadAuditEvent;
 import bo.com.ganadero.shared.audit.EmpresaAuditEvent;
 import bo.com.ganadero.shared.audit.SyncAuditEvent;
@@ -76,6 +78,16 @@ public class AuditEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onPesaje(PesajeAuditEvent event) {
         persist(event.empresaId(), event.usuarioId(), event.accion(), "PESAJE", event.entidad(), event.entidadId());
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onReproduccion(ReproduccionAuditEvent event) {
+        persist(event.empresaId(), event.usuarioId(), event.accion(), "REPRODUCCION", event.entidad(), event.entidadId());
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onSanidad(SanidadAuditEvent event) {
+        persist(event.empresaId(), event.usuarioId(), event.accion(), "SANIDAD", event.entidad(), event.entidadId());
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

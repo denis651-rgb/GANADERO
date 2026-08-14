@@ -57,6 +57,21 @@ export function RegistrarPesajeForm({ onSaved, onCancel }: RegistrarPesajeFormPr
     },
   })
 
+  function selectAnimal(animal: AnimalSummary) {
+    const lotIsCompatible = catalogs.data?.lots.content.some((lot) =>
+      lot.id === animal.loteActualId
+      && lot.propiedadId === animal.propiedadActualId
+      && lot.estado === 'ACTIVO') ?? false
+    setSelected(animal)
+    setValue('animalId', animal.id, { shouldValidate: true })
+    setValue('propiedadId', animal.propiedadActualId, { shouldValidate: true })
+    setValue('potreroId', animal.potreroActualId, { shouldValidate: true })
+    setValue('loteId', lotIsCompatible ? animal.loteActualId : '', { shouldValidate: true })
+    setMessage(lotIsCompatible || !animal.loteActualId
+      ? null
+      : { tone: 'info', text: 'El lote actual del animal pertenece a otra propiedad y se omiti\u00f3 del pesaje.' })
+  }
+
   async function submit(values: RegistrarPesajeForm) {
     if (!selected) {
       setMessage({ tone: 'danger', text: 'Selecciona un animal para registrar el pesaje.' })
@@ -107,7 +122,7 @@ export function RegistrarPesajeForm({ onSaved, onCancel }: RegistrarPesajeFormPr
         <div className="form-full">
           <AnimalPicker
             value={selected}
-            onChange={(animal) => { setSelected(animal); setValue('animalId', animal.id, { shouldValidate: true }) }}
+            onChange={selectAnimal}
             error={errors.animalId?.message}
           />
         </div>
@@ -127,13 +142,17 @@ export function RegistrarPesajeForm({ onSaved, onCancel }: RegistrarPesajeFormPr
           <input {...register('bascula')} placeholder="Báscula 1" />
         </Field>
         <Field label="Propiedad" error={errors.propiedadId?.message}>
-          <select {...register('propiedadId')}><option value="">Sin especificar</option>{catalogs.data?.properties.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
+          <select {...register('propiedadId')} onChange={(event) => {
+            setValue('propiedadId', event.target.value, { shouldValidate: true })
+            setValue('potreroId', '')
+            setValue('loteId', '')
+          }}><option value="">Sin especificar</option>{catalogs.data?.properties.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
         </Field>
         <Field label="Potrero" error={errors.potreroId?.message}>
-          <select {...register('potreroId')}><option value="">Sin especificar</option>{catalogs.data?.paddocks.filter((item) => item.activo && item.propiedadId === propertyId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
+          <select {...register('potreroId')} disabled={!propertyId}><option value="">Sin especificar</option>{catalogs.data?.paddocks.filter((item) => item.activo && item.propiedadId === propertyId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
         </Field>
         <Field label="Lote" error={errors.loteId?.message}>
-          <select {...register('loteId')}><option value="">Sin especificar</option>{catalogs.data?.lots.content.filter((item) => item.estado === 'ACTIVO').map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
+          <select {...register('loteId')} disabled={!propertyId}><option value="">Sin especificar</option>{catalogs.data?.lots.content.filter((item) => item.estado === 'ACTIVO' && item.propiedadId === propertyId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
         </Field>
         <div className="form-full">
           <Field label="Observaciones" error={errors.observaciones?.message}>

@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -257,6 +258,9 @@ public class MovimientoService {
         if (detalle.potreroDespues() != null && !detalle.potreroDespues().equals(animal.potreroActualId())) {
             throw new BusinessException(ErrorCode.MOVEMENT_CANNOT_BE_REVERSED);
         }
+        if (!Objects.equals(detalle.loteDespues(), animal.loteActualId())) {
+            throw new BusinessException(ErrorCode.MOVEMENT_CANNOT_BE_REVERSED);
+        }
         if (detalle.loteDespues() != null) {
             boolean sigueEnLote = lotes.findActiveLotOfAnimal(animal.id(), user.empresaId())
                     .map(lote -> lote.id().equals(detalle.loteDespues())).orElse(false);
@@ -289,8 +293,14 @@ public class MovimientoService {
             case CAMBIO_LOTE -> {
                 if (movimiento.destinoLoteId() == null) throw new BusinessException(ErrorCode.INVALID_MOVEMENT_DESTINATION);
             }
-            case INGRESO_COMPRA, TRANSFERENCIA_PROPIEDAD -> {
+            case INGRESO_COMPRA -> {
                 if (movimiento.destinoPropiedadId() == null) throw new BusinessException(ErrorCode.INVALID_MOVEMENT_DESTINATION);
+            }
+            case TRANSFERENCIA_PROPIEDAD -> {
+                if (movimiento.destinoPropiedadId() == null || movimiento.destinoPotreroId() == null) {
+                    throw new BusinessException(ErrorCode.INVALID_MOVEMENT_DESTINATION,
+                            "La transferencia requiere una propiedad y un potrero de destino.");
+                }
             }
             case SALIDA_VENTA -> { }
         }
@@ -321,7 +331,8 @@ public class MovimientoService {
     private Ubicacion destinoEfectivo(CurrentUser user, Animal animal, Movimiento movimiento) {
         UUID property = movimiento.destinoPropiedadId() != null ? movimiento.destinoPropiedadId() : animal.propiedadActualId();
         UUID paddock = movimiento.destinoPotreroId() != null ? movimiento.destinoPotreroId() : animal.potreroActualId();
-        UUID lote = animal.loteActualId();
+        boolean cambiaPropiedad = !Objects.equals(property, animal.propiedadActualId());
+        UUID lote = cambiaPropiedad ? null : animal.loteActualId();
         if (movimiento.destinoPotreroId() != null
                 && !animales.validLocation(user.empresaId(), property, paddock)) {
             throw new BusinessException(ErrorCode.INVALID_MOVEMENT_DESTINATION,
@@ -331,10 +342,10 @@ public class MovimientoService {
             Lote destino = lotes.findById(movimiento.destinoLoteId(), user.empresaId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.LOT_NOT_FOUND));
             if (destino.estado() != EstadoLote.ACTIVO) throw new BusinessException(ErrorCode.LOT_ALREADY_CLOSED);
-            if (destino.propiedadId() != null && animal.propiedadActualId() != null
-                    && !destino.propiedadId().equals(animal.propiedadActualId())) {
+            if (destino.propiedadId() != null && property != null
+                    && !destino.propiedadId().equals(property)) {
                 throw new BusinessException(ErrorCode.INVALID_MOVEMENT_DESTINATION,
-                        "El lote de destino no pertenece a la propiedad actual del animal.");
+                        "El lote de destino no pertenece a la propiedad de destino.");
             }
             lote = destino.id();
         }
@@ -343,7 +354,8 @@ public class MovimientoService {
 
     private void applyMovimiento(CurrentUser user, Animal animal, Movimiento movimiento) {
         Ubicacion destino = destinoEfectivo(user, animal, movimiento);
-        if (movimiento.destinoLoteId() != null) {
+        boolean cambiaLote = !Objects.equals(destino.lote(), animal.loteActualId());
+        if (cambiaLote) {
             lotes.findActiveLotOfAnimal(animal.id(), user.empresaId()).ifPresent(oldLote -> {
                 if (!oldLote.id().equals(destino.lote())) {
                     lotes.closeMembership(oldLote.id(), null, animal.id(), user.empresaId(),
