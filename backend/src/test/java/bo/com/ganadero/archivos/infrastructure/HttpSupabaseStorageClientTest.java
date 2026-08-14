@@ -158,6 +158,7 @@ class HttpSupabaseStorageClientTest {
 
     private AppProperties properties() {
         return new AppProperties(new AppProperties.Bootstrap(false, ""),
+                new AppProperties.InternalJobs(false, ""),
                 new AppProperties.SystemStatus(false), "http://localhost",
                 new AppProperties.Storage(BUCKET, 5_242_880, Duration.ofMinutes(10),
                         List.of("image/jpeg", "image/png", "image/webp"), List.of("jpg", "jpeg", "png", "webp")));

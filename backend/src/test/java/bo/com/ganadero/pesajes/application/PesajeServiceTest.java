@@ -22,6 +22,8 @@ import bo.com.ganadero.timeline.application.RegistrarEventoTimeline;
 import bo.com.ganadero.timeline.domain.TipoEventoAnimal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
+import bo.com.ganadero.alertas.application.MotorAlertas;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -54,6 +56,7 @@ class PesajeServiceTest {
     private UUID otherAnimalId;
     private UUID userId;
     private PesajeService service;
+    private MotorAlertas alertas;
 
     @BeforeEach
     void setup() {
@@ -68,10 +71,13 @@ class PesajeServiceTest {
         animalId = UUID.randomUUID();
         otherAnimalId = UUID.randomUUID();
         userId = UUID.randomUUID();
+        alertas = mock(MotorAlertas.class);
+        @SuppressWarnings("unchecked") ObjectProvider<MotorAlertas> provider = mock(ObjectProvider.class);
+        when(provider.getIfAvailable()).thenReturn(alertas);
         CurrentUser user = new CurrentUser(userId, company, UUID.randomUUID(), Set.of(),
                 Set.of("PESAJE_VER", "PESAJE_REGISTRAR", "PESAJE_ANULAR"), Set.of(property), false);
         service = new PesajeService(pesajes, animales, lotes, new UserContext(() -> user),
-                published::add, published::add);
+                published::add, published::add, provider);
         when(animales.validLocation(eq(company), any(), any())).thenReturn(true);
     }
 
@@ -92,6 +98,7 @@ class PesajeServiceTest {
                 && ev.tipo() == TipoEventoAnimal.PESAJE_REGISTRADO && ev.animalId().equals(animalId));
         assertThat(published).anyMatch(e -> e instanceof PesajeAuditEvent ev
                 && "REGISTRAR".equals(ev.accion()) && ev.entidadId().equals(created.id()));
+        verify(alertas).resolverPorOrigen(company, "ANIMAL", animalId);
     }
 
     @Test

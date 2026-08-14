@@ -14,6 +14,8 @@ public record ActualizarConfiguracionRequest(
         @Size(min = 3, max = 3) String moneda,
         @Min(0) Integer diasAlertaPreparto,
         @Min(0) Integer diasAlertaVacunacion,
+        @Min(1) Integer diasDiagnosticoPostServicio,
+        @Min(1) Integer diasGestacionEstimada,
         @Min(0) Integer diasSinPesaje,
         Boolean permitirStockNegativo,
         Boolean requiereAprobacionVenta,
@@ -22,7 +24,8 @@ public record ActualizarConfiguracionRequest(
         @NotNull Long version) {
     ActualizarConfiguracionCommand toCommand() {
         return new ActualizarConfiguracionCommand(unidadPeso, unidadSuperficie, moneda,
-                diasAlertaPreparto, diasAlertaVacunacion, diasSinPesaje, permitirStockNegativo,
+                diasAlertaPreparto, diasAlertaVacunacion, diasDiagnosticoPostServicio,
+                diasGestacionEstimada, diasSinPesaje, permitirStockNegativo,
                 requiereAprobacionVenta, comprimirImagenes, calidadImagen, version);
     }
 }

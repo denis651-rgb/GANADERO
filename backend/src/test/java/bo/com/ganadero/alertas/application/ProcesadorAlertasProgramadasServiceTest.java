@@ -2,6 +2,7 @@ package bo.com.ganadero.alertas.application;
 
 import bo.com.ganadero.alertas.domain.Alerta;
 import bo.com.ganadero.alertas.domain.AlertaRepository;
+import bo.com.ganadero.alertas.domain.EntregaPendiente;
 import bo.com.ganadero.alertas.domain.EntregaRepository;
 import bo.com.ganadero.alertas.domain.EstadoAlerta;
 import bo.com.ganadero.alertas.domain.PreferenciasNotificacion;
@@ -54,26 +55,31 @@ class ProcesadorAlertasProgramadasServiceTest {
         sub = new SuscripcionPush(UUID.randomUUID(), company, UUID.randomUUID(),
                 "https://push.example.com/abc", "p256", "auth", "Chrome", "Mozilla", true,
                 Instant.now(), Instant.now(), Instant.now());
-        alerta = new Alerta(UUID.randomUUID(), company, UUID.randomUUID(), TipoAlerta.PROXIMO_PARTO,
+        alerta = new Alerta(UUID.randomUUID(), company, UUID.randomUUID(), TipoAlerta.PARTO_PROXIMO,
                 "Parto próximo", "La vaca está por parir", SeveridadAlerta.URGENTE,
                 Instant.now().minusSeconds(60), Instant.now(), "reproduccion", UUID.randomUUID(),
                 EstadoAlerta.PENDIENTE, null, null, null, null, null, null, null, null, 0, null,
-                Instant.now(), Instant.now());
+                Instant.now(), Instant.now(), "EMPRESA|PARTO|GESTACION|1|1");
     }
 
     private PreferenciasNotificacion preferencias(boolean activa) {
-        return new PreferenciasNotificacion(company, sub.usuarioId(), activa, activa, activa, activa, activa,
-                activa, activa, activa);
+        return new PreferenciasNotificacion(company, sub.usuarioId(), activa, activa, activa, activa,
+                activa, activa, activa, activa, activa, activa, activa);
+    }
+
+    private EntregaPendiente entregaPendiente() {
+        return new EntregaPendiente(UUID.randomUUID(), alerta, sub, 0);
     }
 
     @Test
-    void noEnviaCuandoPushDeshabilitado() {
+    void noProcesaCuandoPushDeshabilitado() {
         ProcesadorAlertasProgramadasService sinPush =
                 new ProcesadorAlertasProgramadasService(alertas, suscripciones, entregas, provider, false, 5);
-        int enviadas = sinPush.enviarPendientes();
+        int enviadas = sinPush.procesarNotificacionesPendientes();
         assertThat(enviadas).isZero();
         verifyNoInteractions(alertas);
         verifyNoInteractions(suscripciones);
+        verifyNoInteractions(entregas);
     }
 
     @Test
@@ -84,84 +90,96 @@ class ProcesadorAlertasProgramadasServiceTest {
 
     @Test
     void sinSuscriptoresMarcaComoEnviada() {
-        when(alertas.listarPendientesEnvio(any(), eq(5), eq(50))).thenReturn(List.of(alerta));
+        when(alertas.listarPendientes(any(), eq(50))).thenReturn(List.of(alerta));
         when(suscripciones.listarActivas(company)).thenReturn(List.of());
+        when(entregas.tienePendientes(alerta.id(), 5)).thenReturn(false);
+        when(entregas.listarPendientes(eq(5), eq(50))).thenReturn(List.of());
 
-        assertThat(service.enviarPendientes()).isZero();
+        assertThat(service.procesarNotificacionesPendientes()).isZero();
         verify(alertas).marcarEnviada(alerta.id());
-        verifyNoInteractions(entregas);
     }
 
     @Test
     void sinSuscriptoresInteresadosMarcaComoEnviadaSinEnviar() {
-        when(alertas.listarPendientesEnvio(any(), eq(5), eq(50))).thenReturn(List.of(alerta));
+        when(alertas.listarPendientes(any(), eq(50))).thenReturn(List.of(alerta));
         when(suscripciones.listarActivas(company)).thenReturn(List.of(sub));
         when(suscripciones.preferencias(company, sub.usuarioId()))
                 .thenReturn(new PreferenciasNotificacion(company, sub.usuarioId(), false, false, false, false,
-                        false, false, false, false));
+                        false, false, false, false, false, false, false));
+        when(entregas.tienePendientes(alerta.id(), 5)).thenReturn(false);
+        when(entregas.listarPendientes(eq(5), eq(50))).thenReturn(List.of());
 
-        assertThat(service.enviarPendientes()).isZero();
+        assertThat(service.procesarNotificacionesPendientes()).isZero();
         verify(push, never()).enviar(any(), any());
         verify(alertas).marcarEnviada(alerta.id());
     }
 
     @Test
-    void enviaYRegistraEntregaExitosa() {
-        when(alertas.listarPendientesEnvio(any(), eq(5), eq(50))).thenReturn(List.of(alerta));
+    void materializaEntregaYEnviaExitosa() {
+        when(alertas.listarPendientes(any(), eq(50))).thenReturn(List.of(alerta));
         when(suscripciones.listarActivas(company)).thenReturn(List.of(sub));
         when(suscripciones.preferencias(company, sub.usuarioId())).thenReturn(preferencias(true));
+        when(entregas.tienePendientes(alerta.id(), 5)).thenReturn(true, false);
+        when(entregas.listarPendientes(eq(5), eq(50))).thenReturn(List.of(entregaPendiente()));
         when(push.enviar(alerta, sub)).thenReturn(PushNotificadorPort.ResultadoEnvio.ok());
 
-        assertThat(service.enviarPendientes()).isEqualTo(1);
+        assertThat(service.procesarNotificacionesPendientes()).isEqualTo(1);
         verify(entregas).registrarPendiente(alerta.id(), sub.id());
         verify(entregas).marcarEnviada(eq(alerta.id()), eq(sub.id()), any());
         verify(alertas).marcarEnviada(alerta.id());
-        verify(alertas, never()).registrarFallo(any(), any(), anyInt());
     }
 
     @Test
     void suscripcionInvalidaDesactivaYMarcaEnviada() {
-        when(alertas.listarPendientesEnvio(any(), eq(5), eq(50))).thenReturn(List.of(alerta));
+        when(alertas.listarPendientes(any(), eq(50))).thenReturn(List.of(alerta));
         when(suscripciones.listarActivas(company)).thenReturn(List.of(sub));
         when(suscripciones.preferencias(company, sub.usuarioId())).thenReturn(preferencias(true));
+        when(entregas.tienePendientes(alerta.id(), 5)).thenReturn(true, false);
+        when(entregas.listarPendientes(eq(5), eq(50))).thenReturn(List.of(entregaPendiente()));
         when(push.enviar(alerta, sub))
                 .thenReturn(PushNotificadorPort.ResultadoEnvio.invalida("HTTP 410"));
 
-        assertThat(service.enviarPendientes()).isZero();
+        assertThat(service.procesarNotificacionesPendientes()).isZero();
+        verify(entregas).marcarError(alerta.id(), sub.id(), "HTTP 410");
         verify(suscripciones).desactivarTodas(sub.id(), company);
+        verify(entregas).marcarDescartada(alerta.id(), sub.id());
         verify(alertas).marcarEnviada(alerta.id());
     }
 
     @Test
     void falloTemporalRegistraErrorParaReintento() {
-        when(alertas.listarPendientesEnvio(any(), eq(5), eq(50))).thenReturn(List.of(alerta));
+        when(alertas.listarPendientes(any(), eq(50))).thenReturn(List.of(alerta));
         when(suscripciones.listarActivas(company)).thenReturn(List.of(sub));
         when(suscripciones.preferencias(company, sub.usuarioId())).thenReturn(preferencias(true));
+        when(entregas.tienePendientes(alerta.id(), 5)).thenReturn(true, true);
+        when(entregas.listarPendientes(eq(5), eq(50))).thenReturn(List.of(entregaPendiente()));
         when(push.enviar(alerta, sub))
                 .thenReturn(PushNotificadorPort.ResultadoEnvio.fallo("HTTP 500"));
 
-        assertThat(service.enviarPendientes()).isZero();
+        assertThat(service.procesarNotificacionesPendientes()).isZero();
         verify(entregas).marcarError(alerta.id(), sub.id(), "HTTP 500");
-        verify(alertas).registrarFallo(alerta.id(), "HTTP 500", 5);
         verify(alertas, never()).marcarEnviada(alerta.id());
     }
 
     @Test
     void respetaPreferenciasPorTipoYSeveridad() {
         Alerta tratamiento = new Alerta(UUID.randomUUID(), company, UUID.randomUUID(),
-                TipoAlerta.TRATAMIENTO_PENDIENTE, "Tratamiento", "Pendiente", SeveridadAlerta.INFO,
+                TipoAlerta.TRATAMIENTO_PROXIMO, "Tratamiento", "Pendiente", SeveridadAlerta.INFO,
                 Instant.now().minusSeconds(60), Instant.now(), "sanidad", UUID.randomUUID(),
                 EstadoAlerta.PENDIENTE, null, null, null, null, null, null, null, null, 0, null,
-                Instant.now(), Instant.now());
+                Instant.now(), Instant.now(), "EMPRESA|TRATAMIENTO|APLICACION|1|1");
         PreferenciasNotificacion soloReproduccion = new PreferenciasNotificacion(company, sub.usuarioId(),
-                true, false, false, false, false, true, true, true);
+                true, false, false, false, false, false, false, false, true, true, true);
 
-        when(alertas.listarPendientesEnvio(any(), eq(5), eq(50))).thenReturn(List.of(tratamiento));
+        when(alertas.listarPendientes(any(), eq(50))).thenReturn(List.of(tratamiento));
         when(suscripciones.listarActivas(company)).thenReturn(List.of(sub));
         when(suscripciones.preferencias(company, sub.usuarioId())).thenReturn(soloReproduccion);
+        when(entregas.tienePendientes(tratamiento.id(), 5)).thenReturn(false);
+        when(entregas.listarPendientes(eq(5), eq(50))).thenReturn(List.of());
 
-        assertThat(service.enviarPendientes()).isZero();
+        assertThat(service.procesarNotificacionesPendientes()).isZero();
         verify(push, never()).enviar(any(), any());
+        verify(entregas, never()).registrarPendiente(tratamiento.id(), sub.id());
         verify(alertas).marcarEnviada(tratamiento.id());
     }
 }

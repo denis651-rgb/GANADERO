@@ -79,7 +79,7 @@ class MigrationPostgisTest {
                             .current()
                             .getVersion()
                             .toString()
-            ).isEqualTo("45");
+            ).isEqualTo("48");
 
             assertRequiredTablesExist(postgres);
             assertFlywayHistoryIsSuccessful(postgres);
@@ -87,6 +87,7 @@ class MigrationPostgisTest {
             assertNoDuplicateIndexNames(postgres);
             assertMovementAuditColumnsExist(postgres);
             assertCodeGenerationIsAtomic(postgres);
+            assertAlertIdempotencyConstraintExists(postgres);
 
             MigrateResult secondMigration = flyway.migrate();
 
@@ -98,7 +99,7 @@ class MigrationPostgisTest {
                             .current()
                             .getVersion()
                             .toString()
-            ).isEqualTo("45");
+            ).isEqualTo("48");
         }
     }
 
@@ -134,6 +135,18 @@ class MigrationPostgisTest {
         } finally {
             executor.shutdownNow();
         }
+    }
+
+    private void assertAlertIdempotencyConstraintExists(PostgreSQLContainer<?> postgres) throws Exception {
+        assertThat(queryForInt(postgres, """
+                select count(*) from pg_indexes
+                where schemaname='alertas' and indexname='uq_alerta_clave_idempotencia'
+                """)).isEqualTo(1);
+        assertThat(queryForInt(postgres, """
+                select count(*) from information_schema.columns
+                where table_schema='alertas' and table_name='alertas'
+                  and column_name='clave_idempotencia' and is_nullable='NO'
+                """)).isEqualTo(1);
     }
 
     @Test
@@ -187,7 +200,7 @@ class MigrationPostgisTest {
                             .current()
                             .getVersion()
                             .toString()
-            ).isEqualTo("45");
+            ).isEqualTo("48");
 
             assertVersionNineVerificationDataStillExists(postgres);
             assertRequiredTablesExist(postgres);
@@ -202,6 +215,66 @@ class MigrationPostgisTest {
             assertThat(repeatedUpgrade.success).isTrue();
             assertThat(repeatedUpgrade.migrationsExecuted).isZero();
         }
+    }
+
+    @Test
+    void upgradesLegacyAlertTypesAndPreferencesFromVersionFortyFive() throws Exception {
+        Path versionFortyFiveDirectory = temporaryDirectory.resolve("migrations-v45");
+        copyMigrationsUpToVersion(MigrationVersion.fromVersion("45"), versionFortyFiveDirectory);
+
+        try (PostgreSQLContainer<?> postgres = createPostgres()) {
+            postgres.start();
+            Flyway versionFortyFive = createFlyway(postgres, filesystemLocation(versionFortyFiveDirectory));
+            assertThat(versionFortyFive.migrate().success).isTrue();
+
+            UUID empresa = UUID.randomUUID();
+            UUID usuario = UUID.randomUUID();
+            executeUpdate(postgres, """
+                    insert into core.empresas(id,codigo,razon_social,nombre_comercial)
+                    values (?,?,'Empresa alertas antiguas','Empresa alertas antiguas')
+                    """, empresa, "ALT-" + empresa.toString().substring(0, 8));
+            executeUpdate(postgres, """
+                    insert into alertas.preferencias_notificacion(empresa_id,usuario_id)
+                    values (?,?)
+                    """, empresa, usuario);
+            insertLegacyAlert(postgres, empresa, "PROXIMO_PARTO", "PARTO");
+            insertLegacyAlert(postgres, empresa, "DIAGNOSTICO_GESTACION_PENDIENTE", "DIAGNOSTICO");
+            insertLegacyAlert(postgres, empresa, "VACUNACION_PROXIMA", "VACUNA");
+            insertLegacyAlert(postgres, empresa, "TRATAMIENTO_PENDIENTE", "TRATAMIENTO");
+            insertLegacyAlert(postgres, empresa, "RETIRO_SANITARIO", "RETIRO");
+
+            Flyway latest = createFlyway(postgres, "classpath:db/migration");
+            assertThat(latest.migrate().success).isTrue();
+            assertThat(latest.info().current().getVersion().toString()).isEqualTo("48");
+
+            assertThat(queryForInt(postgres, """
+                    select count(*) from alertas.alertas
+                    where empresa_id=? and tipo in(
+                        'PARTO_PROXIMO','DIAGNOSTICO_PENDIENTE','VACUNA_PROXIMA',
+                        'TRATAMIENTO_PROXIMO','RETIRO_CARNE_VIGENTE'
+                    )
+                    """, empresa)).isEqualTo(5);
+            assertThat(queryForInt(postgres, """
+                    select count(*) from alertas.alertas
+                    where empresa_id=? and tipo in(
+                        'PROXIMO_PARTO','DIAGNOSTICO_GESTACION_PENDIENTE','VACUNACION_PROXIMA',
+                        'TRATAMIENTO_PENDIENTE','RETIRO_SANITARIO'
+                    )
+                    """, empresa)).isZero();
+            assertThat(queryForInt(postgres, """
+                    select count(*) from alertas.preferencias_notificacion
+                    where empresa_id=? and usuario_id=? and movimientos and inventario and sistema
+                    """, empresa, usuario)).isEqualTo(1);
+        }
+    }
+
+    private void insertLegacyAlert(PostgreSQLContainer<?> postgres, UUID empresa, String tipo, String origen)
+            throws Exception {
+        executeUpdate(postgres, """
+                insert into alertas.alertas(
+                    id,empresa_id,tipo,titulo,mensaje,severidad,fecha_programada,origen_tipo,origen_id,estado,metadata
+                ) values (?, ?, ?, ?, 'Mensaje', 'WARNING', now(), ?, ?, 'PENDIENTE', '{}'::jsonb)
+                """, UUID.randomUUID(), empresa, tipo, tipo, origen, UUID.randomUUID());
     }
 
     private PostgreSQLContainer<?> createPostgres() {

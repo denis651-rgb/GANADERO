@@ -9,13 +9,15 @@ import java.util.UUID;
 
 public record ConfiguracionEmpresaResponse(UUID empresaId, UnidadPeso unidadPeso,
         UnidadSuperficie unidadSuperficie, String moneda, int diasAlertaPreparto,
-        int diasAlertaVacunacion, int diasSinPesaje, boolean permitirStockNegativo,
+        int diasAlertaVacunacion, int diasDiagnosticoPostServicio, int diasGestacionEstimada,
+        int diasSinPesaje, boolean permitirStockNegativo,
         boolean requiereAprobacionVenta, boolean comprimirImagenes, int calidadImagen,
         Instant createdAt, UUID createdBy, Instant updatedAt, UUID updatedBy, long version) {
     static ConfiguracionEmpresaResponse from(ConfiguracionEmpresa source) {
         return new ConfiguracionEmpresaResponse(source.empresaId(), source.unidadPeso(),
                 source.unidadSuperficie(), source.moneda(), source.diasAlertaPreparto(),
-                source.diasAlertaVacunacion(), source.diasSinPesaje(), source.permitirStockNegativo(),
+                source.diasAlertaVacunacion(), source.diasDiagnosticoPostServicio(),
+                source.diasGestacionEstimada(), source.diasSinPesaje(), source.permitirStockNegativo(),
                 source.requiereAprobacionVenta(), source.comprimirImagenes(), source.calidadImagen(),
                 source.createdAt(), source.createdBy(), source.updatedAt(), source.updatedBy(), source.version());
     }

@@ -39,6 +39,7 @@ public class IdempotencyFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String method = request.getMethod();
         return request.getRequestURI().equals("/bootstrap/empresa-inicial")
+                || request.getRequestURI().startsWith("/api/internal/")
                 || request.getHeader(HEADER) == null
                 || !(method.equals("POST") || method.equals("PUT") || method.equals("PATCH") || method.equals("DELETE"));
     }

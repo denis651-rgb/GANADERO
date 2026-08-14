@@ -78,6 +78,7 @@ class BootstrapServiceTest {
     private BootstrapService service(boolean enabled, String token, SupabaseAuthAdminClient auth,
             JdbcClient jdbc, TransactionTemplate transactions) {
         AppProperties p = new AppProperties(new AppProperties.Bootstrap(enabled, token),
+                new AppProperties.InternalJobs(false, ""),
                 new AppProperties.SystemStatus(false), "http://localhost:5173",
                 new AppProperties.Storage("bucket", 1024, Duration.ofMinutes(5),
                         List.of("image/png"), List.of("png")));

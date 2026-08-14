@@ -26,8 +26,16 @@ app:
   bootstrap:
     enabled: ${APP_BOOTSTRAP_ENABLED:false}
     token: ${APP_BOOTSTRAP_TOKEN:}
+  internal-jobs:
+    enabled: ${APP_INTERNAL_JOBS_ENABLED:false}
+    secret: ${GANADERO_CRON_SECRET:}
   system-status:
     enabled: ${APP_SYSTEM_STATUS_ENABLED:false}
+
+ganadero:
+  alertas:
+    scheduler:
+      enabled: ${GANADERO_ALERTAS_SCHEDULER_ENABLED:false}
 
 management:
   endpoints:

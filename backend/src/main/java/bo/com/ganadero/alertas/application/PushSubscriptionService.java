@@ -1,2 +1,69 @@
-package bo.com.ganadero.alertas.application;import bo.com.ganadero.alertas.api.*;import bo.com.ganadero.alertas.domain.*;import bo.com.ganadero.shared.security.*;import org.springframework.beans.factory.annotation.Value;import org.springframework.stereotype.Service;import org.springframework.transaction.annotation.Transactional;import java.util.*;
-@Service public class PushSubscriptionService{private final SuscripcionPushRepository repo;private final UserContext context;private final String vapidPublicKey;public PushSubscriptionService(SuscripcionPushRepository r,UserContext c,@Value("${ganadero.push.vapid-public-key:}")String key){repo=r;context=c;vapidPublicKey=key;}@Transactional public SuscripcionPush crear(CrearSuscripcionPushRequest b,String userAgent){CurrentUser u=context.requirePermission("ALERTA_VER");return repo.guardar(new SuscripcionPush(UUID.randomUUID(),u.empresaId(),u.userId(),b.endpoint(),b.keys().p256dh(),b.keys().auth(),b.dispositivoNombre(),userAgent,true,null,null,null));}@Transactional(readOnly=true)public List<SuscripcionPush>listar(){CurrentUser u=context.requirePermission("ALERTA_VER");return repo.listar(u.empresaId(),u.userId());}@Transactional public void eliminar(UUID id){CurrentUser u=context.requirePermission("ALERTA_VER");repo.desactivar(id,u.empresaId(),u.userId());}@Transactional(readOnly=true)public PreferenciasNotificacion preferencias(){CurrentUser u=context.requirePermission("ALERTA_VER");return repo.preferencias(u.empresaId(),u.userId());}@Transactional public PreferenciasNotificacion preferencias(PreferenciasNotificacionRequest b){CurrentUser u=context.requirePermission("ALERTA_VER");return repo.guardarPreferencias(new PreferenciasNotificacion(u.empresaId(),u.userId(),b.reproduccion(),b.sanidad(),b.tratamientos(),b.pesajes(),b.casosCriticos(),b.criticas(),b.urgentes(),b.recordatorios()));}public Map<String,String>clavePublica(){return Map.of("publicKey",vapidPublicKey);}}
+package bo.com.ganadero.alertas.application;
+
+import bo.com.ganadero.alertas.api.CrearSuscripcionPushRequest;
+import bo.com.ganadero.alertas.api.PreferenciasNotificacionRequest;
+import bo.com.ganadero.alertas.domain.PreferenciasNotificacion;
+import bo.com.ganadero.alertas.domain.SuscripcionPush;
+import bo.com.ganadero.alertas.domain.SuscripcionPushRepository;
+import bo.com.ganadero.shared.security.CurrentUser;
+import bo.com.ganadero.shared.security.UserContext;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+@Service
+public class PushSubscriptionService {
+    private final SuscripcionPushRepository repo;
+    private final UserContext context;
+    private final String vapidPublicKey;
+
+    public PushSubscriptionService(SuscripcionPushRepository repo, UserContext context,
+                                   @Value("${ganadero.push.vapid-public-key:}") String vapidPublicKey) {
+        this.repo = repo;
+        this.context = context;
+        this.vapidPublicKey = vapidPublicKey;
+    }
+
+    @Transactional
+    public SuscripcionPush crear(CrearSuscripcionPushRequest request, String userAgent) {
+        CurrentUser user = context.requirePermission("ALERTA_VER");
+        return repo.guardar(new SuscripcionPush(UUID.randomUUID(), user.empresaId(), user.userId(),
+                request.endpoint(), request.keys().p256dh(), request.keys().auth(), request.dispositivoNombre(),
+                userAgent, true, null, null, null));
+    }
+
+    @Transactional(readOnly = true)
+    public List<SuscripcionPush> listar() {
+        CurrentUser user = context.requirePermission("ALERTA_VER");
+        return repo.listar(user.empresaId(), user.userId());
+    }
+
+    @Transactional
+    public void eliminar(UUID id) {
+        CurrentUser user = context.requirePermission("ALERTA_VER");
+        repo.desactivar(id, user.empresaId(), user.userId());
+    }
+
+    @Transactional(readOnly = true)
+    public PreferenciasNotificacion preferencias() {
+        CurrentUser user = context.requirePermission("ALERTA_VER");
+        return repo.preferencias(user.empresaId(), user.userId());
+    }
+
+    @Transactional
+    public PreferenciasNotificacion preferencias(PreferenciasNotificacionRequest request) {
+        CurrentUser user = context.requirePermission("ALERTA_VER");
+        return repo.guardarPreferencias(new PreferenciasNotificacion(user.empresaId(), user.userId(),
+                request.reproduccion(), request.sanidad(), request.tratamientos(), request.pesajes(),
+                request.movimientos(), request.inventario(), request.sistema(), request.casosCriticos(),
+                request.criticas(), request.urgentes(), request.recordatorios()));
+    }
+
+    public Map<String, String> clavePublica() {
+        return Map.of("publicKey", vapidPublicKey);
+    }
+}

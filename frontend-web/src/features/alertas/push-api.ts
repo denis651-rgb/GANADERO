@@ -2,7 +2,7 @@ import { http } from '@/shared/api/http'
 import type { ApiResponse } from '@/shared/api/types'
 
 export interface PushDevice { id:string; dispositivoNombre?:string; userAgent?:string; ultimoUsoAt?:string }
-export interface NotificationPreferences { reproduccion:boolean;sanidad:boolean;tratamientos:boolean;pesajes:boolean;casosCriticos:boolean;criticas:boolean;urgentes:boolean;recordatorios:boolean }
+export interface NotificationPreferences { reproduccion:boolean;sanidad:boolean;tratamientos:boolean;pesajes:boolean;movimientos:boolean;inventario:boolean;sistema:boolean;casosCriticos:boolean;criticas:boolean;urgentes:boolean;recordatorios:boolean }
 
 const bytes = (value: string) => {
   const padding = '='.repeat((4 - value.length % 4) % 4)

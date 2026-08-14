@@ -14,6 +14,9 @@ import bo.com.ganadero.timeline.application.RegistrarEventoTimeline;
 import bo.com.ganadero.timeline.application.TimelineEventPublisher;
 import bo.com.ganadero.timeline.domain.TipoEventoAnimal;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
+import bo.com.ganadero.alertas.application.MotorAlertas;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +37,7 @@ public class PesajeService {
     private final UserContext context;
     private final ApplicationEventPublisher events;
     private final TimelineEventPublisher timeline;
+    private ObjectProvider<MotorAlertas> alertas;
 
     public PesajeService(PesajeRepository pesajes, AnimalRepository animales, LoteRepository lotes,
                          UserContext context, ApplicationEventPublisher events, TimelineEventPublisher timeline) {
@@ -43,6 +47,14 @@ public class PesajeService {
         this.context = context;
         this.events = events;
         this.timeline = timeline;
+    }
+
+    @Autowired
+    public PesajeService(PesajeRepository pesajes, AnimalRepository animales, LoteRepository lotes,
+                         UserContext context, ApplicationEventPublisher events, TimelineEventPublisher timeline,
+                         ObjectProvider<MotorAlertas> alertas) {
+        this(pesajes, animales, lotes, context, events, timeline);
+        this.alertas = alertas;
     }
 
     @Transactional(readOnly = true)
@@ -96,6 +108,7 @@ public class PesajeService {
                     command.idempotencyKey(), EstadoPesaje.ACTIVO, null, null, null,
                     command.observaciones(), null, null, null, null, null, null, 0);
             Pesaje saved = pesajes.create(value, user.userId());
+            resolverAlertaPesaje(user, saved.animalId());
             publicar(user, saved, TipoEventoAnimal.PESAJE_REGISTRADO, null, null);
             audit(user, "REGISTRAR_LOTE", saved.id());
             return saved;
@@ -169,6 +182,7 @@ public class PesajeService {
                 command.idempotencyKey(), EstadoPesaje.ACTIVO, null, null, null,
                 command.observaciones(), null, null, null, null, null, null, 0);
         Pesaje saved = pesajes.create(value, user.userId());
+        resolverAlertaPesaje(user, saved.animalId());
         publicar(user, saved, TipoEventoAnimal.PESAJE_REGISTRADO, null, null);
         audit(user, "REGISTRAR", saved.id());
         return saved;
@@ -232,5 +246,11 @@ public class PesajeService {
 
     private void audit(CurrentUser user, String accion, UUID id) {
         events.publishEvent(new PesajeAuditEvent(user.empresaId(), user.userId(), accion, "PESAJE", id, Instant.now()));
+    }
+
+    private void resolverAlertaPesaje(CurrentUser user, UUID animalId) {
+        if (alertas == null) return;
+        MotorAlertas motor = alertas.getIfAvailable();
+        if (motor != null) motor.resolverPorOrigen(user.empresaId(), "ANIMAL", animalId);
     }
 }

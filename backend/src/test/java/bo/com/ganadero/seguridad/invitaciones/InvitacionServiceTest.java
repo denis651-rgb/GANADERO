@@ -524,6 +524,7 @@ class InvitacionServiceTest {
                                       JdbcClient jdbc, TransactionTemplate transactions,
                                       ApplicationEventPublisher events, CurrentUser actor) {
         AppProperties properties = new AppProperties(new AppProperties.Bootstrap(false, "token"),
+                new AppProperties.InternalJobs(false, ""),
                 new AppProperties.SystemStatus(false), "http://localhost:5173",
                 new AppProperties.Storage("bucket", 1024, Duration.ofMinutes(5),
                         List.of("image/png"), List.of("png")));
