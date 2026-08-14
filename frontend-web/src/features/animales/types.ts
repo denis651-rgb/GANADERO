@@ -29,7 +29,7 @@ export interface Raza { id: string; codigo: string; nombre: string; especie: str
 export interface CategoriaAnimal { id: string; codigo: string; nombre: string; sexoAplicable: 'MACHO' | 'HEMBRA' | 'AMBOS' }
 
 export interface CreateAnimalInput {
-  codigo: string
+  codigo?: string
   nombre?: string
   sexo: 'MACHO' | 'HEMBRA'
   fechaNacimiento?: string

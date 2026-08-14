@@ -30,7 +30,11 @@ public class LocalCurrentUserProvider implements CurrentUserProvider {
                         "PESAJE_VER", "PESAJE_REGISTRAR", "PESAJE_ANULAR",
                         "SINC_DISPOSITIVO_REGISTRAR", "SINC_PUSH", "SINC_PULL", "SINC_BOOTSTRAP",
                         "DOCUMENTO_VER", "DOCUMENTO_SUBIR", "DOCUMENTO_ELIMINAR", "DASHBOARD_VER",
-                        "SISTEMA_ESTADO_VER"
+                        "REPRODUCCION_VER", "REPRODUCCION_REGISTRAR", "REPRODUCCION_EDITAR", "REPRODUCCION_ANULAR",
+                        "SANIDAD_VER", "SANIDAD_PLAN_ADMINISTRAR", "SANIDAD_JORNADA_CREAR", "SANIDAD_JORNADA_CONFIRMAR", "SANIDAD_APLICAR",
+                        "SANIDAD_CASO_CREAR", "SANIDAD_TRATAMIENTO_CREAR", "SANIDAD_TRATAMIENTO_APLICAR",
+                        "SANIDAD_CUARENTENA_GESTIONAR", "ALERTA_VER", "ALERTA_ATENDER", "ALERTA_RESOLVER", "ALERTA_CONFIGURAR",
+                        "SISTEMA_ESTADO_VER", "CODIGO_MANUAL_ASIGNAR"
                 ),
                 Set.of(), true);
     }

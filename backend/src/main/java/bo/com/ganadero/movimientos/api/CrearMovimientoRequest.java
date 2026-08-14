@@ -23,7 +23,7 @@ public record CrearMovimientoRequest(
         UUID destinoPotreroId,
         UUID destinoLoteId,
         @NotEmpty(message = "Debe incluir al menos un animal")
-        @Valid List<MovimientoAnimalRequest> animales) {
+        List<@Valid MovimientoAnimalRequest> animales) {
 
     public record MovimientoAnimalRequest(@NotNull(message = "El animal es requerido") UUID animalId,
                                           Long version) {

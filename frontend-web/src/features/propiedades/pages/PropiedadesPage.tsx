@@ -30,7 +30,7 @@ export function PropiedadesPage() {
   const create = useMutation({
     mutationFn: (form: HTMLFormElement) => {
       const data = new FormData(form)
-      return createPropiedad({ codigo: String(data.get('codigo')), nombre: String(data.get('nombre')), departamento: String(data.get('departamento') ?? ''), municipio: String(data.get('municipio') ?? ''), superficieHa: Number(data.get('superficieHa')) || undefined })
+      return createPropiedad({ nombre: String(data.get('nombre')), departamento: String(data.get('departamento') ?? ''), municipio: String(data.get('municipio') ?? ''), superficieHa: Number(data.get('superficieHa')) || undefined })
     },
     onSuccess: () => { setShowForm(false); client.invalidateQueries({ queryKey: ['propiedades'] }) },
   })
@@ -41,7 +41,7 @@ export function PropiedadesPage() {
   const addSector = useMutation({
     mutationFn: (form: HTMLFormElement) => {
       const data = new FormData(form)
-      return createSector(selectedId!, { codigo: String(data.get('codigo')), nombre: String(data.get('nombre')), descripcion: String(data.get('descripcion') ?? '') })
+      return createSector(selectedId!, { nombre: String(data.get('nombre')), descripcion: String(data.get('descripcion') ?? '') })
     },
     onSuccess: (_data, form) => { form.reset(); client.invalidateQueries({ queryKey: ['sectores', selectedId] }) },
   })
@@ -62,7 +62,7 @@ export function PropiedadesPage() {
       <PageHeader eyebrow="Campo" title="Propiedades" description="Administra establecimientos y sus sectores." actions={<Button onClick={() => setShowForm((value) => !value)}><Plus size={18} />Nueva propiedad</Button>} />
       {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
       {showForm && <Card><form className="form-grid" onSubmit={(event) => { event.preventDefault(); create.mutate(event.currentTarget) }}>
-        <Field label="Código"><input name="codigo" required maxLength={60} /></Field>
+        <Field label="Código" hint="Se asigna al guardar"><input value="Automático · PRP-###" readOnly aria-label="Código automático de propiedad" /></Field>
         <Field label="Nombre"><input name="nombre" required maxLength={160} /></Field>
         <Field label="Departamento"><input name="departamento" /></Field>
         <Field label="Municipio"><input name="municipio" /></Field>
@@ -84,7 +84,7 @@ export function PropiedadesPage() {
         {sectors.data?.length === 0 && <EmptyState title="Sin sectores" description="Añade el primer sector de esta propiedad." />}
         {sectors.data && sectors.data.length > 0 && <><div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Sectores de la propiedad seleccionada</caption><thead><tr><th scope="col">Sector</th><th scope="col">Descripción</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead><tbody>{sectors.data.map((sector) => <tr key={sector.id}><td><strong>{sector.codigo}</strong><span className="table-secondary">{sector.nombre}</span></td><td>{sector.descripcion || '—'}</td><td><span className="status-badge">{sector.activo ? 'ACTIVO' : 'INACTIVO'}</span></td><td>{canEditSectors && <div className="inline-actions"><Button variant="ghost" onClick={() => setEditSector(sector)} disabled={!online}><Pencil size={16} aria-hidden="true" />Editar</Button><Button variant="ghost" onClick={() => setToggleSectorTarget(sector)} disabled={!online}><Power size={16} aria-hidden="true" />{sector.activo ? 'Desactivar' : 'Activar'}</Button></div>}</td></tr>)}</tbody></table></div><div className="mobile-only"><div className="mobile-entity-list">{sectors.data.map((sector) => <MobileEntityCard key={sector.id} title={`${sector.codigo} · ${sector.nombre}`} status={<span className="status-badge">{sector.activo ? 'ACTIVO' : 'INACTIVO'}</span>} metadata={<span>{sector.descripcion || 'Sin descripción'}</span>} action={canEditSectors ? <><Button variant="ghost" onClick={() => setEditSector(sector)} disabled={!online}>Editar</Button><Button variant="ghost" onClick={() => setToggleSectorTarget(sector)} disabled={!online}>{sector.activo ? 'Desactivar' : 'Activar'}</Button></> : undefined} />)}</div></div></>}
         {canCreateSectors && <form className="form-grid compact-form" onSubmit={(event) => { event.preventDefault(); if (online) addSector.mutate(event.currentTarget) }}>
-          <Field label="Código"><input name="codigo" required /></Field><Field label="Nombre"><input name="nombre" required /></Field><Field label="Descripción"><input name="descripcion" /></Field><div className="form-actions"><Button type="submit" loading={addSector.isPending} disabled={!online}>Añadir sector</Button></div>
+          <Field label="Código" hint="Se asigna al guardar"><input value="Automático · PRP-###-SEC-###" readOnly aria-label="Código automático de sector" /></Field><Field label="Nombre"><input name="nombre" required /></Field><Field label="Descripción"><input name="descripcion" /></Field><div className="form-actions"><Button type="submit" loading={addSector.isPending} disabled={!online}>Añadir sector</Button></div>
         </form>}
       </Card>}
       <ConfirmDialog

@@ -118,7 +118,7 @@ class JdbcMovimientoRepository implements MovimientoRepository {
     public Movimiento confirm(UUID id, UUID empresa, long version, UUID actor) {
         int changed = jdbc.sql("""
                 update ganado.movimientos set estado='CONFIRMADO',usuario_confirma=:actor,fecha_confirmacion=now(),
-                    updated_at=now(),version=version+1
+                    updated_at=now(),updated_by=:actor,version=version+1
                 where id=:id and empresa_id=:e and version=:version and estado='PENDIENTE'""")
                 .param("actor", actor).param("id", id).param("e", empresa).param("version", version).update();
         if (changed == 0) throw missingOrConflict(id, empresa);
@@ -129,7 +129,7 @@ class JdbcMovimientoRepository implements MovimientoRepository {
     public Movimiento annul(UUID id, UUID empresa, String motivo, long version, UUID actor) {
         int changed = jdbc.sql("""
                 update ganado.movimientos set estado='ANULADO',usuario_anula=:actor,fecha_anulacion=now(),
-                    motivo_anulacion=:motivo,updated_at=now(),version=version+1
+                    motivo_anulacion=:motivo,updated_at=now(),updated_by=:actor,version=version+1
                 where id=:id and empresa_id=:e and version=:version and estado='PENDIENTE'""")
                 .param("actor", actor).param("id", id).param("e", empresa).param("version", version)
                 .param("motivo", motivo).update();
@@ -141,7 +141,8 @@ class JdbcMovimientoRepository implements MovimientoRepository {
     public Movimiento markReverted(UUID id, UUID empresa, UUID reversionId, String motivo, long version, UUID actor) {
         int changed = jdbc.sql("""
                 update ganado.movimientos set estado='REVERTIDO',usuario_revierte=:actor,fecha_reversion=now(),
-                    motivo_reversion=:motivo,movimiento_reversion_id=:rev,updated_at=now(),version=version+1
+                    motivo_reversion=:motivo,movimiento_reversion_id=:rev,updated_at=now(),updated_by=:actor,
+                    version=version+1
                 where id=:id and empresa_id=:e and version=:version and estado='CONFIRMADO'""")
                 .param("actor", actor).param("id", id).param("e", empresa).param("version", version)
                 .param("motivo", motivo).param("rev", reversionId).update();

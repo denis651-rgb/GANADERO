@@ -4,6 +4,8 @@ import bo.com.ganadero.animales.domain.Animal;
 import bo.com.ganadero.animales.domain.AnimalRepository;
 import bo.com.ganadero.animales.domain.EstadoAnimal;
 import bo.com.ganadero.lotes.domain.*;
+import bo.com.ganadero.shared.codigos.CodigoService;
+import bo.com.ganadero.shared.codigos.TipoCodigo;
 import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import bo.com.ganadero.shared.security.CurrentUser;
@@ -32,14 +34,16 @@ public class LoteService {
     private final UserContext context;
     private final ApplicationEventPublisher events;
     private final TimelineEventPublisher timeline;
+    private final CodigoService codigos;
 
     public LoteService(LoteRepository lotes, AnimalRepository animales, UserContext context,
-                       ApplicationEventPublisher events, TimelineEventPublisher timeline) {
+                       ApplicationEventPublisher events, TimelineEventPublisher timeline, CodigoService codigos) {
         this.lotes = lotes;
         this.animales = animales;
         this.context = context;
         this.events = events;
         this.timeline = timeline;
+        this.codigos = codigos;
     }
 
     @Transactional(readOnly = true)
@@ -74,9 +78,11 @@ public class LoteService {
     public Lote create(LoteCommand command) {
         CurrentUser user = context.requirePermission("LOTE_CREAR");
         context.requirePropertyAccess(user, command.propiedadId());
-        Lote value = new Lote(UUID.randomUUID(), user.empresaId(), command.propiedadId(), command.codigo(),
+        LocalDate apertura = command.fechaApertura() == null ? LocalDate.now() : command.fechaApertura();
+        String codigo = codigos.paraCreacion(user, TipoCodigo.LOTE, null, apertura.getYear(), command.codigo());
+        Lote value = new Lote(UUID.randomUUID(), user.empresaId(), command.propiedadId(), codigo,
                 command.nombre(), command.descripcion(), EstadoLote.ACTIVO,
-                command.fechaApertura() == null ? LocalDate.now() : command.fechaApertura(), null, 0);
+                apertura, null, 0);
         Lote saved = lotes.create(value, user.userId());
         audit(user, "CREAR_LOTE", saved.id());
         return saved;
@@ -89,8 +95,10 @@ public class LoteService {
         if (old.estado() == EstadoLote.CERRADO) throw new BusinessException(ErrorCode.LOT_ALREADY_CLOSED);
         UUID property = command.propiedadId() == null ? old.propiedadId() : command.propiedadId();
         context.requirePropertyAccess(user, property);
+        String codigo = codigos.paraActualizacion(user, TipoCodigo.LOTE, null, old.fechaApertura().getYear(),
+                old.codigo(), command.codigo());
         Lote value = new Lote(id, user.empresaId(), property,
-                command.codigo() == null ? old.codigo() : command.codigo(),
+                codigo,
                 command.nombre() == null ? old.nombre() : command.nombre(),
                 command.descripcion() == null ? old.descripcion() : command.descripcion(),
                 old.estado(), old.fechaApertura(), old.fechaCierre(), old.version());

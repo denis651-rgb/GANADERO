@@ -10,6 +10,7 @@ import { LoadingState } from '@/shared/components/LoadingState'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { useUnsavedChanges } from '@/shared/hooks/useUnsavedChanges'
 import { useToast } from '@/shared/toast/useToast'
+import { PushSettings } from '@/features/alertas/PushSettings'
 
 export function PerfilPage() {
   const [profileDirty, setProfileDirty] = useState(false)
@@ -81,6 +82,7 @@ export function PerfilPage() {
           <div className="form-actions"><Button type="submit" loading={password.isPending}>Cambiar contraseña</Button></div>
         </form>
       </Card>
+      <PushSettings />
     </div>
   )
 }

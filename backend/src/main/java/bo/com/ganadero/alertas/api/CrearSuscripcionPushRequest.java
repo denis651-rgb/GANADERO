@@ -1,0 +1,1 @@
+package bo.com.ganadero.alertas.api;import jakarta.validation.Valid;import jakarta.validation.constraints.*;public record CrearSuscripcionPushRequest(@NotBlank String endpoint,@NotNull @Valid Keys keys,@Size(max=120)String dispositivoNombre){public record Keys(@NotBlank String p256dh,@NotBlank String auth){}}

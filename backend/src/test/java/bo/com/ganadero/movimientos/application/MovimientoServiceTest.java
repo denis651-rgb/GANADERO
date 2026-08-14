@@ -187,16 +187,76 @@ class MovimientoServiceTest {
     void confirmTransferenciaMueveAnimalAPropiedadDestino() {
         when(movimientos.findByIdForUpdate(movId, company))
                 .thenReturn(Optional.of(movimiento(EstadoMovimiento.PENDIENTE, TipoMovimiento.TRANSFERENCIA_PROPIEDAD,
-                        property, paddock, null, otherProperty, null, null, 0)));
+                        property, paddock, null, otherProperty, destinoPaddock, null, 0)));
         when(movimientos.findDetalles(movId))
                 .thenReturn(List.of(detalle(animalId, 0, property, paddock, null, null, null, null)));
         when(animales.findByIdForUpdate(animalId, company))
                 .thenReturn(Optional.of(animal(animalId, EstadoAnimal.ACTIVO, property, paddock, null, 0)));
+        when(animales.validLocation(company, otherProperty, destinoPaddock)).thenReturn(true);
         when(movimientos.confirm(eq(movId), eq(company), eq(0L), eq(userId)))
                 .thenReturn(movimiento(EstadoMovimiento.CONFIRMADO, TipoMovimiento.TRANSFERENCIA_PROPIEDAD,
-                        property, paddock, null, otherProperty, null, null, 1));
+                        property, paddock, null, otherProperty, destinoPaddock, null, 1));
         service.confirm(movId, 0);
-        verify(animales).move(animalId, company, otherProperty, paddock, null, userId);
+        verify(animales).move(animalId, company, otherProperty, destinoPaddock, null, userId);
+    }
+
+    @Test
+    void createTransferenciaRechazaPropiedadSinPotreroDestino() {
+        assertThatThrownBy(() -> service.create(comando(TipoMovimiento.TRANSFERENCIA_PROPIEDAD,
+                property, paddock, null, otherProperty, null, null,
+                List.of(new MovimientoAnimal(animalId, 0)))))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        error -> assertThat(error.code()).isEqualTo(ErrorCode.INVALID_MOVEMENT_DESTINATION));
+        verify(movimientos, never()).create(any(), any(), any());
+    }
+
+    @Test
+    void confirmTransferenciaSinLoteCierraMembresiaAnteriorYDesvinculaAnimal() {
+        when(movimientos.findByIdForUpdate(movId, company))
+                .thenReturn(Optional.of(movimiento(EstadoMovimiento.PENDIENTE, TipoMovimiento.TRANSFERENCIA_PROPIEDAD,
+                        property, paddock, loteId, otherProperty, destinoPaddock, null, 0)));
+        when(movimientos.findDetalles(movId))
+                .thenReturn(List.of(detalle(animalId, 0, property, paddock, loteId, null, null, null)));
+        when(animales.findByIdForUpdate(animalId, company))
+                .thenReturn(Optional.of(animal(animalId, EstadoAnimal.ACTIVO, property, paddock, loteId, 0)));
+        when(animales.validLocation(company, otherProperty, destinoPaddock)).thenReturn(true);
+        when(lotes.findActiveLotOfAnimal(animalId, company))
+                .thenReturn(Optional.of(lote(loteId, EstadoLote.ACTIVO)));
+        when(movimientos.confirm(eq(movId), eq(company), eq(0L), eq(userId)))
+                .thenReturn(movimiento(EstadoMovimiento.CONFIRMADO, TipoMovimiento.TRANSFERENCIA_PROPIEDAD,
+                        property, paddock, loteId, otherProperty, destinoPaddock, null, 1));
+
+        service.confirm(movId, 0);
+
+        verify(lotes).closeMembership(eq(loteId), eq(null), eq(animalId), eq(company),
+                eq("Movimiento TRANSFERENCIA_PROPIEDAD"), any(Instant.class), eq(userId));
+        verify(lotes, never()).openMembership(any(), any(), any(), any(), any(), any(), any(), any(), any());
+        verify(animales).move(animalId, company, otherProperty, destinoPaddock, null, userId);
+    }
+
+    @Test
+    void confirmTransferenciaAceptaLoteDeLaPropiedadDestino() {
+        when(movimientos.findByIdForUpdate(movId, company))
+                .thenReturn(Optional.of(movimiento(EstadoMovimiento.PENDIENTE, TipoMovimiento.TRANSFERENCIA_PROPIEDAD,
+                        property, paddock, null, otherProperty, destinoPaddock, destinoLote, 0)));
+        when(movimientos.findDetalles(movId))
+                .thenReturn(List.of(detalle(animalId, 0, property, paddock, null, null, null, null)));
+        when(animales.findByIdForUpdate(animalId, company))
+                .thenReturn(Optional.of(animal(animalId, EstadoAnimal.ACTIVO, property, paddock, null, 0)));
+        when(animales.validLocation(company, otherProperty, destinoPaddock)).thenReturn(true);
+        when(lotes.findById(destinoLote, company)).thenReturn(Optional.of(
+                new Lote(destinoLote, company, otherProperty, "L-2", "Lote destino", null,
+                        EstadoLote.ACTIVO, LocalDate.now(), null, 0)));
+        when(lotes.findActiveLotOfAnimal(animalId, company)).thenReturn(Optional.empty());
+        when(movimientos.confirm(eq(movId), eq(company), eq(0L), eq(userId)))
+                .thenReturn(movimiento(EstadoMovimiento.CONFIRMADO, TipoMovimiento.TRANSFERENCIA_PROPIEDAD,
+                        property, paddock, null, otherProperty, destinoPaddock, destinoLote, 1));
+
+        service.confirm(movId, 0);
+
+        verify(lotes).openMembership(eq(destinoLote), any(), eq(animalId), eq(company),
+                eq("Movimiento TRANSFERENCIA_PROPIEDAD"), any(), eq("PARCIAL"), any(Instant.class), eq(userId));
+        verify(animales).move(animalId, company, otherProperty, destinoPaddock, destinoLote, userId);
     }
 
     @Test

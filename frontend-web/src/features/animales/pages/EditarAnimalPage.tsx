@@ -29,8 +29,8 @@ function AnimalEditForm({ animal, catalogs }: { animal: AnimalSummary; catalogs:
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const client = useQueryClient()
-  const { register, handleSubmit, control, formState: { errors, isDirty } } = useForm<UpdateAnimalInput>({ shouldFocusError: true, defaultValues: {
-    codigo: animal.codigo, nombre: animal.nombre, sexo: animal.sexo, fechaNacimiento: animal.fechaNacimiento,
+  const { register, handleSubmit, control, formState: { isDirty } } = useForm<UpdateAnimalInput>({ shouldFocusError: true, defaultValues: {
+    nombre: animal.nombre, sexo: animal.sexo, fechaNacimiento: animal.fechaNacimiento,
     fechaNacimientoEstimada: animal.fechaNacimientoEstimada, proposito: animal.proposito, razaPrincipalId: animal.razaPrincipalId,
     categoriaActualId: animal.categoriaActualId, propiedadActualId: animal.propiedadActualId, potreroActualId: animal.potreroActualId,
     color: animal.color, fechaIngreso: animal.fechaIngreso, precioAdquisicion: animal.precioAdquisicion,
@@ -45,7 +45,7 @@ function AnimalEditForm({ animal, catalogs }: { animal: AnimalSummary; catalogs:
     {mutation.error && <Alert tone="danger">{normalizeApiError(mutation.error).message}</Alert>}
     <Card><form className="form-grid" onSubmit={handleSubmit((input) => mutation.mutate(input))}>
       <div className="form-section-title form-full"><h2>Información básica</h2></div>
-      <Field label="Código" error={errors.codigo?.message}><input {...register('codigo', { required: 'El código es obligatorio.' })} /></Field><Field label="Nombre"><input {...register('nombre')} /></Field>
+      <Field label="Código" hint="Identificador interno permanente"><input value={animal.codigo} readOnly /></Field><Field label="Nombre"><input {...register('nombre')} /></Field>
       <Field label="Sexo"><select {...register('sexo')}><option value="HEMBRA">Hembra</option><option value="MACHO">Macho</option></select></Field><Field label="Fecha de nacimiento"><input type="date" {...register('fechaNacimiento')} /></Field>
       <label className="checkbox-line"><input type="checkbox" {...register('fechaNacimientoEstimada')} /> Fecha estimada</label><Field label="Propósito"><select {...register('proposito')}><option value="CARNE">Carne</option><option value="LECHE">Leche</option><option value="REPRODUCCION">Reproducción</option><option value="DOBLE_PROPOSITO">Doble propósito</option></select></Field>
       <div className="form-section-title form-full"><h2>Clasificación</h2></div>

@@ -13,7 +13,7 @@ interface SectorEditModalProps {
   loading: boolean
   error: unknown
   onClose: () => void
-  onSubmit: (input: { codigo: string; nombre: string; descripcion?: string; activo: boolean; version: number }) => void
+  onSubmit: (input: { nombre: string; descripcion?: string; activo: boolean; version: number }) => void
   onReload: () => void
 }
 
@@ -26,7 +26,6 @@ export function SectorEditModal({ sector, online, loading, error, onClose, onSub
     if (!sector || !online || loading) return
     const data = new FormData(event.currentTarget)
     onSubmit({
-      codigo: String(data.get('codigo') ?? '').trim(),
       nombre: String(data.get('nombre') ?? '').trim(),
       descripcion: String(data.get('descripcion') ?? '').trim() || undefined,
       activo: sector.activo,
@@ -40,7 +39,7 @@ export function SectorEditModal({ sector, online, loading, error, onClose, onSub
       {normalized && <Alert tone="danger" title={conflict ? 'El sector cambió mientras lo editabas' : undefined}>
         {conflict ? 'Recarga la información antes de volver a guardar.' : normalized.message}
       </Alert>}
-      <Field label="Código" required disabled={!online}><input name="codigo" defaultValue={sector.codigo} required maxLength={60} disabled={!online} /></Field>
+      <Field label="Código" hint="Identificador interno permanente"><input value={sector.codigo} readOnly /></Field>
       <Field label="Nombre" required disabled={!online}><input name="nombre" defaultValue={sector.nombre} required maxLength={160} disabled={!online} /></Field>
       <Field label="Descripción" disabled={!online}><textarea name="descripcion" defaultValue={sector.descripcion ?? ''} rows={3} disabled={!online} /></Field>
       <div className="form-actions">

@@ -54,7 +54,7 @@ export interface RetiroMasivoResultado {
 
 export interface CreateLoteInput {
   propiedadId: string
-  codigo: string
+  codigo?: string
   nombre: string
   descripcion?: string
   fechaApertura?: string

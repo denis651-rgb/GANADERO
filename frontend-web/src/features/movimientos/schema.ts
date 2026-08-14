@@ -42,8 +42,11 @@ export const crearMovimientoSchema = z.object({
       if (!data.destinoLoteId) requerido('destinoLoteId', 'El lote de destino es requerido.')
       break
     case 'INGRESO_COMPRA':
+      if (!data.destinoPropiedadId) requerido('destinoPropiedadId', 'La propiedad de destino es requerida.')
+      break
     case 'TRANSFERENCIA_PROPIEDAD':
       if (!data.destinoPropiedadId) requerido('destinoPropiedadId', 'La propiedad de destino es requerida.')
+      if (!data.destinoPotreroId) requerido('destinoPotreroId', 'El potrero de destino es requerido.')
       break
     case 'SALIDA_VENTA':
       break

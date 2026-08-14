@@ -1,6 +1,8 @@
 package bo.com.ganadero.animales.application;
 
 import bo.com.ganadero.animales.domain.*;
+import bo.com.ganadero.shared.codigos.CodigoService;
+import bo.com.ganadero.shared.codigos.TipoCodigo;
 import bo.com.ganadero.shared.error.*;
 import bo.com.ganadero.shared.security.*;
 import bo.com.ganadero.timeline.api.TimelinePageResponse;
@@ -26,10 +28,11 @@ public class AnimalService {
     private final ApplicationEventPublisher events;
     private final TimelineEventPublisher timeline;
     private final TimelineService timelineService;
+    private final CodigoService codigos;
 
     public AnimalService(AnimalRepository a, RazaRepository b, CategoriaAnimalRepository c, UserContext u,
                          ApplicationEventPublisher e, TimelineEventPublisher timeline,
-                         TimelineService timelineService) {
+                         TimelineService timelineService, CodigoService codigos) {
         animals = a;
         breeds = b;
         categories = c;
@@ -37,6 +40,7 @@ public class AnimalService {
         events = e;
         this.timeline = timeline;
         this.timelineService = timelineService;
+        this.codigos = codigos;
     }
 
     @Transactional(readOnly = true)
@@ -89,7 +93,8 @@ public class AnimalService {
         validateReferences(c.razaPrincipalId(), c.categoriaActualId(), c.sexo(), c.propiedadActualId(),
                 c.potreroActualId(), u);
         UUID id = c.id() != null ? c.id() : UUID.randomUUID();
-        Animal a = new Animal(id, u.empresaId(), c.codigo(), c.nombre(), c.sexo(), c.fechaNacimiento(),
+        String codigo = codigos.paraCreacion(u, TipoCodigo.ANIMAL, null, null, c.codigo());
+        Animal a = new Animal(id, u.empresaId(), codigo, c.nombre(), c.sexo(), c.fechaNacimiento(),
                 Boolean.TRUE.equals(c.fechaNacimientoEstimada()), c.razaPrincipalId(), c.categoriaActualId(),
                 c.color(), c.proposito(), c.origen(), c.propiedadActualId(), c.potreroActualId(), null,
                 EstadoAnimal.ACTIVO, c.fechaIngreso() == null ? LocalDate.now() : c.fechaIngreso(),
@@ -124,7 +129,8 @@ public class AnimalService {
         UUID breed = c.razaPrincipalId() == null ? old.razaPrincipalId() : c.razaPrincipalId();
         UUID category = c.categoriaActualId() == null ? old.categoriaActualId() : c.categoriaActualId();
         validateReferences(breed, category, sex, property, paddock, u);
-        Animal value = new Animal(id, u.empresaId(), c.codigo(), c.nombre(), sex, c.fechaNacimiento(),
+        String codigo = codigos.paraActualizacion(u, TipoCodigo.ANIMAL, null, null, old.codigo(), c.codigo());
+        Animal value = new Animal(id, u.empresaId(), codigo, c.nombre(), sex, c.fechaNacimiento(),
                 c.fechaNacimientoEstimada() == null ? old.fechaNacimientoEstimada() : c.fechaNacimientoEstimada(),
                 breed, category, c.color(), c.proposito() == null ? old.proposito() : c.proposito(), old.origen(),
                 property, paddock, old.loteActualId(), old.estado(), c.fechaIngreso(), c.precioAdquisicion(),

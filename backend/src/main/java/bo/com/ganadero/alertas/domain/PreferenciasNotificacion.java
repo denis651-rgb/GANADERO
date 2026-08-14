@@ -1,0 +1,1 @@
+package bo.com.ganadero.alertas.domain;import java.util.UUID;public record PreferenciasNotificacion(UUID empresaId,UUID usuarioId,boolean reproduccion,boolean sanidad,boolean tratamientos,boolean pesajes,boolean casosCriticos,boolean criticas,boolean urgentes,boolean recordatorios){}

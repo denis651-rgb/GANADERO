@@ -93,8 +93,8 @@ export function NuevoAnimalPage() {
             <div className="form-full"><Alert tone="info" title="Faltan datos para registrar animales sin conexión">Este dispositivo no descargó los catálogos necesarios. Conéctalo a internet y utiliza “Preparar datos offline” en Sincronización.</Alert></div>
           )}
           <div className="form-section-title form-full"><h2>Información básica</h2></div>
-          <Field label="Código interno" error={errors.codigo?.message}>
-            <input {...register('codigo')} placeholder="A-0001" />
+          <Field label="Código interno" hint="Se asigna al guardar">
+            <input value="Automático · ANI-######" readOnly aria-label="Código interno automático" />
           </Field>
           <Field label="Nombre opcional" error={errors.nombre?.message}>
             <input {...register('nombre')} placeholder="Lucera" />

@@ -37,6 +37,17 @@ describe('crearMovimientoSchema', () => {
       tipo: 'TRANSFERENCIA_PROPIEDAD',
       origenPropiedadId: UUID_A,
       destinoPropiedadId: UUID_A,
+      destinoPotreroId: UUID_B,
+      animales: [{ animalId: ANIMAL, version: 3 }],
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rechaza transferencia sin potrero de destino', () => {
+    const result = crearMovimientoSchema.safeParse({
+      tipo: 'TRANSFERENCIA_PROPIEDAD',
+      origenPropiedadId: UUID_A,
+      destinoPropiedadId: UUID_B,
       animales: [{ animalId: ANIMAL, version: 3 }],
     })
     expect(result.success).toBe(false)

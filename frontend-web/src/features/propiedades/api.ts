@@ -25,7 +25,7 @@ export interface Sector {
   version: number
 }
 
-export type CreatePropiedad = Pick<Propiedad, 'codigo' | 'nombre'> & Partial<Pick<Propiedad, 'descripcion' | 'departamento' | 'municipio' | 'localidad' | 'direccionReferencia' | 'superficieHa'>>
+export type CreatePropiedad = Pick<Propiedad, 'nombre'> & Partial<Pick<Propiedad, 'codigo' | 'descripcion' | 'departamento' | 'municipio' | 'localidad' | 'direccionReferencia' | 'superficieHa'>>
 
 export async function listPropiedades() {
   return (await http.get<ApiResponse<Propiedad[]>>('/api/v1/propiedades')).data.data
@@ -43,10 +43,10 @@ export async function listSectores(propiedadId: string) {
   return (await http.get<ApiResponse<Sector[]>>(`/api/v1/propiedades/${propiedadId}/sectores`)).data.data
 }
 
-export async function createSector(propiedadId: string, input: { codigo: string; nombre: string; descripcion?: string }) {
+export async function createSector(propiedadId: string, input: { codigo?: string; nombre: string; descripcion?: string }) {
   return (await http.post<ApiResponse<Sector>>(`/api/v1/propiedades/${propiedadId}/sectores`, input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
 }
 
-export async function updateSector(id: string, input: Pick<Sector, 'codigo' | 'nombre' | 'activo' | 'version'> & { descripcion?: string }) {
+export async function updateSector(id: string, input: Pick<Sector, 'nombre' | 'activo' | 'version'> & { codigo?: string; descripcion?: string }) {
   return (await http.patch<ApiResponse<Sector>>(`/api/v1/sectores/${id}`, input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
 }

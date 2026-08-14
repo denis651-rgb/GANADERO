@@ -35,7 +35,7 @@ export async function listTiposPasto() {
   return (await http.get<ApiResponse<TipoPasto[]>>('/api/v1/tipos-pasto')).data.data
 }
 
-export async function createPotrero(input: Omit<Potrero, 'id' | 'activo' | 'version'>) {
+export async function createPotrero(input: Omit<Potrero, 'id' | 'codigo' | 'activo' | 'version'> & { codigo?: string }) {
   return (await http.post<ApiResponse<Potrero>>('/api/v1/potreros', input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
 }
 

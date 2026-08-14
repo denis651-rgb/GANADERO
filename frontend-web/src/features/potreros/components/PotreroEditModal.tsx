@@ -46,7 +46,6 @@ export function PotreroEditModal({ potrero, properties, grasses, online, loading
       propiedadId: propertyId,
       sectorId: sectorId || undefined,
       quitarSector: !sectorId && Boolean(potrero.sectorId),
-      codigo: String(data.get('codigo') ?? '').trim(),
       nombre: String(data.get('nombre') ?? '').trim(),
       superficieHa,
       quitarSuperficie: superficieHa === undefined && potrero.superficieHa !== undefined,
@@ -68,7 +67,7 @@ export function PotreroEditModal({ potrero, properties, grasses, online, loading
       <div className="form-grid">
         <Field label="Propiedad" required disabled={!online}><select name="propiedadId" required value={propertyId} disabled={!online} onChange={(event) => { setPropertyId(event.target.value); setSectorId('') }}>{properties.filter((item) => item.activo || item.id === potrero.propiedadId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
         <Field label="Sector" disabled={!online}><select name="sectorId" value={sectorId} disabled={!online || sectors.isPending} onChange={(event) => setSectorId(event.target.value)}><option value="">Sin sector</option>{sectors.data?.filter((item) => item.activo || item.id === potrero.sectorId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
-        <Field label="Código" required disabled={!online}><input name="codigo" defaultValue={potrero.codigo} required maxLength={60} disabled={!online} /></Field>
+        <Field label="Código" hint="Identificador interno permanente"><input value={potrero.codigo} readOnly /></Field>
         <Field label="Nombre" required disabled={!online}><input name="nombre" defaultValue={potrero.nombre} required maxLength={160} disabled={!online} /></Field>
         <Field label="Superficie (ha)" disabled={!online}><input name="superficieHa" type="number" inputMode="decimal" min="0" step="0.0001" defaultValue={potrero.superficieHa ?? ''} disabled={!online} /></Field>
         <Field label="Capacidad (UA)" disabled={!online}><input name="capacidadUa" type="number" inputMode="decimal" min="0" step="0.01" defaultValue={potrero.capacidadUa ?? ''} disabled={!online} /></Field>

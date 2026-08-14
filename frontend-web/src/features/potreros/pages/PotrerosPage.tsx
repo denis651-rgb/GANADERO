@@ -32,7 +32,7 @@ export function PotrerosPage() {
   const create = useMutation({
     mutationFn: (form: HTMLFormElement) => {
       const data = new FormData(form)
-      return createPotrero({ propiedadId: String(data.get('propiedadId')), sectorId: String(data.get('sectorId') || '') || undefined, codigo: String(data.get('codigo')), nombre: String(data.get('nombre')), superficieHa: Number(data.get('superficieHa')) || undefined, tipoPastoId: String(data.get('tipoPastoId') || '') || undefined, capacidadUa: Number(data.get('capacidadUa')) || undefined, tieneAgua: data.get('tieneAgua') === 'on', estado: String(data.get('estado')) as 'DISPONIBLE' | 'OCUPADO' | 'DESCANSO' | 'MANTENIMIENTO' })
+      return createPotrero({ propiedadId: String(data.get('propiedadId')), sectorId: String(data.get('sectorId') || '') || undefined, nombre: String(data.get('nombre')), superficieHa: Number(data.get('superficieHa')) || undefined, tipoPastoId: String(data.get('tipoPastoId') || '') || undefined, capacidadUa: Number(data.get('capacidadUa')) || undefined, tieneAgua: data.get('tieneAgua') === 'on', estado: String(data.get('estado')) as 'DISPONIBLE' | 'OCUPADO' | 'DESCANSO' | 'MANTENIMIENTO' })
     },
     onSuccess: () => { setShowForm(false); client.invalidateQueries({ queryKey: ['potreros'] }) },
   })
@@ -58,7 +58,7 @@ export function PotrerosPage() {
     {showForm && canCreate && <Card><form className="form-grid" onSubmit={(event) => { event.preventDefault(); if (online) create.mutate(event.currentTarget) }}>
       <Field label="Propiedad"><select name="propiedadId" required value={propertyId} onChange={(event) => setPropertyId(event.target.value)}><option value="">Selecciona…</option>{catalogs.data?.properties.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
       <Field label="Sector"><select name="sectorId"><option value="">Sin sector</option>{sectors.data?.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
-      <Field label="Código"><input name="codigo" required /></Field><Field label="Nombre"><input name="nombre" required /></Field>
+      <Field label="Código" hint="Se asigna al guardar"><input value="Automático · PRP-###-POT-###" readOnly aria-label="Código automático de potrero" /></Field><Field label="Nombre"><input name="nombre" required /></Field>
       <Field label="Superficie (ha)"><input name="superficieHa" type="number" inputMode="decimal" min="0" step="0.0001" /></Field><Field label="Capacidad (UA)"><input name="capacidadUa" type="number" inputMode="decimal" min="0" step="0.01" /></Field>
       <Field label="Tipo de pasto"><select name="tipoPastoId"><option value="">Sin especificar</option>{catalogs.data?.grasses.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
       <Field label="Estado"><select name="estado" defaultValue="DISPONIBLE"><option>DISPONIBLE</option><option>OCUPADO</option><option>DESCANSO</option><option>MANTENIMIENTO</option></select></Field>

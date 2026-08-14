@@ -1,0 +1,3 @@
+package bo.com.ganadero.sanidad.api;
+import bo.com.ganadero.sanidad.application.CrearCasoClinicoCommand;import bo.com.ganadero.sanidad.domain.SeveridadCaso;import jakarta.validation.constraints.*;import java.time.Instant;import java.util.UUID;
+public record CrearCasoClinicoRequest(@NotNull UUID animalId,@NotNull Instant fechaInicio,@NotBlank String sintomas,UUID enfermedadId,String diagnosticoTexto,@NotNull SeveridadCaso severidad,UUID veterinarioId,String observaciones){public CrearCasoClinicoCommand command(){return new CrearCasoClinicoCommand(animalId,fechaInicio,sintomas,enfermedadId,diagnosticoTexto,severidad,veterinarioId,observaciones);}}
