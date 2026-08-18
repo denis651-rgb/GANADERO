@@ -12,6 +12,7 @@ import nl.martijndwars.webpush.Urgency;
 import org.apache.http.HttpResponse;
 import org.apache.http.util.EntityUtils;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
@@ -36,6 +37,7 @@ public class WebPushGateway implements PushNotificadorPort {
     private final ObjectMapper json;
     private volatile PushService service;
 
+    @Autowired
     public WebPushGateway(@Value("${ganadero.push.vapid-public-key:}") String publicKey,
                           @Value("${ganadero.push.vapid-private-key:}") String privateKey,
                           @Value("${ganadero.push.subject:mailto:soporte@ganadero.bo}") String subject,
