@@ -72,13 +72,16 @@ public class ProcesadorAlertasProgramadasService {
     private void materializarEntregas() {
         List<Alerta> pendientes = alertas.listarPendientes(Instant.now(), 50);
         for (Alerta alerta : pendientes) {
+            boolean elegible = false;
             for (SuscripcionPush sub : suscripciones.listarActivas(alerta.empresaId())) {
                 if (deseaRecibir(alerta, sub)) {
+                    elegible = true;
                     entregas.registrarPendiente(alerta.id(), sub.id());
                 }
             }
-            if (!entregas.tienePendientes(alerta.id(), maxIntentos)) {
-                alertas.marcarEnviada(alerta.id());
+            if (!elegible && !entregas.tienePendientes(alerta.id(), maxIntentos)
+                    && !entregas.tieneEnviadas(alerta.id())) {
+                alertas.marcarError(alerta.id(), "No hay dispositivos Push elegibles para esta alerta");
             }
         }
     }
@@ -101,7 +104,8 @@ public class ProcesadorAlertasProgramadasService {
                 entregas.marcarEnviada(entrega.alerta().id(), entrega.suscripcion().id(), Instant.now());
                 enviadas++;
             } else {
-                entregas.marcarError(entrega.alerta().id(), entrega.suscripcion().id(), resultado.error());
+                entregas.marcarError(entrega.alerta().id(), entrega.suscripcion().id(), resultado.error(),
+                        proximoIntento(entrega.intentos() + 1));
                 if (resultado.suscripcionInvalida()) {
                     suscripciones.desactivarTodas(entrega.suscripcion().id(), entrega.alerta().empresaId());
                     entregas.marcarDescartada(entrega.alerta().id(), entrega.suscripcion().id());
@@ -110,7 +114,11 @@ public class ProcesadorAlertasProgramadasService {
         }
         for (UUID alertaId : alertasTocadas) {
             if (!entregas.tienePendientes(alertaId, maxIntentos)) {
-                alertas.marcarEnviada(alertaId);
+                if (entregas.tieneEnviadas(alertaId)) {
+                    alertas.marcarEnviada(alertaId);
+                } else {
+                    alertas.marcarError(alertaId, entregas.resumenFallos(alertaId));
+                }
             }
         }
         return enviadas;
@@ -127,5 +135,16 @@ public class ProcesadorAlertasProgramadasService {
             case URGENTE -> prefs.urgentes();
             case INFO, WARNING -> prefs.recordatorios();
         };
+    }
+
+    private Instant proximoIntento(int intento) {
+        long minutos = switch (intento) {
+            case 1 -> 5;
+            case 2 -> 15;
+            case 3 -> 30;
+            case 4 -> 60;
+            default -> 120;
+        };
+        return Instant.now().plusSeconds(minutos * 60);
     }
 }

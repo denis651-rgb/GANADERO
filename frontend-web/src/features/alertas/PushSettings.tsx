@@ -6,6 +6,7 @@ import { Card } from '@/shared/components/Card'
 import { useToast } from '@/shared/toast/useToast'
 import {
   getNotificationPreferences,
+  getCurrentPushEndpoint,
   listPushDevices,
   pushSupported,
   saveNotificationPreferences,
@@ -32,6 +33,7 @@ export function PushSettings() {
   const client = useQueryClient()
   const { showToast } = useToast()
   const devices = useQuery({ queryKey: ['push-devices'], queryFn: listPushDevices })
+  const currentEndpoint = useQuery({ queryKey: ['push-current-endpoint'], queryFn: getCurrentPushEndpoint })
   const preferences = useQuery({
     queryKey: ['notification-preferences'],
     queryFn: getNotificationPreferences,
@@ -40,12 +42,16 @@ export function PushSettings() {
     mutationFn: () => subscribePush(navigator.platform || 'Este dispositivo'),
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ['push-devices'] })
+      client.invalidateQueries({ queryKey: ['push-current-endpoint'] })
       showToast('Notificaciones activadas en este dispositivo.')
     },
   })
   const disable = useMutation({
     mutationFn: unsubscribePush,
-    onSuccess: () => client.invalidateQueries({ queryKey: ['push-devices'] }),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ['push-devices'] })
+      client.invalidateQueries({ queryKey: ['push-current-endpoint'] })
+    },
   })
   const save = useMutation({
     mutationFn: saveNotificationPreferences,
@@ -54,13 +60,15 @@ export function PushSettings() {
       showToast('Preferencias Push guardadas.')
     },
   })
-  const current = devices.data?.[0]
+  const current = devices.data?.find((device) => device.endpoint === currentEndpoint.data)
+  const otherDevices = (devices.data?.length ?? 0) - (current ? 1 : 0)
 
   return <Card>
     <h2>{current ? <Bell size={20} /> : <BellOff size={20} />} Notificaciones en este dispositivo</h2>
     {!pushSupported() && <Alert tone="info">Este navegador no admite Web Push.</Alert>}
     {enable.error && <Alert tone="danger">{enable.error.message}</Alert>}
     <p>Estado: <strong>{current ? 'Activadas' : 'Desactivadas'}</strong></p>
+    {otherDevices > 0 && <p>{otherDevices} dispositivo(s) adicional(es) reciben notificaciones.</p>}
     {current
       ? <Button type="button" variant="secondary" loading={disable.isPending}
           onClick={() => disable.mutate(current.id)}>Desactivar</Button>

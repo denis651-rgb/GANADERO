@@ -8,6 +8,7 @@ import nl.martijndwars.webpush.Notification;
 import nl.martijndwars.webpush.PushService;
 import nl.martijndwars.webpush.Urgency;
 import org.apache.http.HttpResponse;
+import org.apache.http.util.EntityUtils;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -61,13 +62,14 @@ public class WebPushGateway implements PushNotificadorPort {
                     .build();
             HttpResponse response = current.send(notification);
             status = response.getStatusLine() == null ? 0 : response.getStatusLine().getStatusCode();
+            String responseBody = response.getEntity() == null ? null : EntityUtils.toString(response.getEntity());
             if (status >= 200 && status < 300) {
                 return ResultadoEnvio.ok();
             }
             if (status == 404 || status == 410) {
-                return ResultadoEnvio.invalida("HTTP " + status);
+                return ResultadoEnvio.invalida(errorHttp(status, responseBody));
             }
-            return ResultadoEnvio.fallo("HTTP " + status);
+            return ResultadoEnvio.fallo(errorHttp(status, responseBody));
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             return ResultadoEnvio.fallo("Interrumpido");
@@ -122,5 +124,13 @@ public class WebPushGateway implements PushNotificadorPort {
     private String mensaje(Exception ex) {
         String text = ex.getMessage();
         return text == null || text.isBlank() ? ex.getClass().getSimpleName() : text;
+    }
+
+    private String errorHttp(int status, String body) {
+        if (body == null || body.isBlank()) {
+            return "HTTP " + status;
+        }
+        String limpio = body.replaceAll("[\\r\\n\\t]+", " ").replaceAll("\\s{2,}", " ").trim();
+        return "HTTP " + status + ": " + limpio.substring(0, Math.min(limpio.length(), 500));
     }
 }

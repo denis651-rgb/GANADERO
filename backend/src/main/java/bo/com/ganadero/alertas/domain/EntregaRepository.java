@@ -15,9 +15,13 @@ public interface EntregaRepository {
 
     void marcarEnviada(UUID alertaId, UUID suscripcionId, Instant enviadaAt);
 
-    void marcarError(UUID alertaId, UUID suscripcionId, String error);
+    void marcarError(UUID alertaId, UUID suscripcionId, String error, Instant proximoIntentoAt);
 
     void marcarDescartada(UUID alertaId, UUID suscripcionId);
 
     boolean tienePendientes(UUID alertaId, int maxIntentos);
+
+    boolean tieneEnviadas(UUID alertaId);
+
+    String resumenFallos(UUID alertaId);
 }

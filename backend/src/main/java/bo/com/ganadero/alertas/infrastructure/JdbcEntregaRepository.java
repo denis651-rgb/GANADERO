@@ -63,7 +63,9 @@ public class JdbcEntregaRepository implements EntregaRepository {
                 from alertas.entregas_notificacion e
                 join alertas.alertas a on a.id = e.alerta_id
                 join alertas.suscripciones_push s on s.id = e.suscripcion_id
-                where e.estado = 'PENDIENTE' or (e.estado = 'ERROR' and e.intentos < :m)
+                where e.estado = 'PENDIENTE'
+                   or (e.estado = 'ERROR' and e.intentos < :m
+                       and coalesce(e.proximo_intento_at, e.updated_at) <= now())
                 order by e.created_at
                 limit :l
                 """)
@@ -82,17 +84,18 @@ public class JdbcEntregaRepository implements EntregaRepository {
                 .update();
     }
 
-    public void marcarError(UUID alertaId, UUID suscripcionId, String error) {
+    public void marcarError(UUID alertaId, UUID suscripcionId, String error, Instant proximoIntentoAt) {
         jdbc.sql("update alertas.entregas_notificacion set estado='ERROR',intentos=intentos+1,"
-                + "ultimo_error=:e,updated_at=now() where alerta_id=:a and suscripcion_id=:s")
+                + "ultimo_error=:e,proximo_intento_at=:p,updated_at=now() where alerta_id=:a and suscripcion_id=:s")
                 .param("e", truncate(error))
+                .param("p", Timestamp.from(proximoIntentoAt))
                 .param("a", alertaId)
                 .param("s", suscripcionId)
                 .update();
     }
 
     public void marcarDescartada(UUID alertaId, UUID suscripcionId) {
-        jdbc.sql("update alertas.entregas_notificacion set estado='DESCARTADA',intentos=intentos+1,"
+        jdbc.sql("update alertas.entregas_notificacion set estado='DESCARTADA',proximo_intento_at=null,"
                 + "updated_at=now() where alerta_id=:a and suscripcion_id=:s")
                 .param("a", alertaId)
                 .param("s", suscripcionId)
@@ -107,6 +110,18 @@ public class JdbcEntregaRepository implements EntregaRepository {
                 .query(Integer.class)
                 .single();
         return count != null && count > 0;
+    }
+
+    public boolean tieneEnviadas(UUID alertaId) {
+        Integer count = jdbc.sql("select count(*) from alertas.entregas_notificacion where alerta_id=:a and estado='ENVIADA'")
+                .param("a", alertaId).query(Integer.class).single();
+        return count != null && count > 0;
+    }
+
+    public String resumenFallos(UUID alertaId) {
+        return jdbc.sql("select coalesce(string_agg(distinct ultimo_error, '; '), 'No se pudo entregar la notificación') "
+                        + "from alertas.entregas_notificacion where alerta_id=:a and estado in('ERROR','DESCARTADA')")
+                .param("a", alertaId).query(String.class).single();
     }
 
     private EntregaPendiente mapPendiente(ResultSet r, int row) throws SQLException {

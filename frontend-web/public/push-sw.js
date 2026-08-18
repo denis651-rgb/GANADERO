@@ -8,6 +8,11 @@ self.addEventListener('push', (event) => {
     badge: '/icons/icon-192.png',
     data: payload.data || { url: '/' },
     tag: payload.data?.alertaId || undefined,
+    silent: false,
+    vibrate: [250, 100, 250],
+    renotify: Boolean(payload.data?.alertaId),
+    requireInteraction: true,
+    timestamp: Date.now(),
   }
   event.waitUntil(self.registration.showNotification(title, options))
 })
