@@ -3,6 +3,7 @@ package bo.com.ganadero.auditoria.application;
 import bo.com.ganadero.auditoria.domain.AuditoriaRegistro;
 import bo.com.ganadero.auditoria.domain.AuditoriaRepository;
 import bo.com.ganadero.animales.application.AnimalAuditEvent;
+import bo.com.ganadero.alertas.application.AlertasAuditEvent;
 import bo.com.ganadero.archivos.application.ArchivoAuditEvent;
 import bo.com.ganadero.lotes.application.LoteAuditEvent;
 import bo.com.ganadero.movimientos.application.MovimientoAuditEvent;
@@ -43,6 +44,12 @@ public class AuditEventListener {
                 Map.of(), event.datosAnteriores(), event.datosNuevos(),
                 request.dispositivo(), request.ip(), request.userAgent(),
                 event.occurredAt() == null ? Instant.now() : event.occurredAt()));
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onAlertas(AlertasAuditEvent event) {
+        persist(event.empresaId(), event.usuarioId(), event.accion(), "ALERTAS", event.entidad(),
+                event.entidadId(), event.datos());
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

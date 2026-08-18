@@ -144,7 +144,7 @@ class ProcesadorAlertasProgramadasServiceTest {
                 .thenReturn(PushNotificadorPort.ResultadoEnvio.invalida("HTTP 410"));
 
         assertThat(service.procesarNotificacionesPendientes()).isZero();
-        verify(entregas).marcarError(eq(alerta.id()), eq(sub.id()), eq("HTTP 410"), any());
+        verify(entregas).marcarError(eq(alerta.id()), eq(sub.id()), eq("HTTP 410"), any(), eq(false));
         verify(suscripciones).desactivarTodas(sub.id(), company);
         verify(entregas).marcarDescartada(alerta.id(), sub.id());
         verify(alertas).marcarError(alerta.id(), "HTTP 410");
@@ -162,7 +162,7 @@ class ProcesadorAlertasProgramadasServiceTest {
                 .thenReturn(PushNotificadorPort.ResultadoEnvio.fallo("HTTP 500"));
 
         assertThat(service.procesarNotificacionesPendientes()).isZero();
-        verify(entregas).marcarError(eq(alerta.id()), eq(sub.id()), eq("HTTP 500"), any());
+        verify(entregas).marcarError(eq(alerta.id()), eq(sub.id()), eq("HTTP 500"), any(), eq(true));
         verify(alertas, never()).marcarEnviada(alerta.id());
     }
 

@@ -128,6 +128,7 @@ public enum ErrorCode {
     SANIDAD_APLICACION_NOT_FOUND(HttpStatus.NOT_FOUND, "La aplicacion del tratamiento no existe."),
     SANIDAD_TRATAMIENTO_INCOMPLETO(HttpStatus.UNPROCESSABLE_CONTENT, "Existen aplicaciones pendientes o atrasadas."),
     ALERTA_NOT_FOUND(HttpStatus.NOT_FOUND, "La alerta no existe."),
+    PUSH_SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "La suscripción Push activa no existe."),
     DISPOSITIVO_NOT_FOUND(HttpStatus.NOT_FOUND, "El dispositivo de sincronización no está registrado."),
     DISPOSITIVO_BLOQUEADO(HttpStatus.FORBIDDEN, "El dispositivo de sincronización está bloqueado."),
     OPERACION_TIPO_DESCONOCIDO(HttpStatus.UNPROCESSABLE_CONTENT, "El tipo de operación de sincronización no es válido."),
