@@ -19,7 +19,8 @@ select cron.schedule(
             'Content-Type', 'application/json',
             'X-Ganadero-Cron-Secret',
             (select decrypted_secret from vault.decrypted_secrets where name = 'ganadero_cron_secret')
-        )
+        ),
+        timeout_milliseconds := 15000
     )
     $$
 );
@@ -35,7 +36,8 @@ select cron.schedule(
             'Content-Type', 'application/json',
             'X-Ganadero-Cron-Secret',
             (select decrypted_secret from vault.decrypted_secrets where name = 'ganadero_cron_secret')
-        )
+        ),
+        timeout_milliseconds := 15000
     )
     $$
 );
@@ -51,7 +53,8 @@ select cron.schedule(
             'Content-Type', 'application/json',
             'X-Ganadero-Cron-Secret',
             (select decrypted_secret from vault.decrypted_secrets where name = 'ganadero_cron_secret')
-        )
+        ),
+        timeout_milliseconds := 15000
     )
     $$
 );
@@ -67,7 +70,8 @@ select cron.schedule(
             'Content-Type', 'application/json',
             'X-Ganadero-Cron-Secret',
             (select decrypted_secret from vault.decrypted_secrets where name = 'ganadero_cron_secret')
-        )
+        ),
+        timeout_milliseconds := 15000
     )
     $$
 );
@@ -83,7 +87,8 @@ select cron.schedule(
             'Content-Type', 'application/json',
             'X-Ganadero-Cron-Secret',
             (select decrypted_secret from vault.decrypted_secrets where name = 'ganadero_cron_secret')
-        )
+        ),
+        timeout_milliseconds := 15000
     )
     $$
 );
@@ -99,7 +104,8 @@ select cron.schedule(
             'Content-Type', 'application/json',
             'X-Ganadero-Cron-Secret',
             (select decrypted_secret from vault.decrypted_secrets where name = 'ganadero_cron_secret')
-        )
+        ),
+        timeout_milliseconds := 15000
     )
     $$
 );

@@ -79,7 +79,7 @@ class MigrationPostgisTest {
                             .current()
                             .getVersion()
                             .toString()
-            ).isEqualTo("49");
+            ).isEqualTo("50");
 
             assertRequiredTablesExist(postgres);
             assertFlywayHistoryIsSuccessful(postgres);
@@ -99,7 +99,7 @@ class MigrationPostgisTest {
                             .current()
                             .getVersion()
                             .toString()
-            ).isEqualTo("49");
+            ).isEqualTo("50");
         }
     }
 
@@ -200,7 +200,7 @@ class MigrationPostgisTest {
                             .current()
                             .getVersion()
                             .toString()
-            ).isEqualTo("49");
+            ).isEqualTo("50");
 
             assertVersionNineVerificationDataStillExists(postgres);
             assertRequiredTablesExist(postgres);
@@ -245,7 +245,7 @@ class MigrationPostgisTest {
 
             Flyway latest = createFlyway(postgres, "classpath:db/migration");
             assertThat(latest.migrate().success).isTrue();
-            assertThat(latest.info().current().getVersion().toString()).isEqualTo("49");
+            assertThat(latest.info().current().getVersion().toString()).isEqualTo("50");
 
             assertThat(queryForInt(postgres, """
                     select count(*) from alertas.alertas

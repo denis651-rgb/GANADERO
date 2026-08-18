@@ -1,7 +1,7 @@
 import { http } from '@/shared/api/http'
 import type { ApiResponse } from '@/shared/api/types'
 
-export interface PushDevice { id:string; dispositivoNombre?:string; userAgent?:string; ultimoUsoAt?:string }
+export interface PushDevice { id:string;endpoint:string;dispositivoNombre?:string;userAgent?:string;ultimoUsoAt?:string }
 export interface NotificationPreferences { reproduccion:boolean;sanidad:boolean;tratamientos:boolean;pesajes:boolean;movimientos:boolean;inventario:boolean;sistema:boolean;casosCriticos:boolean;criticas:boolean;urgentes:boolean;recordatorios:boolean }
 
 const bytes = (value: string) => {
@@ -11,6 +11,11 @@ const bytes = (value: string) => {
 }
 
 export function pushSupported(){return 'serviceWorker'in navigator&&'PushManager'in window&&'Notification'in window}
+export async function getCurrentPushEndpoint(){
+  if(!pushSupported())return null
+  const registration=await navigator.serviceWorker.ready
+  return (await registration.pushManager.getSubscription())?.endpoint??null
+}
 export async function subscribePush(deviceName:string){
   if(!pushSupported())throw new Error('Este navegador no admite notificaciones Web Push.')
   const permission=await Notification.requestPermission();if(permission!=='granted')throw new Error('El permiso de notificaciones no fue concedido.')

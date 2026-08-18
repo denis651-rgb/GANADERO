@@ -1,2 +1,62 @@
-package bo.com.ganadero.alertas.api;import bo.com.ganadero.alertas.application.PushSubscriptionService;import bo.com.ganadero.alertas.domain.*;import bo.com.ganadero.shared.api.ApiResponse;import bo.com.ganadero.shared.web.CorrelationIdFilter;import jakarta.servlet.http.HttpServletRequest;import jakarta.validation.Valid;import org.springframework.web.bind.annotation.*;import java.util.*;
-@RestController @RequestMapping("/api/v1/alertas")public class PushSubscriptionController{private final PushSubscriptionService s;public PushSubscriptionController(PushSubscriptionService s){this.s=s;}@GetMapping("/push/public-key")ApiResponse<Map<String,String>>key(HttpServletRequest r){return ok(s.clavePublica(),r);}@PostMapping("/push/suscripciones")ApiResponse<SuscripcionPush>crear(@Valid@RequestBody CrearSuscripcionPushRequest b,@RequestHeader(value="User-Agent",required=false)String ua,HttpServletRequest r){return ok(s.crear(b,ua),r);}@GetMapping("/push/suscripciones")ApiResponse<List<SuscripcionPush>>listar(HttpServletRequest r){return ok(s.listar(),r);}@DeleteMapping("/push/suscripciones/{id}")ApiResponse<Void>eliminar(@PathVariable UUID id,HttpServletRequest r){s.eliminar(id);return ok(null,r);}@GetMapping("/configuracion")ApiResponse<PreferenciasNotificacion>config(HttpServletRequest r){return ok(s.preferencias(),r);}@PutMapping("/configuracion")ApiResponse<PreferenciasNotificacion>config(@RequestBody PreferenciasNotificacionRequest b,HttpServletRequest r){return ok(s.preferencias(b),r);}private<T>ApiResponse<T>ok(T d,HttpServletRequest r){Object c=r.getAttribute(CorrelationIdFilter.ATTRIBUTE);return ApiResponse.success(d,c==null?"unknown":c.toString());}}
+package bo.com.ganadero.alertas.api;
+
+import bo.com.ganadero.alertas.application.PushSubscriptionService;
+import bo.com.ganadero.alertas.domain.PreferenciasNotificacion;
+import bo.com.ganadero.shared.api.ApiResponse;
+import bo.com.ganadero.shared.web.CorrelationIdFilter;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/v1/alertas")
+public class PushSubscriptionController {
+    private final PushSubscriptionService service;
+
+    public PushSubscriptionController(PushSubscriptionService service) {
+        this.service = service;
+    }
+
+    @GetMapping("/push/public-key")
+    ApiResponse<Map<String, String>> key(HttpServletRequest request) {
+        return ok(service.clavePublica(), request);
+    }
+
+    @PostMapping("/push/suscripciones")
+    ApiResponse<PushDeviceResponse> crear(@Valid @RequestBody CrearSuscripcionPushRequest body,
+                                          @RequestHeader(value = "User-Agent", required = false) String userAgent,
+                                          HttpServletRequest request) {
+        return ok(PushDeviceResponse.from(service.crear(body, userAgent)), request);
+    }
+
+    @GetMapping("/push/suscripciones")
+    ApiResponse<List<PushDeviceResponse>> listar(HttpServletRequest request) {
+        return ok(service.listar().stream().map(PushDeviceResponse::from).toList(), request);
+    }
+
+    @DeleteMapping("/push/suscripciones/{id}")
+    ApiResponse<Void> eliminar(@PathVariable UUID id, HttpServletRequest request) {
+        service.eliminar(id);
+        return ok(null, request);
+    }
+
+    @GetMapping("/configuracion")
+    ApiResponse<PreferenciasNotificacion> config(HttpServletRequest request) {
+        return ok(service.preferencias(), request);
+    }
+
+    @PutMapping("/configuracion")
+    ApiResponse<PreferenciasNotificacion> config(@RequestBody PreferenciasNotificacionRequest body,
+                                                  HttpServletRequest request) {
+        return ok(service.preferencias(body), request);
+    }
+
+    private <T> ApiResponse<T> ok(T data, HttpServletRequest request) {
+        Object correlation = request.getAttribute(CorrelationIdFilter.ATTRIBUTE);
+        return ApiResponse.success(data, correlation == null ? "unknown" : correlation.toString());
+    }
+}

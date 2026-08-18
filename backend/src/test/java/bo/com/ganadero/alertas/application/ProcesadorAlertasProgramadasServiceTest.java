@@ -89,18 +89,19 @@ class ProcesadorAlertasProgramadasServiceTest {
     }
 
     @Test
-    void sinSuscriptoresMarcaComoEnviada() {
+    void sinSuscriptoresMarcaErrorSinFingirEntrega() {
         when(alertas.listarPendientes(any(), eq(50))).thenReturn(List.of(alerta));
         when(suscripciones.listarActivas(company)).thenReturn(List.of());
         when(entregas.tienePendientes(alerta.id(), 5)).thenReturn(false);
         when(entregas.listarPendientes(eq(5), eq(50))).thenReturn(List.of());
 
         assertThat(service.procesarNotificacionesPendientes()).isZero();
-        verify(alertas).marcarEnviada(alerta.id());
+        verify(alertas).marcarError(alerta.id(), "No hay dispositivos Push elegibles para esta alerta");
+        verify(alertas, never()).marcarEnviada(alerta.id());
     }
 
     @Test
-    void sinSuscriptoresInteresadosMarcaComoEnviadaSinEnviar() {
+    void sinSuscriptoresInteresadosMarcaErrorSinEnviar() {
         when(alertas.listarPendientes(any(), eq(50))).thenReturn(List.of(alerta));
         when(suscripciones.listarActivas(company)).thenReturn(List.of(sub));
         when(suscripciones.preferencias(company, sub.usuarioId()))
@@ -111,7 +112,8 @@ class ProcesadorAlertasProgramadasServiceTest {
 
         assertThat(service.procesarNotificacionesPendientes()).isZero();
         verify(push, never()).enviar(any(), any());
-        verify(alertas).marcarEnviada(alerta.id());
+        verify(alertas).marcarError(alerta.id(), "No hay dispositivos Push elegibles para esta alerta");
+        verify(alertas, never()).marcarEnviada(alerta.id());
     }
 
     @Test
@@ -119,7 +121,8 @@ class ProcesadorAlertasProgramadasServiceTest {
         when(alertas.listarPendientes(any(), eq(50))).thenReturn(List.of(alerta));
         when(suscripciones.listarActivas(company)).thenReturn(List.of(sub));
         when(suscripciones.preferencias(company, sub.usuarioId())).thenReturn(preferencias(true));
-        when(entregas.tienePendientes(alerta.id(), 5)).thenReturn(true, false);
+        when(entregas.tienePendientes(alerta.id(), 5)).thenReturn(false);
+        when(entregas.tieneEnviadas(alerta.id())).thenReturn(true);
         when(entregas.listarPendientes(eq(5), eq(50))).thenReturn(List.of(entregaPendiente()));
         when(push.enviar(alerta, sub)).thenReturn(PushNotificadorPort.ResultadoEnvio.ok());
 
@@ -130,20 +133,22 @@ class ProcesadorAlertasProgramadasServiceTest {
     }
 
     @Test
-    void suscripcionInvalidaDesactivaYMarcaEnviada() {
+    void suscripcionInvalidaDesactivaYMarcaError() {
         when(alertas.listarPendientes(any(), eq(50))).thenReturn(List.of(alerta));
         when(suscripciones.listarActivas(company)).thenReturn(List.of(sub));
         when(suscripciones.preferencias(company, sub.usuarioId())).thenReturn(preferencias(true));
-        when(entregas.tienePendientes(alerta.id(), 5)).thenReturn(true, false);
+        when(entregas.tienePendientes(alerta.id(), 5)).thenReturn(false);
+        when(entregas.resumenFallos(alerta.id())).thenReturn("HTTP 410");
         when(entregas.listarPendientes(eq(5), eq(50))).thenReturn(List.of(entregaPendiente()));
         when(push.enviar(alerta, sub))
                 .thenReturn(PushNotificadorPort.ResultadoEnvio.invalida("HTTP 410"));
 
         assertThat(service.procesarNotificacionesPendientes()).isZero();
-        verify(entregas).marcarError(alerta.id(), sub.id(), "HTTP 410");
+        verify(entregas).marcarError(eq(alerta.id()), eq(sub.id()), eq("HTTP 410"), any());
         verify(suscripciones).desactivarTodas(sub.id(), company);
         verify(entregas).marcarDescartada(alerta.id(), sub.id());
-        verify(alertas).marcarEnviada(alerta.id());
+        verify(alertas).marcarError(alerta.id(), "HTTP 410");
+        verify(alertas, never()).marcarEnviada(alerta.id());
     }
 
     @Test
@@ -157,7 +162,7 @@ class ProcesadorAlertasProgramadasServiceTest {
                 .thenReturn(PushNotificadorPort.ResultadoEnvio.fallo("HTTP 500"));
 
         assertThat(service.procesarNotificacionesPendientes()).isZero();
-        verify(entregas).marcarError(alerta.id(), sub.id(), "HTTP 500");
+        verify(entregas).marcarError(eq(alerta.id()), eq(sub.id()), eq("HTTP 500"), any());
         verify(alertas, never()).marcarEnviada(alerta.id());
     }
 
@@ -180,6 +185,7 @@ class ProcesadorAlertasProgramadasServiceTest {
         assertThat(service.procesarNotificacionesPendientes()).isZero();
         verify(push, never()).enviar(any(), any());
         verify(entregas, never()).registrarPendiente(tratamiento.id(), sub.id());
-        verify(alertas).marcarEnviada(tratamiento.id());
+        verify(alertas).marcarError(tratamiento.id(), "No hay dispositivos Push elegibles para esta alerta");
+        verify(alertas, never()).marcarEnviada(tratamiento.id());
     }
 }
