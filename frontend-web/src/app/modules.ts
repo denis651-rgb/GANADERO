@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   ShoppingCart,
   Sprout,
+  UserRound,
   Users,
   WalletCards,
 } from 'lucide-react'
@@ -37,6 +38,7 @@ export interface AppModuleDefinition {
 
 export const appModules: AppModuleDefinition[] = [
   { key: 'dashboard', label: 'Panel principal', path: '/', icon: House, phase: 0, status: 'LISTO' },
+  { key: 'perfil', label: 'Mi perfil', path: '/perfil', icon: UserRound, phase: 1, status: 'LISTO' },
   { key: 'empresa', label: 'Empresa', path: '/empresa', icon: Building2, phase: 1, permission: 'EMPRESA_VER', status: 'LISTO' },
   { key: 'usuarios', label: 'Usuarios', path: '/usuarios', icon: Users, phase: 1, permission: 'USUARIO_VER', status: 'LISTO' },
   { key: 'invitaciones', label: 'Invitaciones', path: '/invitaciones', icon: MailPlus, phase: 1, permission: 'USUARIO_VER', status: 'LISTO' },
