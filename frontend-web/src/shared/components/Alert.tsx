@@ -1,13 +1,13 @@
 import type { PropsWithChildren } from 'react'
-import { AlertCircle, CheckCircle2, Info } from 'lucide-react'
+import { AlertCircle, AlertTriangle, CheckCircle2, Info } from 'lucide-react'
 
 interface AlertProps {
-  tone?: 'info' | 'success' | 'danger'
+  tone?: 'info' | 'success' | 'warning' | 'danger'
   title?: string
 }
 
 export function Alert({ tone = 'info', title, children }: PropsWithChildren<AlertProps>) {
-  const Icon = tone === 'danger' ? AlertCircle : tone === 'success' ? CheckCircle2 : Info
+  const Icon = tone === 'danger' ? AlertCircle : tone === 'warning' ? AlertTriangle : tone === 'success' ? CheckCircle2 : Info
   return (
     <div className={`alert alert-${tone}`} role={tone === 'danger' ? 'alert' : 'status'}>
       <Icon size={20} aria-hidden="true" />

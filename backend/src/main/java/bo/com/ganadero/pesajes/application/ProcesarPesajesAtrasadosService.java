@@ -4,7 +4,6 @@ import bo.com.ganadero.alertas.application.MotorAlertas;
 import bo.com.ganadero.alertas.application.ProgramarAlertaCommand;
 import bo.com.ganadero.alertas.application.TipoAlerta;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +24,6 @@ public class ProcesarPesajesAtrasadosService {
         this.alertas = alertas;
     }
 
-    @Scheduled(cron = "${ganadero.pesajes.cron-alertas-atrasadas:0 15 0 * * *}")
     @Transactional
     public int procesar() {
         List<PesajeAtrasado> atrasados = jdbc.sql("""

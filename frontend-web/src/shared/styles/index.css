@@ -208,6 +208,7 @@ h1, h2, h3, p { margin-top: 0; }
 .alert span { display: block; }
 .alert-info { color: #28516b; background: #eaf5fb; border: 1px solid #c8e4f2; }
 .alert-success { color: var(--green-800); background: var(--green-50); border: 1px solid #cce7d5; }
+.alert-warning { color: #76520b; background: #fff8df; border: 1px solid #ead79b; }
 .alert-danger { color: #862a2a; background: #fff0f0; border: 1px solid #f1cccc; }
 
 .field { display: grid; gap: 6px; }

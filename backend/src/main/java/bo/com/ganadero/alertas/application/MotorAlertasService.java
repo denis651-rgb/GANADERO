@@ -106,6 +106,10 @@ public class MotorAlertasService implements MotorAlertas {
                             + " días sin pesaje.", SeveridadAlerta.WARNING);
             case CASO_CLINICO_CRITICO -> new Plantilla("Caso clínico crítico",
                     "Se registró un caso clínico crítico que requiere atención inmediata.", SeveridadAlerta.CRITICA);
+            case RECORDATORIO_SANIDAD -> new Plantilla(
+                    String.valueOf(metadata.getOrDefault("tituloPersonalizado", "Recordatorio de sanidad")),
+                    String.valueOf(metadata.getOrDefault("mensajePersonalizado", "Existe una actividad sanitaria programada.")),
+                    severidad(metadata));
             case CUARENTENA_POR_FINALIZAR -> new Plantilla("Cuarentena por finalizar",
                     "La cuarentena finaliza el " + fechaTexto, SeveridadAlerta.WARNING);
             case MOVIMIENTO_PENDIENTE -> new Plantilla("Movimiento pendiente",
@@ -128,6 +132,11 @@ public class MotorAlertasService implements MotorAlertas {
         if (diasRestantes <= 0) return SeveridadAlerta.URGENTE;
         if (diasRestantes <= 3) return SeveridadAlerta.WARNING;
         return SeveridadAlerta.INFO;
+    }
+
+    private SeveridadAlerta severidad(Map<String, Object> metadata) {
+        try { return SeveridadAlerta.valueOf(String.valueOf(metadata.getOrDefault("severidad", "WARNING"))); }
+        catch (IllegalArgumentException ignored) { return SeveridadAlerta.WARNING; }
     }
 
     private String etiquetaAnimal(Map<String, Object> metadata) {

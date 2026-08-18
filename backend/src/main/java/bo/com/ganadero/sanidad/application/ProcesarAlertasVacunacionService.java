@@ -4,7 +4,6 @@ import bo.com.ganadero.alertas.application.MotorAlertas;
 import bo.com.ganadero.alertas.application.ProgramarAlertaCommand;
 import bo.com.ganadero.alertas.application.TipoAlerta;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,7 +31,6 @@ public class ProcesarAlertasVacunacionService {
         this.alertas = alertas;
     }
 
-    @Scheduled(cron = "${ganadero.sanidad.cron-alertas-vacunacion:0 5 0 * * *}")
     @Transactional
     public int procesar() {
         return procesar(LocalDate.now(ZONA_NEGOCIO));

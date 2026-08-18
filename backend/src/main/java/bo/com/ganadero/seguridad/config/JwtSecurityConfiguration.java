@@ -41,6 +41,9 @@ class JwtSecurityConfiguration {
                         .requestMatchers(HttpMethod.POST,
                                 "/api/internal/jobs/alertas/activar",
                                 "/api/internal/jobs/alertas/pesajes/generar",
+                                "/api/internal/jobs/alertas/vacunacion/generar",
+                                "/api/internal/jobs/alertas/tratamientos/vencidos",
+                                "/api/internal/jobs/alertas/recordatorios/procesar",
                                 "/api/internal/jobs/notificaciones/procesar").permitAll()
                         .anyRequest().authenticated()
                 )

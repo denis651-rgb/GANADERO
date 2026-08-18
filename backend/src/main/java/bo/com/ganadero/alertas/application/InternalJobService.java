@@ -4,6 +4,8 @@ import bo.com.ganadero.shared.config.AppProperties;
 import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import bo.com.ganadero.pesajes.application.ProcesarPesajesAtrasadosService;
+import bo.com.ganadero.sanidad.application.ProcesarAlertasVacunacionService;
+import bo.com.ganadero.sanidad.application.ProcesarTratamientosVencidosService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,12 +22,21 @@ public class InternalJobService {
     private final AppProperties properties;
     private final ProcesadorAlertasProgramadasService procesador;
     private final ProcesarPesajesAtrasadosService pesajesAtrasados;
+    private final ProcesarAlertasVacunacionService alertasVacunacion;
+    private final ProcesarTratamientosVencidosService tratamientosVencidos;
+    private final RecordatorioService recordatorios;
 
     public InternalJobService(AppProperties properties, ProcesadorAlertasProgramadasService procesador,
-                              ProcesarPesajesAtrasadosService pesajesAtrasados) {
+                              ProcesarPesajesAtrasadosService pesajesAtrasados,
+                              ProcesarAlertasVacunacionService alertasVacunacion,
+                              ProcesarTratamientosVencidosService tratamientosVencidos,
+                              RecordatorioService recordatorios) {
         this.properties = properties;
         this.procesador = procesador;
         this.pesajesAtrasados = pesajesAtrasados;
+        this.alertasVacunacion = alertasVacunacion;
+        this.tratamientosVencidos = tratamientosVencidos;
+        this.recordatorios = recordatorios;
     }
 
     @Transactional
@@ -44,6 +55,24 @@ public class InternalJobService {
     public int generarAlertasPesajes(String suppliedToken) {
         validarAcceso(suppliedToken);
         return pesajesAtrasados.procesar();
+    }
+
+    @Transactional
+    public int generarAlertasVacunacion(String suppliedToken) {
+        validarAcceso(suppliedToken);
+        return alertasVacunacion.procesar();
+    }
+
+    @Transactional
+    public int procesarTratamientosVencidos(String suppliedToken) {
+        validarAcceso(suppliedToken);
+        return tratamientosVencidos.procesar();
+    }
+
+    @Transactional
+    public int procesarRecordatorios(String suppliedToken) {
+        validarAcceso(suppliedToken);
+        return recordatorios.procesar();
     }
 
     private void validarAcceso(String supplied) {

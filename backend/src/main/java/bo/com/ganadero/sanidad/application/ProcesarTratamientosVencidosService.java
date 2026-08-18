@@ -4,7 +4,6 @@ import bo.com.ganadero.alertas.application.MotorAlertas;
 import bo.com.ganadero.alertas.application.ProgramarAlertaCommand;
 import bo.com.ganadero.alertas.application.TipoAlerta;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +26,6 @@ public class ProcesarTratamientosVencidosService {
         this.alertas = alertas;
     }
 
-    @Scheduled(cron = "${ganadero.sanidad.cron-tratamientos-vencidos:0 */15 * * * *}")
     @Transactional
     public int procesar() {
         List<Vencida> vencidas = jdbc.sql("""

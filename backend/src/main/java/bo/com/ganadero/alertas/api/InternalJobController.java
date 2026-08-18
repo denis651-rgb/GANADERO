@@ -43,6 +43,27 @@ public class InternalJobController {
         return ok(service.generarAlertasPesajes(token), request);
     }
 
+    @PostMapping("/alertas/vacunacion/generar")
+    public ApiResponse<Integer> generarAlertasVacunacion(
+            @RequestHeader(value = "X-Ganadero-Cron-Secret", required = false) String token,
+            HttpServletRequest request) {
+        return ok(service.generarAlertasVacunacion(token), request);
+    }
+
+    @PostMapping("/alertas/tratamientos/vencidos")
+    public ApiResponse<Integer> procesarTratamientosVencidos(
+            @RequestHeader(value = "X-Ganadero-Cron-Secret", required = false) String token,
+            HttpServletRequest request) {
+        return ok(service.procesarTratamientosVencidos(token), request);
+    }
+
+    @PostMapping("/alertas/recordatorios/procesar")
+    public ApiResponse<Integer> procesarRecordatorios(
+            @RequestHeader(value = "X-Ganadero-Cron-Secret", required = false) String token,
+            HttpServletRequest request) {
+        return ok(service.procesarRecordatorios(token), request);
+    }
+
     private <T> ApiResponse<T> ok(T data, HttpServletRequest request) {
         Object correlation = request.getAttribute(CorrelationIdFilter.ATTRIBUTE);
         return ApiResponse.success(data, correlation == null ? "unknown" : correlation.toString());

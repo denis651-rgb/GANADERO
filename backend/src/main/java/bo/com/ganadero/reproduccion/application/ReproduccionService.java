@@ -98,6 +98,7 @@ public class ReproduccionService {
             throw new BusinessException(ErrorCode.REPRODUCCION_YA_ANULADO);
         }
         Celo saved = registros.annulCelo(id, user.empresaId(), motivo, version, user.userId());
+        motor().ifPresent(m -> m.cancelarPorOrigen(user.empresaId(), "CELO", saved.id(), "CELO_ANULADO"));
         audit(user, AuditActions.ANULAR_CELO, saved.id());
         return saved;
     }
@@ -127,6 +128,9 @@ public class ReproduccionService {
                 clienteUuid, command.idempotencyKey(), EstadoRegistroReproduccion.ACTIVO, null, null, null,
                 null, null, null, null, 0);
         Celo saved = registros.createCelo(value, user.userId());
+        motor().ifPresent(m -> m.crearInmediata(new ProgramarAlertaCommand(user.empresaId(), saved.animalId(),
+                TipoAlerta.CELO_DETECTADO, Instant.now(), "CELO", saved.id(),
+                metadataAnimal(animal, Map.of("fechaDeteccion", saved.fechaDeteccion().toString())))));
         publicarCelo(user, saved);
         audit(user, AuditActions.REGISTRAR_CELO, saved.id());
         return saved;
@@ -183,6 +187,9 @@ public class ReproduccionService {
                 clienteUuid, command.idempotencyKey(), EstadoServicio.PENDIENTE_DIAGNOSTICO, null, null, null,
                 null, null, null, null, null, null, 0);
         Servicio saved = registros.createServicio(value, user.userId());
+        if (saved.celoId() != null) {
+            motor().ifPresent(m -> m.resolverPorOrigen(user.empresaId(), "CELO", saved.celoId()));
+        }
         motor().ifPresent(m -> m.programar(new ProgramarAlertaCommand(user.empresaId(), saved.hembraId(),
                 TipoAlerta.DIAGNOSTICO_PENDIENTE, saved.fechaDiagnosticoRecomendada(), "SERVICIO", saved.id(),
                 metadataAnimal(animal, Map.of("fechaDiagnostico", saved.fechaDiagnosticoRecomendada().toString())))));

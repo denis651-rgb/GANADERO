@@ -25,6 +25,9 @@ definición visible de cada job.
 | `ganadero-activar-alertas` | `POST /api/internal/jobs/alertas/activar` | cada 5 min |
 | `ganadero-procesar-notificaciones` | `POST /api/internal/jobs/notificaciones/procesar` | cada 5 min |
 | `ganadero-generar-alertas-pesajes` | `POST /api/internal/jobs/alertas/pesajes/generar` | diariamente 00:15 Bolivia |
+| `ganadero-generar-alertas-vacunacion` | `POST /api/internal/jobs/alertas/vacunacion/generar` | diariamente 00:05 Bolivia |
+| `ganadero-procesar-tratamientos-vencidos` | `POST /api/internal/jobs/alertas/tratamientos/vencidos` | cada 15 min |
+| `ganadero-procesar-recordatorios` | `POST /api/internal/jobs/alertas/recordatorios/procesar` | cada minuto |
 
 Verificación:
 

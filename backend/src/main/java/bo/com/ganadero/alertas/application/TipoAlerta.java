@@ -12,6 +12,7 @@ public enum TipoAlerta {
     RETIRO_LECHE_VIGENTE(CategoriaAlerta.SANIDAD),
     CUARENTENA_POR_FINALIZAR(CategoriaAlerta.SANIDAD),
     CASO_CLINICO_CRITICO(CategoriaAlerta.SANIDAD),
+    RECORDATORIO_SANIDAD(CategoriaAlerta.SANIDAD),
 
     TRATAMIENTO_PROXIMO(CategoriaAlerta.TRATAMIENTO),
     TRATAMIENTO_ATRASADO(CategoriaAlerta.TRATAMIENTO),
