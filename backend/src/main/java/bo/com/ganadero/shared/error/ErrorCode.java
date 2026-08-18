@@ -21,6 +21,8 @@ public enum ErrorCode {
     STORAGE_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "El almacenamiento de archivos no está configurado."),
     STORAGE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "El servicio de almacenamiento no está disponible. Intenta nuevamente."),
     SYSTEM_STATUS_DISABLED(HttpStatus.NOT_FOUND, "El recurso no existe."),
+    INTERNAL_JOBS_DISABLED(HttpStatus.NOT_FOUND, "El recurso no existe."),
+    INTERNAL_JOBS_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "No autorizado."),
     ROLE_NOT_FOUND(HttpStatus.NOT_FOUND, "El rol no existe o no está disponible para la empresa."),
     ROLE_CODE_ALREADY_EXISTS(HttpStatus.CONFLICT, "Ya existe un rol con ese código."),
     LAST_ACTIVE_OWNER(HttpStatus.UNPROCESSABLE_CONTENT, "No se puede bloquear o degradar al último propietario activo."),

@@ -20,6 +20,9 @@ app:
   bootstrap:
     enabled: ${APP_BOOTSTRAP_ENABLED:false}
     token: ${APP_BOOTSTRAP_TOKEN:local-bootstrap-change-me}
+  internal-jobs:
+    enabled: ${APP_INTERNAL_JOBS_ENABLED:false}
+    secret: ${GANADERO_CRON_SECRET:local-cron-secret-change-me}
   system-status:
     enabled: ${APP_SYSTEM_STATUS_ENABLED:true}
   qr:

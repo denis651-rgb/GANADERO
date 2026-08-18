@@ -1,6 +1,9 @@
 package bo.com.ganadero.movimientos.application;
 
 import bo.com.ganadero.animales.domain.Animal;
+import bo.com.ganadero.alertas.application.MotorAlertas;
+import bo.com.ganadero.alertas.application.ProgramarAlertaCommand;
+import bo.com.ganadero.alertas.application.TipoAlerta;
 import bo.com.ganadero.animales.domain.AnimalRepository;
 import bo.com.ganadero.animales.domain.EstadoAnimal;
 import bo.com.ganadero.lotes.domain.EstadoLote;
@@ -15,11 +18,14 @@ import bo.com.ganadero.timeline.application.RegistrarEventoTimeline;
 import bo.com.ganadero.timeline.application.TimelineEventPublisher;
 import bo.com.ganadero.timeline.domain.TipoEventoAnimal;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -31,12 +37,14 @@ import java.util.UUID;
 
 @Service
 public class MovimientoService {
+    private static final ZoneId ZONA_NEGOCIO = ZoneId.of("America/La_Paz");
     private final MovimientoRepository movimientos;
     private final AnimalRepository animales;
     private final LoteRepository lotes;
     private final UserContext context;
     private final ApplicationEventPublisher events;
     private final TimelineEventPublisher timeline;
+    private ObjectProvider<MotorAlertas> alertas;
 
     public MovimientoService(MovimientoRepository movimientos, AnimalRepository animales, LoteRepository lotes,
                              UserContext context, ApplicationEventPublisher events, TimelineEventPublisher timeline) {
@@ -46,6 +54,14 @@ public class MovimientoService {
         this.context = context;
         this.events = events;
         this.timeline = timeline;
+    }
+
+    @Autowired
+    public MovimientoService(MovimientoRepository movimientos, AnimalRepository animales, LoteRepository lotes,
+                             UserContext context, ApplicationEventPublisher events, TimelineEventPublisher timeline,
+                             ObjectProvider<MotorAlertas> alertas) {
+        this(movimientos, animales, lotes, context, events, timeline);
+        this.alertas = alertas;
     }
 
     @Transactional(readOnly = true)
@@ -97,6 +113,7 @@ public class MovimientoService {
             }
         }
         Movimiento saved = movimientos.create(value, command.animales(), user.userId());
+        programarPendientes(user, saved);
         audit(user, "CREAR", saved.id());
         return saved;
     }
@@ -150,6 +167,7 @@ public class MovimientoService {
         }
         movimientos.saveDetalleUbicaciones(id, snapshots);
         Movimiento saved = movimientos.confirm(id, user.empresaId(), version, user.userId());
+        resolverAlertasMovimiento(user, detalles);
         audit(user, "CONFIRMAR", saved.id());
         return saved;
     }
@@ -162,7 +180,9 @@ public class MovimientoService {
         if (movimiento.estado() == EstadoMovimiento.ANULADO) throw new BusinessException(ErrorCode.MOVEMENT_ALREADY_ANNULLED);
         if (movimiento.estado() == EstadoMovimiento.REVERTIDO) throw new BusinessException(ErrorCode.MOVEMENT_ALREADY_REVERTED);
         MovimientoStatePolicy.require(movimiento.estado(), EstadoMovimiento.ANULADO);
+        List<MovimientoDetalle> detalles = movimientos.findDetalles(id);
         Movimiento saved = movimientos.annul(id, user.empresaId(), motivo, version, user.userId());
+        cancelarAlertasMovimiento(user, detalles, "MOVIMIENTO_ANULADO");
         audit(user, "ANULAR", saved.id());
         return saved;
     }
@@ -412,6 +432,34 @@ public class MovimientoService {
 
     private void audit(CurrentUser user, String accion, UUID id) {
         events.publishEvent(new MovimientoAuditEvent(user.empresaId(), user.userId(), accion, "MOVIMIENTO", id, Instant.now()));
+    }
+
+    private void programarPendientes(CurrentUser user, Movimiento movimiento) {
+        MotorAlertas motor = alertas == null ? null : alertas.getIfAvailable();
+        if (motor == null) return;
+        Instant fecha = movimiento.fechaMovimiento().atStartOfDay(ZONA_NEGOCIO).toInstant();
+        for (MovimientoDetalle detalle : movimientos.findDetalles(movimiento.id())) {
+            Animal animal = requireAnimal(user, detalle.animalId());
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("tipoMovimiento", movimiento.tipo().name());
+            metadata.put("fechaMovimiento", movimiento.fechaMovimiento().toString());
+            metadata.put("animalCodigo", animal.codigo());
+            if (animal.nombre() != null && !animal.nombre().isBlank()) metadata.put("animalNombre", animal.nombre());
+            motor.programar(new ProgramarAlertaCommand(user.empresaId(), animal.id(),
+                    TipoAlerta.MOVIMIENTO_PENDIENTE, fecha, "MOVIMIENTO_DETALLE", detalle.id(), metadata));
+        }
+    }
+
+    private void resolverAlertasMovimiento(CurrentUser user, List<MovimientoDetalle> detalles) {
+        MotorAlertas motor = alertas == null ? null : alertas.getIfAvailable();
+        if (motor != null) detalles.forEach(d ->
+                motor.resolverPorOrigen(user.empresaId(), "MOVIMIENTO_DETALLE", d.id()));
+    }
+
+    private void cancelarAlertasMovimiento(CurrentUser user, List<MovimientoDetalle> detalles, String motivo) {
+        MotorAlertas motor = alertas == null ? null : alertas.getIfAvailable();
+        if (motor != null) detalles.forEach(d ->
+                motor.cancelarPorOrigen(user.empresaId(), "MOVIMIENTO_DETALLE", d.id(), motivo));
     }
 
     private record Ubicacion(UUID propiedad, UUID potrero, UUID lote) {}

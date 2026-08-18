@@ -42,6 +42,8 @@ ganadero:
     max-attempts: ${GANADERO_PUSH_MAX_ATTEMPTS:5}
     ttl-seconds: ${GANADERO_PUSH_TTL_SECONDS:604800}
   alertas:
+    scheduler:
+      enabled: ${GANADERO_ALERTAS_SCHEDULER_ENABLED:true}
     cron-activar: ${GANADERO_ALERTAS_CRON_ACTIVAR:0 */5 * * * *}
     cron-enviar: ${GANADERO_ALERTAS_CRON_ENVIAR:0 */5 * * * *}
 
@@ -50,6 +52,9 @@ app:
   bootstrap:
     enabled: ${APP_BOOTSTRAP_ENABLED:false}
     token: ${APP_BOOTSTRAP_TOKEN:}
+  internal-jobs:
+    enabled: ${APP_INTERNAL_JOBS_ENABLED:false}
+    secret: ${GANADERO_CRON_SECRET:}
   invitations:
     expiration-hours: ${APP_INVITATION_EXPIRATION_HOURS:72}
     max-resend-attempts: ${APP_INVITATION_MAX_RESEND_ATTEMPTS:5}

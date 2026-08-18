@@ -31,7 +31,8 @@ public class ActualizarConfiguracionUseCase {
                 .orElseThrow(() -> new BusinessException(ErrorCode.EMPRESA_NOT_FOUND,
                         "La configuración de la empresa no existe."));
         configuration.update(command.unidadPeso(), command.unidadSuperficie(), command.moneda(),
-                command.diasAlertaPreparto(), command.diasAlertaVacunacion(), command.diasSinPesaje(),
+                command.diasAlertaPreparto(), command.diasAlertaVacunacion(),
+                command.diasDiagnosticoPostServicio(), command.diasGestacionEstimada(), command.diasSinPesaje(),
                 command.permitirStockNegativo(), command.requiereAprobacionVenta(),
                 command.comprimirImagenes(), command.calidadImagen(), command.version(), user.userId());
         ConfiguracionEmpresa saved = repository.save(configuration);

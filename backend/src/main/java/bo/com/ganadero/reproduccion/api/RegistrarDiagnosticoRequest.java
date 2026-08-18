@@ -4,6 +4,7 @@ import bo.com.ganadero.reproduccion.application.RegistrarDiagnosticoCommand;
 import bo.com.ganadero.reproduccion.domain.MetodoDiagnostico;
 import bo.com.ganadero.reproduccion.domain.ResultadoGestacion;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
@@ -16,7 +17,7 @@ public record RegistrarDiagnosticoRequest(
         @NotNull Instant fechaDiagnostico,
         @NotNull ResultadoGestacion resultado,
         MetodoDiagnostico metodo,
-        Integer diasGestacionEstimados,
+        @Positive Integer diasGestacionEstimados,
         UUID veterinarioId,
         @Size(max = 1000) String observaciones,
         UUID propiedadId,

@@ -38,6 +38,8 @@ export function EmpresaPage() {
           moneda: String(data.get('moneda') ?? 'BOB').toUpperCase(),
           diasAlertaPreparto: Number(data.get('diasAlertaPreparto')),
           diasAlertaVacunacion: Number(data.get('diasAlertaVacunacion')),
+          diasDiagnosticoPostServicio: Number(data.get('diasDiagnosticoPostServicio')),
+          diasGestacionEstimada: Number(data.get('diasGestacionEstimada')),
           diasSinPesaje: Number(data.get('diasSinPesaje')),
           permitirStockNegativo: data.get('permitirStockNegativo') === 'on',
           requiereAprobacionVenta: data.get('requiereAprobacionVenta') === 'on',
@@ -129,6 +131,12 @@ export function EmpresaPage() {
                 </Field>
                 <Field label="Alerta vacunación (días)" icon={<Syringe size={18} />}>
                   <input name="diasAlertaVacunacion" type="number" min="0" defaultValue={configuracion.diasAlertaVacunacion} />
+                </Field>
+                <Field label="Diagnóstico después del servicio (días)" icon={<AlarmClock size={18} />}>
+                  <input name="diasDiagnosticoPostServicio" type="number" min="1" defaultValue={configuracion.diasDiagnosticoPostServicio} />
+                </Field>
+                <Field label="Gestación estimada (días)" icon={<AlarmClock size={18} />}>
+                  <input name="diasGestacionEstimada" type="number" min="1" defaultValue={configuracion.diasGestacionEstimada} />
                 </Field>
                 <Field label="Días sin pesaje" icon={<Scale size={18} />}>
                   <input name="diasSinPesaje" type="number" min="0" defaultValue={configuracion.diasSinPesaje} />

@@ -26,7 +26,6 @@ import bo.com.ganadero.timeline.application.RegistrarEventoTimeline;
 import bo.com.ganadero.timeline.application.TimelineEventPublisher;
 import bo.com.ganadero.timeline.domain.TipoEventoAnimal;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import bo.com.ganadero.alertas.application.*;
@@ -36,15 +35,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
 @Service
 public class ReproduccionService {
-    private static final int DIAS_GESTACION = 285;
-    private int diasHastaDiagnostico = 28;
-
+    private static final ZoneId ZONA_NEGOCIO = ZoneId.of("America/La_Paz");
     private final ReproduccionRepository registros;
     private final AnimalRepository animales;
     private final UserContext context;
@@ -68,12 +66,6 @@ public class ReproduccionService {
             ApplicationEventPublisher events, TimelineEventPublisher timeline, ObjectProvider<MotorAlertas> alertas,
             ObjectProvider<AlertaConfiguracionPort> configuracionAlertas) {
         this(registros, animales, context, events, timeline); this.alertas=alertas; this.configuracionAlertas=configuracionAlertas;
-    }
-
-    @Value("${ganadero.reproduccion.dias-hasta-diagnostico:28}")
-    void setDiasHastaDiagnostico(int diasHastaDiagnostico) {
-        if (diasHastaDiagnostico < 1) throw new IllegalArgumentException("dias-hasta-diagnostico debe ser positivo");
-        this.diasHastaDiagnostico = diasHastaDiagnostico;
     }
 
     @Transactional(readOnly = true)
@@ -106,6 +98,7 @@ public class ReproduccionService {
             throw new BusinessException(ErrorCode.REPRODUCCION_YA_ANULADO);
         }
         Celo saved = registros.annulCelo(id, user.empresaId(), motivo, version, user.userId());
+        motor().ifPresent(m -> m.cancelarPorOrigen(user.empresaId(), "CELO", saved.id(), "CELO_ANULADO"));
         audit(user, AuditActions.ANULAR_CELO, saved.id());
         return saved;
     }
@@ -135,6 +128,9 @@ public class ReproduccionService {
                 clienteUuid, command.idempotencyKey(), EstadoRegistroReproduccion.ACTIVO, null, null, null,
                 null, null, null, null, 0);
         Celo saved = registros.createCelo(value, user.userId());
+        motor().ifPresent(m -> m.crearInmediata(new ProgramarAlertaCommand(user.empresaId(), saved.animalId(),
+                TipoAlerta.CELO_DETECTADO, Instant.now(), "CELO", saved.id(),
+                metadataAnimal(animal, Map.of("fechaDeteccion", saved.fechaDeteccion().toString())))));
         publicarCelo(user, saved);
         audit(user, AuditActions.REGISTRAR_CELO, saved.id());
         return saved;
@@ -180,17 +176,23 @@ public class ReproduccionService {
         int numeroIntento = registros.countServicios(animal.id(), user.empresaId()) + 1;
         UUID id = command.id() != null ? command.id() : UUID.randomUUID();
         UUID clienteUuid = command.clienteUuid() != null ? command.clienteUuid() : id;
+        AlertaConfiguracion configuracion = configuracion(user.empresaId());
         Servicio value = new Servicio(id, user.empresaId(), command.hembraId(), command.celoId(),
                 fecha, command.tipoServicio(), command.machoId(), command.codigoSemen(), command.proveedorSemen(),
-                command.tecnicoId(), numeroIntento, fecha.plusSeconds(diasHastaDiagnostico * 86400L), command.observaciones(),
+                command.tecnicoId(), numeroIntento,
+                fecha.plusSeconds(configuracion.diasDiagnosticoPostServicio() * 86400L), command.observaciones(),
                 property,
                 command.potreroId() != null ? command.potreroId() : animal.potreroActualId(),
                 command.loteId() != null ? command.loteId() : animal.loteActualId(),
                 clienteUuid, command.idempotencyKey(), EstadoServicio.PENDIENTE_DIAGNOSTICO, null, null, null,
                 null, null, null, null, null, null, 0);
         Servicio saved = registros.createServicio(value, user.userId());
+        if (saved.celoId() != null) {
+            motor().ifPresent(m -> m.resolverPorOrigen(user.empresaId(), "CELO", saved.celoId()));
+        }
         motor().ifPresent(m -> m.programar(new ProgramarAlertaCommand(user.empresaId(), saved.hembraId(),
-                TipoAlerta.DIAGNOSTICO_GESTACION_PENDIENTE, saved.fechaDiagnosticoRecomendada(), "SERVICIO", saved.id(), Map.of())));
+                TipoAlerta.DIAGNOSTICO_PENDIENTE, saved.fechaDiagnosticoRecomendada(), "SERVICIO", saved.id(),
+                metadataAnimal(animal, Map.of("fechaDiagnostico", saved.fechaDiagnosticoRecomendada().toString())))));
         publicarServicio(user, saved);
         audit(user, AuditActions.REGISTRAR_SERVICIO, saved.id());
         return saved;
@@ -228,8 +230,19 @@ public class ReproduccionService {
 
         LocalDate fechaProbableParto = null;
         if (command.resultado() == ResultadoGestacion.POSITIVO) {
-            LocalDate base = (servicio != null ? servicio.fechaServicio() : fecha).atZone(ZoneOffset.UTC).toLocalDate();
-            fechaProbableParto = base.plusDays(DIAS_GESTACION);
+            AlertaConfiguracion configuracion = configuracion(user.empresaId());
+            if (command.diasGestacionEstimados() != null) {
+                if (command.diasGestacionEstimados() > configuracion.diasGestacionEstimada()) {
+                    throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION,
+                            "Los días de gestación estimados superan la duración configurada para la empresa.");
+                }
+                int diasRestantes = configuracion.diasGestacionEstimada() - command.diasGestacionEstimados();
+                fechaProbableParto = fecha.atZone(ZoneOffset.UTC).toLocalDate().plusDays(diasRestantes);
+            } else {
+                LocalDate base = (servicio != null ? servicio.fechaServicio() : fecha)
+                        .atZone(ZoneOffset.UTC).toLocalDate();
+                fechaProbableParto = base.plusDays(configuracion.diasGestacionEstimada());
+            }
         }
 
         UUID id = command.id() != null ? command.id() : UUID.randomUUID();
@@ -245,10 +258,11 @@ public class ReproduccionService {
         UUID servicioDiagnosticadoId = servicio == null ? null : servicio.id();
         if (servicioDiagnosticadoId != null) motor().ifPresent(m -> m.resolverPorOrigen(user.empresaId(), "SERVICIO", servicioDiagnosticadoId));
         if (saved.resultado() == ResultadoGestacion.POSITIVO && saved.fechaProbableParto() != null) {
-            int dias = configuracionAlertas == null ? 15 : configuracionAlertas.getIfAvailable(() -> e -> new AlertaConfiguracion(15,7)).obtener(user.empresaId()).diasAlertaPreparto();
-            Instant objetivo=saved.fechaProbableParto().atStartOfDay(ZoneOffset.UTC).toInstant();
-            motor().ifPresent(m -> m.programar(new ProgramarAlertaCommand(user.empresaId(),saved.animalId(),TipoAlerta.PROXIMO_PARTO,
-                    objetivo.minusSeconds(dias*86400L),objetivo,"GESTACION",saved.id(),Map.of())));
+            int dias = configuracion(user.empresaId()).diasAlertaPreparto();
+            Instant objetivo=saved.fechaProbableParto().atStartOfDay(ZONA_NEGOCIO).toInstant();
+            motor().ifPresent(m -> m.programar(new ProgramarAlertaCommand(user.empresaId(),saved.animalId(),TipoAlerta.PARTO_PROXIMO,
+                    objetivo.minusSeconds(dias*86400L),objetivo,"GESTACION",saved.id(),
+                    metadataAnimal(animal, Map.of("fechaProbableParto", objetivo.toString())))));
         }
         if (servicio != null) {
             EstadoServicio estado = switch (saved.resultado()) {
@@ -367,4 +381,15 @@ public class ReproduccionService {
         events.publishEvent(new ReproduccionAuditEvent(user.empresaId(), user.userId(), accion, "REPRODUCCION", id, Instant.now()));
     }
     private java.util.Optional<MotorAlertas> motor(){return alertas==null?java.util.Optional.empty():java.util.Optional.ofNullable(alertas.getIfAvailable());}
+    private AlertaConfiguracion configuracion(UUID empresaId) {
+        if (configuracionAlertas == null) return AlertaConfiguracion.valoresPredeterminados();
+        AlertaConfiguracionPort port = configuracionAlertas.getIfAvailable();
+        return port == null ? AlertaConfiguracion.valoresPredeterminados() : port.obtener(empresaId);
+    }
+    private Map<String, Object> metadataAnimal(Animal animal, Map<String, Object> adicionales) {
+        Map<String, Object> metadata = new HashMap<>(adicionales);
+        metadata.put("animalCodigo", animal.codigo());
+        if (animal.nombre() != null && !animal.nombre().isBlank()) metadata.put("animalNombre", animal.nombre());
+        return metadata;
+    }
 }

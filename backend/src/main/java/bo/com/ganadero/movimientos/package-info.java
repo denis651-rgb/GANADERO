@@ -6,6 +6,7 @@
  * infraestructura interna de otro módulo.</p>
  */
 @org.springframework.modulith.ApplicationModule(
-        type = org.springframework.modulith.ApplicationModule.Type.OPEN
+        type = org.springframework.modulith.ApplicationModule.Type.OPEN,
+        allowedDependencies = {"animales", "lotes", "timeline", "alertas::application", "shared"}
 )
 package bo.com.ganadero.movimientos;

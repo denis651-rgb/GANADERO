@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Activity, ClipboardList, HeartPulse, LayoutDashboard, Stethoscope, Syringe } from 'lucide-react'
 import { useAuth } from '@/auth/auth-context'
@@ -52,7 +53,8 @@ export function SanidadPage() {
   if (catalogs.error) return <div className="page-stack"><PageHeader eyebrow="Campo" title="Sanidad" description="Planes sanitarios, jornadas, casos clínicos y tratamientos." /><Alert tone="danger">{normalizeApiError(catalogs.error).message}</Alert></div>
 
   return <div className="page-stack">
-    <PageHeader eyebrow="Campo" title="Sanidad" description="Planes sanitarios, jornadas, casos clínicos y tratamientos." />
+    <PageHeader eyebrow="Campo" title="Sanidad" description="Planes sanitarios, jornadas, casos clínicos y tratamientos."
+      actions={can('ALERTA_CONFIGURAR') ? <Link className="button button-secondary" to="/alertas">Programar recordatorio</Link> : undefined} />
     <nav className="tabs" aria-label="Secciones de sanidad">
       {seccionesDisponibles.map(({ key, label, icon: Icon }) => <button key={key} type="button" className={`tab-button ${seccion === key ? 'active' : ''}`} onClick={() => setSeccion(key)} aria-current={seccion === key ? 'page' : undefined}><Icon size={16} aria-hidden="true" />{label}</button>)}
     </nav>

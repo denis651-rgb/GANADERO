@@ -21,6 +21,8 @@ export interface ConfiguracionEmpresa {
   moneda: string
   diasAlertaPreparto: number
   diasAlertaVacunacion: number
+  diasDiagnosticoPostServicio: number
+  diasGestacionEstimada: number
   diasSinPesaje: number
   permitirStockNegativo: boolean
   requiereAprobacionVenta: boolean

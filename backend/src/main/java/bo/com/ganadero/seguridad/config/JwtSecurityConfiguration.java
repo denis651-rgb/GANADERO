@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -37,6 +38,13 @@ class JwtSecurityConfiguration {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/bootstrap/empresa-inicial").permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/internal/jobs/alertas/activar",
+                                "/api/internal/jobs/alertas/pesajes/generar",
+                                "/api/internal/jobs/alertas/vacunacion/generar",
+                                "/api/internal/jobs/alertas/tratamientos/vencidos",
+                                "/api/internal/jobs/alertas/recordatorios/procesar",
+                                "/api/internal/jobs/notificaciones/procesar").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exceptions -> exceptions
