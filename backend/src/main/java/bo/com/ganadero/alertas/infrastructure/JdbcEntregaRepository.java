@@ -64,7 +64,7 @@ public class JdbcEntregaRepository implements EntregaRepository {
                 join alertas.alertas a on a.id = e.alerta_id
                 join alertas.suscripciones_push s on s.id = e.suscripcion_id
                 where e.estado = 'PENDIENTE'
-                   or (e.estado = 'ERROR' and e.intentos < :m
+                   or (e.estado = 'ERROR' and e.reintentable and e.intentos < :m
                        and coalesce(e.proximo_intento_at, e.updated_at) <= now())
                 order by e.created_at
                 limit :l
@@ -84,11 +84,14 @@ public class JdbcEntregaRepository implements EntregaRepository {
                 .update();
     }
 
-    public void marcarError(UUID alertaId, UUID suscripcionId, String error, Instant proximoIntentoAt) {
+    public void marcarError(UUID alertaId, UUID suscripcionId, String error, Instant proximoIntentoAt,
+                            boolean reintentable) {
         jdbc.sql("update alertas.entregas_notificacion set estado='ERROR',intentos=intentos+1,"
-                + "ultimo_error=:e,proximo_intento_at=:p,updated_at=now() where alerta_id=:a and suscripcion_id=:s")
+                + "ultimo_error=:e,proximo_intento_at=:p,reintentable=:r,updated_at=now() "
+                + "where alerta_id=:a and suscripcion_id=:s")
                 .param("e", truncate(error))
                 .param("p", Timestamp.from(proximoIntentoAt))
+                .param("r", reintentable)
                 .param("a", alertaId)
                 .param("s", suscripcionId)
                 .update();
@@ -104,7 +107,8 @@ public class JdbcEntregaRepository implements EntregaRepository {
 
     public boolean tienePendientes(UUID alertaId, int maxIntentos) {
         Integer count = jdbc.sql("select count(*) from alertas.entregas_notificacion "
-                + "where alerta_id=:a and (estado='PENDIENTE' or (estado='ERROR' and intentos<:m))")
+                + "where alerta_id=:a and (estado='PENDIENTE' "
+                + "or (estado='ERROR' and reintentable and intentos<:m))")
                 .param("a", alertaId)
                 .param("m", maxIntentos)
                 .query(Integer.class)

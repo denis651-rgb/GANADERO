@@ -105,7 +105,7 @@ public class ProcesadorAlertasProgramadasService {
                 enviadas++;
             } else {
                 entregas.marcarError(entrega.alerta().id(), entrega.suscripcion().id(), resultado.error(),
-                        proximoIntento(entrega.intentos() + 1));
+                        proximoIntento(entrega.intentos() + 1), resultado.reintentable());
                 if (resultado.suscripcionInvalida()) {
                     suscripciones.desactivarTodas(entrega.suscripcion().id(), entrega.alerta().empresaId());
                     entregas.marcarDescartada(entrega.alerta().id(), entrega.suscripcion().id());

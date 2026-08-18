@@ -1,6 +1,7 @@
 package bo.com.ganadero.alertas.api;
 
 import bo.com.ganadero.alertas.application.PushSubscriptionService;
+import bo.com.ganadero.alertas.application.PushTestService;
 import bo.com.ganadero.alertas.domain.PreferenciasNotificacion;
 import bo.com.ganadero.shared.api.ApiResponse;
 import bo.com.ganadero.shared.web.CorrelationIdFilter;
@@ -16,9 +17,11 @@ import java.util.UUID;
 @RequestMapping("/api/v1/alertas")
 public class PushSubscriptionController {
     private final PushSubscriptionService service;
+    private final PushTestService pushTestService;
 
-    public PushSubscriptionController(PushSubscriptionService service) {
+    public PushSubscriptionController(PushSubscriptionService service, PushTestService pushTestService) {
         this.service = service;
+        this.pushTestService = pushTestService;
     }
 
     @GetMapping("/push/public-key")
@@ -42,6 +45,11 @@ public class PushSubscriptionController {
     ApiResponse<Void> eliminar(@PathVariable UUID id, HttpServletRequest request) {
         service.eliminar(id);
         return ok(null, request);
+    }
+
+    @PostMapping("/notificaciones/push/prueba")
+    ApiResponse<PushTestResponse> probar(@Valid @RequestBody PushTestRequest body, HttpServletRequest request) {
+        return ok(pushTestService.enviar(body), request);
     }
 
     @GetMapping("/configuracion")

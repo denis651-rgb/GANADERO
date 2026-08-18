@@ -25,7 +25,7 @@ public class PushSubscriptionService {
                                    @Value("${ganadero.push.vapid-public-key:}") String vapidPublicKey) {
         this.repo = repo;
         this.context = context;
-        this.vapidPublicKey = vapidPublicKey;
+        this.vapidPublicKey = clean(vapidPublicKey);
     }
 
     @Transactional
@@ -65,5 +65,12 @@ public class PushSubscriptionService {
 
     public Map<String, String> clavePublica() {
         return Map.of("publicKey", vapidPublicKey);
+    }
+
+    private static String clean(String value) {
+        if (value == null) return "";
+        String trimmed = value.trim();
+        return trimmed.length() >= 2 && trimmed.startsWith("\"") && trimmed.endsWith("\"")
+                ? trimmed.substring(1, trimmed.length() - 1).trim() : trimmed;
     }
 }
