@@ -34,18 +34,19 @@ public class CodigoService {
         }
         UUID ambito = ambitoId == null ? SIN_AMBITO : ambitoId;
         int periodo = anio == null ? 0 : anio;
-        long numero = jdbc.sql("""
-                insert into core.secuencias_codigo
-                    (empresa_id,tipo_entidad,ambito_id,anio,ultimo_numero)
-                values (:empresa,:tipo,:ambito,:anio,1)
-                on conflict (empresa_id,tipo_entidad,ambito_id,anio)
-                do update set ultimo_numero=core.secuencias_codigo.ultimo_numero+1,updated_at=now()
-                returning ultimo_numero
+        jdbc.sql("""
+                insert into secuencia_codigo
+                    (tipo_entidad,ambito_id,anio,ultimo_numero)
+                values (:tipo,:ambito,:anio,1)
+                on conflict (tipo_entidad,ambito_id,anio)
+                do update set ultimo_numero=secuencia_codigo.ultimo_numero+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')
                 """)
-                .param("empresa", user.empresaId())
                 .param("tipo", tipo.name())
-                .param("ambito", ambito)
+                .param("ambito", ambito.toString())
                 .param("anio", periodo)
+                .update();
+        long numero = jdbc.sql("select ultimo_numero from secuencia_codigo where tipo_entidad=:tipo and ambito_id=:ambito and anio=:anio")
+                .param("tipo", tipo.name()).param("ambito", ambito.toString()).param("anio", periodo)
                 .query(Long.class).single();
         return formatear(tipo, ambitoId, periodo, numero);
     }
@@ -66,15 +67,15 @@ public class CodigoService {
         long numero = numeroCompatible(tipo, anio == null ? 0 : anio, codigo);
         if (numero < 1) return;
         jdbc.sql("""
-                insert into core.secuencias_codigo
-                    (empresa_id,tipo_entidad,ambito_id,anio,ultimo_numero)
-                values (:empresa,:tipo,:ambito,:anio,:numero)
-                on conflict (empresa_id,tipo_entidad,ambito_id,anio)
-                do update set ultimo_numero=greatest(core.secuencias_codigo.ultimo_numero,excluded.ultimo_numero),
-                              updated_at=now()
+                insert into secuencia_codigo
+                    (tipo_entidad,ambito_id,anio,ultimo_numero)
+                values (:tipo,:ambito,:anio,:numero)
+                on conflict (tipo_entidad,ambito_id,anio)
+                do update set ultimo_numero=max(secuencia_codigo.ultimo_numero,excluded.ultimo_numero),
+                              updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')
                 """)
-                .param("empresa", user.empresaId()).param("tipo", tipo.name())
-                .param("ambito", ambitoId == null ? SIN_AMBITO : ambitoId)
+                .param("tipo", tipo.name())
+                .param("ambito", (ambitoId == null ? SIN_AMBITO : ambitoId).toString())
                 .param("anio", anio == null ? 0 : anio).param("numero", numero).update();
     }
 
@@ -95,22 +96,14 @@ public class CodigoService {
             case PROPIEDAD -> "PRP-" + rellenar(numero, 3);
             case ANIMAL -> "ANI-" + rellenar(numero, 6);
             case LOTE -> "LOT-" + anio + "-" + rellenar(numero, 4);
-            case SECTOR -> codigoConPropiedad(ambitoId, "SEC", numero);
-            case POTRERO -> codigoConPropiedad(ambitoId, "POT", numero);
+            case SECTOR -> codigoConPropiedad("SEC", numero);
+            case POTRERO -> codigoConPropiedad("POT", numero);
         };
     }
 
-    private String codigoConPropiedad(UUID propiedadId, String tipo, long numero) {
-        if (propiedadId == null) throw new BusinessException(ErrorCode.VALIDATION_ERROR);
-        String propiedad = jdbc.sql("select codigo from core.propiedades where id=:id")
-                .param("id", propiedadId).query(String.class).optional()
-                .orElseThrow(() -> new BusinessException(ErrorCode.PROPERTY_NOT_FOUND));
+    private String codigoConPropiedad(String tipo, long numero) {
         String sufijo = "-" + tipo + "-" + rellenar(numero, 3);
-        String prefijo = normalizarManual(propiedad);
-        if (prefijo.length() + sufijo.length() > 60) {
-            prefijo = prefijo.substring(0, 60 - sufijo.length()).replaceAll("-+$", "");
-        }
-        return prefijo + sufijo;
+        return "FINCA" + sufijo;
     }
 
     public String normalizarManual(String codigo) {

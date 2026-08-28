@@ -6,9 +6,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingResponseWrapper;
@@ -62,12 +59,13 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         String hash = sha256(payload);
         CachedBodyRequestWrapper wrappedRequest = new CachedBodyRequestWrapper(request, payload);
 
+        String expiresAt = Instant.now().plusSeconds(ttlHours * 3600).toString();
         int reserved = jdbc.sql("""
-                insert into core.idempotency_records(subject,idempotency_key,http_method,request_path,payload_hash,expires_at)
-                values(:subject,:key,:method,:path,:hash,now() + (:ttlHours || ' hours')::interval)
+                insert into idempotency_records(subject,idempotency_key,http_method,request_path,payload_hash,expires_at)
+                values(:subject,:key,:method,:path,:hash,:expiresAt)
                 on conflict do nothing
                 """).param("subject", subject).param("key", key).param("method", method).param("path", path)
-                .param("hash", hash).param("ttlHours", ttlHours).update();
+                .param("hash", hash).param("expiresAt", expiresAt).update();
 
         if (reserved == 0) {
             Optional<StoredResponse> stored = find(subject, key, method, path);
@@ -96,12 +94,13 @@ public class IdempotencyFilter extends OncePerRequestFilter {
                 remove(subject, key, method, path);
             } else {
                 jdbc.sql("""
-                        update core.idempotency_records set state='COMPLETED',response_status=:status,
+                        update idempotency_records set state='COMPLETED',response_status=:status,
                         response_content_type=:contentType,response_body=:body,correlation_id=:correlationId,
-                        completed_at=now()
+                        completed_at=:completedAt
                         where subject=:subject and idempotency_key=:key and http_method=:method and request_path=:path
                         """).param("status", wrapped.getStatus()).param("contentType", wrapped.getContentType())
                         .param("body", body).param("correlationId", correlationId(wrappedRequest))
+                        .param("completedAt", Instant.now().toString())
                         .param("subject", subject).param("key", key)
                         .param("method", method).param("path", path).update();
             }
@@ -140,15 +139,13 @@ public class IdempotencyFilter extends OncePerRequestFilter {
     }
 
     private String authenticatedSubject() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.getPrincipal() instanceof Jwt jwt) return jwt.getSubject();
-        return "anonymous";
+        return "local";
     }
 
     private Optional<StoredResponse> find(String subject, String key, String method, String path) {
         return jdbc.sql("""
                 select state,response_status,response_content_type,response_body,payload_hash
-                from core.idempotency_records
+                from idempotency_records
                 where subject=:subject and idempotency_key=:key and http_method=:method and request_path=:path
                 """).param("subject", subject).param("key", key).param("method", method).param("path", path)
                 .query(this::map).optional();
@@ -161,7 +158,7 @@ public class IdempotencyFilter extends OncePerRequestFilter {
     }
 
     private void remove(String subject, String key, String method, String path) {
-        jdbc.sql("delete from core.idempotency_records where subject=:subject and idempotency_key=:key and http_method=:method and request_path=:path")
+        jdbc.sql("delete from idempotency_records where subject=:subject and idempotency_key=:key and http_method=:method and request_path=:path")
                 .param("subject", subject).param("key", key).param("method", method).param("path", path).update();
     }
 

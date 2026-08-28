@@ -3,6 +3,7 @@ package bo.com.ganadero.sanidad.application;
 import bo.com.ganadero.alertas.application.MotorAlertas;
 import bo.com.ganadero.alertas.application.ProgramarAlertaCommand;
 import bo.com.ganadero.alertas.application.TipoAlerta;
+import bo.com.ganadero.shared.db.Rows;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,19 +39,18 @@ public class ProcesarAlertasVacunacionService {
 
     int procesar(LocalDate hoy) {
         List<VacunacionPendiente> pendientes = jdbc.sql("""
-                        select a.id, a.empresa_id, a.animal_id, a.proxima_aplicacion,
+                        select a.id, a.animal_id, a.proxima_aplicacion,
                                i.dias_alerta, an.codigo, an.nombre
-                        from sanidad.aplicaciones_sanitarias a
-                        join sanidad.plan_sanitario_items i on i.id = a.plan_item_id
-                        join ganado.animales an on an.id = a.animal_id and an.empresa_id = a.empresa_id
+                        from aplicacion_sanitaria a
+                        join plan_sanitario_item i on i.id = a.plan_item_id
+                        join animal an on an.id = a.animal_id
                         where a.estado = 'APLICADA'
                           and i.tipo_actividad = 'VACUNACION'
                           and a.proxima_aplicacion is not null
-                          and a.proxima_aplicacion <= :hoy + i.dias_alerta
+                          and a.proxima_aplicacion <= date(:hoy, '+' || i.dias_alerta || ' days')
                           and not exists (
-                              select 1 from sanidad.aplicaciones_sanitarias nueva
-                              where nueva.empresa_id = a.empresa_id
-                                and nueva.animal_id = a.animal_id
+                              select 1 from aplicacion_sanitaria nueva
+                              where nueva.animal_id = a.animal_id
                                 and nueva.plan_item_id = a.plan_item_id
                                 and nueva.estado = 'APLICADA'
                                 and nueva.fecha_aplicacion > a.fecha_aplicacion
@@ -58,11 +58,11 @@ public class ProcesarAlertasVacunacionService {
                         order by a.proxima_aplicacion
                         limit 500
                         """)
-                .param("hoy", hoy)
+                .param("hoy", hoy.toString())
                 .query((rs, rowNum) -> new VacunacionPendiente(
-                        rs.getObject("id", UUID.class), rs.getObject("empresa_id", UUID.class),
-                        rs.getObject("animal_id", UUID.class),
-                        rs.getObject("proxima_aplicacion", LocalDate.class),
+                        Rows.uuid(rs, "id"), null,
+                        Rows.uuid(rs, "animal_id"),
+                        rs.getString("proxima_aplicacion") == null ? null : LocalDate.parse(rs.getString("proxima_aplicacion")),
                         rs.getInt("dias_alerta"), rs.getString("codigo"), rs.getString("nombre")))
                 .list();
 

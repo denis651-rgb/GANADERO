@@ -1,14 +1,20 @@
 spring:
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:55432/ganadero}
-    username: ${DATABASE_USERNAME:ganadero}
-    password: ${DATABASE_PASSWORD:ganadero_local_change_me}
+    url: jdbc:sqlite:${GANADERO_DB_PATH:./data/ganadero.db}?foreign_keys=on
+    driver-class-name: org.sqlite.JDBC
     hikari:
-      maximum-pool-size: 5
+      maximum-pool-size: 1
       minimum-idle: 1
       connection-timeout: 30000
   jpa:
     show-sql: false
+    hibernate:
+      # sqlite-jdbc genera un SELECT compuesto para introspeccionar columnas de
+      # todas las tablas a la vez (getColumns con patron "%") y choca con el
+      # limite de terminos de SQLite cuando hay ~30+ tablas. "validate" no es
+      # viable con este driver; se confia en el baseline de Flyway como fuente
+      # de verdad del esquema.
+      ddl-auto: none
   flyway:
     locations: classpath:db/migration,classpath:db/local
 

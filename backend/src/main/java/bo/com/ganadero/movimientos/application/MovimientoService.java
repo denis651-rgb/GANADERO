@@ -305,7 +305,11 @@ public class MovimientoService {
     private void validateDestino(Movimiento movimiento) {
         boolean hasDestino = movimiento.destinoPropiedadId() != null || movimiento.destinoPotreroId() != null
                 || movimiento.destinoLoteId() != null;
-        if (!hasDestino) throw new BusinessException(ErrorCode.INVALID_MOVEMENT_DESTINATION);
+        // SALIDA_VENTA no requiere destino: el animal sale de la finca (unica finca local),
+        // no se mueve a otra propiedad dentro del sistema.
+        if (!hasDestino && movimiento.tipo() != TipoMovimiento.SALIDA_VENTA) {
+            throw new BusinessException(ErrorCode.INVALID_MOVEMENT_DESTINATION);
+        }
         switch (movimiento.tipo()) {
             case CAMBIO_POTRERO, CUARENTENA, RETORNO_CUARENTENA -> {
                 if (movimiento.destinoPotreroId() == null) throw new BusinessException(ErrorCode.INVALID_MOVEMENT_DESTINATION);
@@ -388,12 +392,14 @@ public class MovimientoService {
                         Instant.now(), user.userId());
             }
         }
-        animales.move(animal.id(), user.empresaId(), destino.propiedad(), destino.potrero(), destino.lote(), user.userId());
+        // changeState() exige la version exacta en su WHERE; debe correr antes de move(), que
+        // siempre incrementa version sin verificarla (si no, changeState choca con VERSION_CONFLICT).
         if (movimiento.tipo() == TipoMovimiento.SALIDA_VENTA && animal.estado() == EstadoAnimal.ACTIVO) {
             animales.changeState(animal.id(), user.empresaId(), animal.estado(), EstadoAnimal.VENDIDO,
                     "Venta: " + (movimiento.motivo() == null ? "" : movimiento.motivo()),
                     animal.version(), user.userId());
         }
+        animales.move(animal.id(), user.empresaId(), destino.propiedad(), destino.potrero(), destino.lote(), user.userId());
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("tipo", movimiento.tipo().name());
         metadata.put("fechaMovimiento", movimiento.fechaMovimiento().toString());

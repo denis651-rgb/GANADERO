@@ -95,6 +95,8 @@ public enum ErrorCode {
     PESAJE_FECHA_INVALIDA(HttpStatus.BAD_REQUEST, "La fecha del pesaje no puede ser futura."),
     PESAJE_LOTE_INVALIDO(HttpStatus.CONFLICT, "El lote no pertenece a la empresa o propiedad indicada."),
     PESAJE_MOTIVO_REQUERIDO(HttpStatus.BAD_REQUEST, "El motivo de anulación es obligatorio."),
+    VENTA_NOT_FOUND(HttpStatus.NOT_FOUND, "La venta no existe."),
+    VENTA_PRECIO_INVALIDO(HttpStatus.BAD_REQUEST, "El precio de venta debe ser mayor a cero."),
     REPRODUCCION_NOT_FOUND(HttpStatus.NOT_FOUND, "El registro reproductivo no existe."),
     REPRODUCCION_SOLO_HEMBRA(HttpStatus.UNPROCESSABLE_CONTENT, "La operación reproductiva solo es válida para hembras."),
     REPRODUCCION_FECHA_INVALIDA(HttpStatus.BAD_REQUEST, "La fecha del evento reproductivo no puede ser futura."),

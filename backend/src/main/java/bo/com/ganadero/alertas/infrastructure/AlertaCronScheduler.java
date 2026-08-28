@@ -7,9 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Reloj local del motor de alertas. Solo se registra cuando el scheduler de
- * Spring está habilitado (desarrollo local). En producción debe estar
- * desactivado y el disparo lo hace Supabase Cron vía /api/internal/jobs.
+ * Reloj local del motor de alertas para la app de escritorio.
  */
 @Component
 @ConditionalOnProperty(prefix = "ganadero.alertas.scheduler", name = "enabled", havingValue = "true", matchIfMissing = true)
@@ -24,11 +22,5 @@ public class AlertaCronScheduler {
     @Transactional
     public int activarVencidas() {
         return procesador.activarVencidas();
-    }
-
-    @Scheduled(cron = "${ganadero.alertas.cron-enviar:0 */5 * * * *}")
-    @Transactional
-    public int enviarPendientes() {
-        return procesador.procesarNotificacionesPendientes();
     }
 }

@@ -12,5 +12,6 @@ public record CurrentUser(UUID userId, UUID empresaId, UUID miembroEmpresaId,
         propiedadesPermitidas = Set.copyOf(propiedadesPermitidas);
     }
 
-    public boolean hasPermission(String permiso) { return permisos.contains(permiso); }
+    // App de escritorio de un solo usuario local: acceso total siempre, no hay matriz de permisos.
+    public boolean hasPermission(String permiso) { return true; }
 }

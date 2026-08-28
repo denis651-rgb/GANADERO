@@ -2,6 +2,7 @@ package bo.com.ganadero.movimientos.infrastructure;
 
 import bo.com.ganadero.animales.domain.EstadoAnimal;
 import bo.com.ganadero.movimientos.domain.*;
+import bo.com.ganadero.shared.db.Rows;
 import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -27,15 +28,14 @@ class JdbcMovimientoRepository implements MovimientoRepository {
 
     @Override
     public MovimientoPage findAll(UUID empresa, EstadoMovimiento estado, TipoMovimiento tipo, int page, int size) {
-        StringBuilder where = new StringBuilder(" where m.empresa_id=:e");
+        StringBuilder where = new StringBuilder(" where 1=1");
         Map<String, Object> params = new HashMap<>();
-        params.put("e", empresa);
         if (estado != null) { where.append(" and m.estado=:estado"); params.put("estado", estado.name()); }
         if (tipo != null) { where.append(" and m.tipo=:tipo"); params.put("tipo", tipo.name()); }
-        long total = jdbc.sql("select count(*) from ganado.movimientos m" + where).params(params).query(Long.class).single();
+        long total = jdbc.sql("select count(*) from movimiento m" + where).params(params).query(Long.class).single();
         params.put("limit", size);
         params.put("offset", (long) page * size);
-        List<Movimiento> values = jdbc.sql("select m.* from ganado.movimientos m" + where
+        List<Movimiento> values = jdbc.sql("select m.* from movimiento m" + where
                         + " order by m.created_at desc limit :limit offset :offset")
                 .params(params).query(this::map).list();
         return MovimientoPage.of(values, page, size, total);
@@ -43,43 +43,44 @@ class JdbcMovimientoRepository implements MovimientoRepository {
 
     @Override
     public Optional<Movimiento> findById(UUID id, UUID empresa) {
-        return jdbc.sql("select * from ganado.movimientos where id=:id and empresa_id=:e")
-                .param("id", id).param("e", empresa).query(this::map).optional();
+        return jdbc.sql("select * from movimiento where id=:id")
+                .param("id", id.toString()).query(this::map).optional();
     }
 
     @Override
     public Optional<Movimiento> findByIdForUpdate(UUID id, UUID empresa) {
-        return jdbc.sql("select * from ganado.movimientos where id=:id and empresa_id=:e for update")
-                .param("id", id).param("e", empresa).query(this::map).optional();
+        return jdbc.sql("select * from movimiento where id=:id")
+                .param("id", id.toString()).query(this::map).optional();
     }
 
     @Override
     public Optional<Movimiento> findByOriginal(UUID id, UUID empresa) {
-        return jdbc.sql("select * from ganado.movimientos where movimiento_revertido_id=:id and empresa_id=:e")
-                .param("id", id).param("e", empresa).query(this::map).optional();
+        return jdbc.sql("select * from movimiento where movimiento_revertido_id=:id")
+                .param("id", id.toString()).query(this::map).optional();
     }
 
     @Override
     public List<MovimientoDetalle> findDetalles(UUID movimientoId) {
-        return jdbc.sql("select * from ganado.movimiento_detalles where movimiento_id=:m")
-                .param("m", movimientoId).query(this::mapDetalle).list();
+        return jdbc.sql("select * from movimiento_detalle where movimiento_id=:m")
+                .param("m", movimientoId.toString()).query(this::mapDetalle).list();
     }
 
     @Override
     public Movimiento create(Movimiento movimiento, List<MovimientoAnimal> animales, UUID actor) {
         jdbc.sql("""
-                insert into ganado.movimientos(id,empresa_id,tipo,estado,fecha_movimiento,motivo,observacion,
-                    origen_propiedad_id,origen_potrero_id,origen_lote_id,destino_propiedad_id,destino_potrero_id,
+                insert into movimiento(id,tipo,estado,fecha_movimiento,motivo,observacion,
+                    origen_potrero_id,origen_lote_id,destino_potrero_id,
                     destino_lote_id,usuario_crea,created_by,updated_by)
-                values(:id,:e,:tipo,:estado,:fecha,:motivo,:obs,:op,:opr,:ol,:dp,:dpotrero,:dl,:actor,:actor,:actor)""")
-                .param("id", movimiento.id()).param("e", movimiento.empresaId())
+                values(:id,:tipo,:estado,:fecha,:motivo,:obs,:opr,:ol,:dpotrero,:dl,:actor,:actor,:actor)""")
+                .param("id", movimiento.id().toString())
                 .param("tipo", movimiento.tipo().name()).param("estado", movimiento.estado().name())
-                .param("fecha", movimiento.fechaMovimiento()).param("motivo", movimiento.motivo())
+                .param("fecha", movimiento.fechaMovimiento() == null ? null : movimiento.fechaMovimiento().toString()).param("motivo", movimiento.motivo())
                 .param("obs", movimiento.observacion())
-                .param("op", movimiento.origenPropiedadId()).param("opr", movimiento.origenPotreroId())
-                .param("ol", movimiento.origenLoteId()).param("dp", movimiento.destinoPropiedadId())
-                .param("dpotrero", movimiento.destinoPotreroId()).param("dl", movimiento.destinoLoteId())
-                .param("actor", actor).update();
+                .param("opr", movimiento.origenPotreroId() == null ? null : movimiento.origenPotreroId().toString())
+                .param("ol", movimiento.origenLoteId() == null ? null : movimiento.origenLoteId().toString())
+                .param("dpotrero", movimiento.destinoPotreroId() == null ? null : movimiento.destinoPotreroId().toString())
+                .param("dl", movimiento.destinoLoteId() == null ? null : movimiento.destinoLoteId().toString())
+                .param("actor", actor.toString()).update();
         insertDetalles(movimiento, animales);
         return findById(movimiento.id(), movimiento.empresaId()).orElseThrow();
     }
@@ -87,29 +88,31 @@ class JdbcMovimientoRepository implements MovimientoRepository {
     @Override
     public Movimiento saveConfirmed(Movimiento movimiento, List<MovimientoAnimal> animales, UUID actor) {
         jdbc.sql("""
-                insert into ganado.movimientos(id,empresa_id,tipo,estado,fecha_movimiento,motivo,observacion,
-                    origen_propiedad_id,origen_potrero_id,origen_lote_id,destino_propiedad_id,destino_potrero_id,
+                insert into movimiento(id,tipo,estado,fecha_movimiento,motivo,observacion,
+                    origen_potrero_id,origen_lote_id,destino_potrero_id,
                     destino_lote_id,usuario_crea,usuario_confirma,fecha_confirmacion,movimiento_revertido_id,
                     created_by,updated_by)
-                values(:id,:e,:tipo,'CONFIRMADO',:fecha,:motivo,:obs,:op,:opr,:ol,:dp,:dpotrero,:dl,:actor,:actor,
-                    now(),:rev,:actor,:actor)""")
-                .param("id", movimiento.id()).param("e", movimiento.empresaId())
+                values(:id,:tipo,'CONFIRMADO',:fecha,:motivo,:obs,:opr,:ol,:dpotrero,:dl,:actor,:actor,
+                    strftime('%Y-%m-%dT%H:%M:%fZ','now'),:rev,:actor,:actor)""")
+                .param("id", movimiento.id().toString())
                 .param("tipo", movimiento.tipo().name())
-                .param("fecha", movimiento.fechaMovimiento()).param("motivo", movimiento.motivo())
+                .param("fecha", movimiento.fechaMovimiento() == null ? null : movimiento.fechaMovimiento().toString()).param("motivo", movimiento.motivo())
                 .param("obs", movimiento.observacion())
-                .param("op", movimiento.origenPropiedadId()).param("opr", movimiento.origenPotreroId())
-                .param("ol", movimiento.origenLoteId()).param("dp", movimiento.destinoPropiedadId())
-                .param("dpotrero", movimiento.destinoPotreroId()).param("dl", movimiento.destinoLoteId())
-                .param("rev", movimiento.movimientoRevertidoId()).param("actor", actor).update();
+                .param("opr", movimiento.origenPotreroId() == null ? null : movimiento.origenPotreroId().toString())
+                .param("ol", movimiento.origenLoteId() == null ? null : movimiento.origenLoteId().toString())
+                .param("dpotrero", movimiento.destinoPotreroId() == null ? null : movimiento.destinoPotreroId().toString())
+                .param("dl", movimiento.destinoLoteId() == null ? null : movimiento.destinoLoteId().toString())
+                .param("rev", movimiento.movimientoRevertidoId() == null ? null : movimiento.movimientoRevertidoId().toString())
+                .param("actor", actor.toString()).update();
         insertDetalles(movimiento, animales);
         return findById(movimiento.id(), movimiento.empresaId()).orElseThrow();
     }
 
     private void insertDetalles(Movimiento movimiento, List<MovimientoAnimal> animales) {
         for (MovimientoAnimal animal : animales) {
-            jdbc.sql("insert into ganado.movimiento_detalles(id,movimiento_id,animal_id,empresa_id,animal_version_esperada,estado_antes,estado_despues) values(:id,:m,:animal,:e,:ave,:antes,:despues)")
-                    .param("id", UUID.randomUUID()).param("m", movimiento.id()).param("animal", animal.animalId())
-                    .param("e", movimiento.empresaId()).param("ave", animal.version())
+            jdbc.sql("insert into movimiento_detalle(id,movimiento_id,animal_id,animal_version_esperada,estado_antes,estado_despues) values(:id,:m,:animal,:ave,:antes,:despues)")
+                    .param("id", UUID.randomUUID().toString()).param("m", movimiento.id().toString()).param("animal", animal.animalId().toString())
+                    .param("ave", animal.version())
                     .param("antes", "ACTIVO").param("despues", "ACTIVO").update();
         }
     }
@@ -117,10 +120,10 @@ class JdbcMovimientoRepository implements MovimientoRepository {
     @Override
     public Movimiento confirm(UUID id, UUID empresa, long version, UUID actor) {
         int changed = jdbc.sql("""
-                update ganado.movimientos set estado='CONFIRMADO',usuario_confirma=:actor,fecha_confirmacion=now(),
-                    updated_at=now(),updated_by=:actor,version=version+1
-                where id=:id and empresa_id=:e and version=:version and estado='PENDIENTE'""")
-                .param("actor", actor).param("id", id).param("e", empresa).param("version", version).update();
+                update movimiento set estado='CONFIRMADO',usuario_confirma=:actor,fecha_confirmacion=strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+                    updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),updated_by=:actor,version=version+1
+                where id=:id and version=:version and estado='PENDIENTE'""")
+                .param("actor", actor.toString()).param("id", id.toString()).param("version", version).update();
         if (changed == 0) throw missingOrConflict(id, empresa);
         return findById(id, empresa).orElseThrow();
     }
@@ -128,10 +131,10 @@ class JdbcMovimientoRepository implements MovimientoRepository {
     @Override
     public Movimiento annul(UUID id, UUID empresa, String motivo, long version, UUID actor) {
         int changed = jdbc.sql("""
-                update ganado.movimientos set estado='ANULADO',usuario_anula=:actor,fecha_anulacion=now(),
-                    motivo_anulacion=:motivo,updated_at=now(),updated_by=:actor,version=version+1
-                where id=:id and empresa_id=:e and version=:version and estado='PENDIENTE'""")
-                .param("actor", actor).param("id", id).param("e", empresa).param("version", version)
+                update movimiento set estado='ANULADO',usuario_anula=:actor,fecha_anulacion=strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+                    motivo_anulacion=:motivo,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),updated_by=:actor,version=version+1
+                where id=:id and version=:version and estado='PENDIENTE'""")
+                .param("actor", actor.toString()).param("id", id.toString()).param("version", version)
                 .param("motivo", motivo).update();
         if (changed == 0) throw missingOrConflict(id, empresa);
         return findById(id, empresa).orElseThrow();
@@ -140,12 +143,12 @@ class JdbcMovimientoRepository implements MovimientoRepository {
     @Override
     public Movimiento markReverted(UUID id, UUID empresa, UUID reversionId, String motivo, long version, UUID actor) {
         int changed = jdbc.sql("""
-                update ganado.movimientos set estado='REVERTIDO',usuario_revierte=:actor,fecha_reversion=now(),
-                    motivo_reversion=:motivo,movimiento_reversion_id=:rev,updated_at=now(),updated_by=:actor,
+                update movimiento set estado='REVERTIDO',usuario_revierte=:actor,fecha_reversion=strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+                    motivo_reversion=:motivo,movimiento_reversion_id=:rev,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),updated_by=:actor,
                     version=version+1
-                where id=:id and empresa_id=:e and version=:version and estado='CONFIRMADO'""")
-                .param("actor", actor).param("id", id).param("e", empresa).param("version", version)
-                .param("motivo", motivo).param("rev", reversionId).update();
+                where id=:id and version=:version and estado='CONFIRMADO'""")
+                .param("actor", actor.toString()).param("id", id.toString()).param("version", version)
+                .param("motivo", motivo).param("rev", reversionId == null ? null : reversionId.toString()).update();
         if (changed == 0) throw missingOrConflict(id, empresa);
         return findById(id, empresa).orElseThrow();
     }
@@ -154,36 +157,38 @@ class JdbcMovimientoRepository implements MovimientoRepository {
     public void saveDetalleUbicaciones(UUID movimientoId, List<MovimientoDetalle> detalle) {
         for (MovimientoDetalle d : detalle) {
             jdbc.sql("""
-                    update ganado.movimiento_detalles set animal_version_esperada=:ave,propiedad_antes=:pa,
-                        potrero_antes=:pr,lote_antes=:la,propiedad_despues=:pd,potrero_despues=:prd,lote_despues=:ld,
+                    update movimiento_detalle set animal_version_esperada=:ave,
+                        potrero_antes=:pr,lote_antes=:la,potrero_despues=:prd,lote_despues=:ld,
                         estado_resultado=:er,mensaje_resultado=:mr
                     where id=:id""")
                     .param("ave", d.animalVersionEsperada())
-                    .param("pa", d.propiedadAntes()).param("pr", d.potreroAntes()).param("la", d.loteAntes())
-                    .param("pd", d.propiedadDespues()).param("prd", d.potreroDespues()).param("ld", d.loteDespues())
+                    .param("pr", d.potreroAntes() == null ? null : d.potreroAntes().toString())
+                    .param("la", d.loteAntes() == null ? null : d.loteAntes().toString())
+                    .param("prd", d.potreroDespues() == null ? null : d.potreroDespues().toString())
+                    .param("ld", d.loteDespues() == null ? null : d.loteDespues().toString())
                     .param("er", d.estadoResultado()).param("mr", d.mensajeResultado())
-                    .param("id", d.id()).update();
+                    .param("id", d.id().toString()).update();
         }
     }
 
     private Movimiento map(ResultSet rs, int rowNum) throws SQLException {
-        Instant confirmacion = rs.getTimestamp("fecha_confirmacion") == null ? null : rs.getTimestamp("fecha_confirmacion").toInstant();
-        Instant anulacion = rs.getTimestamp("fecha_anulacion") == null ? null : rs.getTimestamp("fecha_anulacion").toInstant();
-        Instant reversion = rs.getTimestamp("fecha_reversion") == null ? null : rs.getTimestamp("fecha_reversion").toInstant();
+        Instant confirmacion = Rows.instant(rs, "fecha_confirmacion");
+        Instant anulacion = Rows.instant(rs, "fecha_anulacion");
+        Instant reversion = Rows.instant(rs, "fecha_reversion");
         return new Movimiento(
-                rs.getObject("id", UUID.class), rs.getObject("empresa_id", UUID.class),
+                Rows.uuid(rs, "id"), null,
                 TipoMovimiento.valueOf(rs.getString("tipo")), EstadoMovimiento.valueOf(rs.getString("estado")),
-                rs.getObject("fecha_movimiento", LocalDate.class), rs.getString("motivo"),
+                rs.getString("fecha_movimiento") == null ? null : LocalDate.parse(rs.getString("fecha_movimiento")), rs.getString("motivo"),
                 rs.getString("observacion"),
-                rs.getObject("origen_propiedad_id", UUID.class), rs.getObject("origen_potrero_id", UUID.class),
-                rs.getObject("origen_lote_id", UUID.class), rs.getObject("destino_propiedad_id", UUID.class),
-                rs.getObject("destino_potrero_id", UUID.class), rs.getObject("destino_lote_id", UUID.class),
-                rs.getObject("usuario_crea", UUID.class), rs.getObject("usuario_confirma", UUID.class),
-                rs.getObject("usuario_anula", UUID.class), confirmacion, anulacion,
-                rs.getString("motivo_anulacion"), rs.getObject("usuario_revierte", UUID.class),
+                null, Rows.uuid(rs, "origen_potrero_id"),
+                Rows.uuid(rs, "origen_lote_id"), null,
+                Rows.uuid(rs, "destino_potrero_id"), Rows.uuid(rs, "destino_lote_id"),
+                Rows.uuid(rs, "usuario_crea"), Rows.uuid(rs, "usuario_confirma"),
+                Rows.uuid(rs, "usuario_anula"), confirmacion, anulacion,
+                rs.getString("motivo_anulacion"), Rows.uuid(rs, "usuario_revierte"),
                 reversion, rs.getString("motivo_reversion"),
-                rs.getObject("movimiento_revertido_id", UUID.class),
-                rs.getObject("movimiento_reversion_id", UUID.class),
+                Rows.uuid(rs, "movimiento_revertido_id"),
+                Rows.uuid(rs, "movimiento_reversion_id"),
                 rs.getLong("version"));
     }
 
@@ -191,13 +196,13 @@ class JdbcMovimientoRepository implements MovimientoRepository {
         String antes = rs.getString("estado_antes");
         String despues = rs.getString("estado_despues");
         return new MovimientoDetalle(
-                rs.getObject("id", UUID.class), rs.getObject("movimiento_id", UUID.class),
-                rs.getObject("animal_id", UUID.class), rs.getLong("animal_version_esperada"),
+                Rows.uuid(rs, "id"), Rows.uuid(rs, "movimiento_id"),
+                Rows.uuid(rs, "animal_id"), rs.getLong("animal_version_esperada"),
                 antes == null ? null : EstadoAnimal.valueOf(antes),
                 despues == null ? null : EstadoAnimal.valueOf(despues),
-                rs.getObject("propiedad_antes", UUID.class), rs.getObject("potrero_antes", UUID.class),
-                rs.getObject("lote_antes", UUID.class), rs.getObject("propiedad_despues", UUID.class),
-                rs.getObject("potrero_despues", UUID.class), rs.getObject("lote_despues", UUID.class),
+                null, Rows.uuid(rs, "potrero_antes"),
+                Rows.uuid(rs, "lote_antes"), null,
+                Rows.uuid(rs, "potrero_despues"), Rows.uuid(rs, "lote_despues"),
                 rs.getString("estado_resultado"), rs.getString("mensaje_resultado"));
     }
 

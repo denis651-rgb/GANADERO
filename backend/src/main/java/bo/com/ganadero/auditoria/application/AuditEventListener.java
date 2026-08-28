@@ -12,7 +12,6 @@ import bo.com.ganadero.potreros.application.PotreroAuditEvent;
 import bo.com.ganadero.propiedades.application.CampoAuditEvent;
 import bo.com.ganadero.reproduccion.application.ReproduccionAuditEvent;
 import bo.com.ganadero.sanidad.application.SanidadAuditEvent;
-import bo.com.ganadero.seguridad.application.SeguridadAuditEvent;
 import bo.com.ganadero.shared.audit.EmpresaAuditEvent;
 import bo.com.ganadero.shared.audit.SyncAuditEvent;
 import bo.com.ganadero.shared.web.CorrelationIdFilter;
@@ -65,11 +64,6 @@ public class AuditEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onPotrero(PotreroAuditEvent event) {
         persist(event.empresaId(), event.usuarioId(), event.accion(), "POTREROS", event.entidad(), event.entidadId());
-    }
-
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onSeguridad(SeguridadAuditEvent event) {
-        persist(event.empresaId(), event.usuarioId(), event.accion(), "SEGURIDAD", event.entidadTipo(), event.entidadId());
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
