@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { AnimalSearchSelect } from './AnimalSearchSelect'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useAuth } from '@/auth/auth-context'
 import {
   estadoRegistroBadge,
   ESTADO_REGISTRO_LABELS,
   registrarDestete,
+  getMadreDestete,
   TIPO_DESTETE_LABELS,
   type Destete,
   type PageResponse,
@@ -35,13 +36,16 @@ export function DestetesPanel({ destetes, isLoading, error, catalogs, refresh }:
   const { can } = useAuth()
   const canRegistrar = can('REPRODUCCION_REGISTRAR')
   const [showForm, setShowForm] = useState(false)
+  const [criaId, setCriaId] = useState('')
+  const madre = useQuery({ queryKey: ['madre-destete', criaId], queryFn: () => getMadreDestete(criaId), enabled: showForm && !!criaId, retry: false })
 
   const crear = useMutation({
     mutationFn: (form: HTMLFormElement) => {
       const data = new FormData(form)
+      if (!criaId || !madre.data || madre.isFetching || madre.isError) throw new Error('No se pudo identificar la madre registrada de la cría.')
       return registrarDestete({
-        animalCriaId: String(data.get('animalCriaId')),
-        madreId: String(data.get('madreId')),
+        animalCriaId: criaId,
+        madreId: madre.data.id,
         fechaDestete: String(data.get('fechaDestete')),
         pesoDesteteKg: Number(data.get('pesoDesteteKg')),
         tipoDestete: String(data.get('tipoDestete')) as Destete['tipoDestete'],
@@ -79,14 +83,15 @@ export function DestetesPanel({ destetes, isLoading, error, catalogs, refresh }:
 
     <Modal open={showForm} title="Registrar destete" onClose={() => setShowForm(false)} description="Registra el destete de una cría.">
       <form className="form-grid" onSubmit={(event) => { event.preventDefault(); crear.mutate(event.currentTarget) }}>
-        <AnimalSearchSelect label="Cría" name="animalCriaId" />
-        <AnimalSearchSelect label="Madre" name="madreId" sexo="HEMBRA" />
+        <AnimalSearchSelect label="Cría" name="animalCriaId" value={criaId} onChange={setCriaId} />
+        <Field label="Madre" hint="Se obtiene automáticamente del parto registrado de la cría."><input readOnly value={!criaId ? 'Selecciona primero la cría' : madre.isFetching ? 'Consultando madre…' : madre.isError ? 'No se pudo identificar la madre' : madre.data ? [madre.data.nombre, madre.data.codigo].filter(Boolean).join(' · ') : 'Sin madre registrada'} /></Field>
+        {!!criaId && madre.isError && <div className="form-full"><p role="alert">{normalizeApiError(madre.error).message}</p><Button type="button" variant="ghost" onClick={() => void madre.refetch()}>Reintentar</Button></div>}
         <Field label="Fecha del destete" required><input name="fechaDestete" type="date" required /></Field>
         <Field label="Peso al destete (kg)" required><input name="pesoDesteteKg" type="number" inputMode="decimal" min="0.01" step="0.01" required /></Field>
         <Field label="Tipo de destete" required><select name="tipoDestete" required><option value="" disabled>Selecciona…</option>{Object.entries(TIPO_DESTETE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
         <Field label="Motivo"><input name="motivo" maxLength={500} /></Field>
         <div className="form-full"><Field label="Observaciones"><textarea name="observaciones" rows={2} maxLength={1000} /></Field></div>
-        <div className="form-actions"><Button type="submit" loading={crear.isPending}>Registrar destete</Button></div>
+        <div className="form-actions"><Button type="submit" loading={crear.isPending} disabled={!criaId || !madre.data || madre.isFetching || madre.isError}>Registrar destete</Button></div>
       </form>
     </Modal>
   </div>

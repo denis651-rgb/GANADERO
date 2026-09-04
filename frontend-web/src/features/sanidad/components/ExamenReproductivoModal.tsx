@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { AnimalSummary } from '@/features/animales/types'
 import {
   crearExamenReproductivo,
+  getConfiguracionSanitaria,
   ENFERMEDAD_REPRODUCTIVA_LABELS,
   listExamenesReproductivos,
   RESULTADO_EXAMEN_REPRODUCTIVO_LABELS,
@@ -29,6 +30,8 @@ const ENFERMEDADES = Object.keys(ENFERMEDAD_REPRODUCTIVA_LABELS) as EnfermedadRe
 
 export function ExamenReproductivoModal({ animal, onClose, onSaved }: ExamenReproductivoModalProps) {
   const client = useQueryClient()
+  const config = useQuery({ queryKey: ['sanidad-configuracion'], queryFn: getConfiguracionSanitaria })
+  const edadMinima = animal.sexo === 'MACHO' ? config.data?.edadMinMachoMeses : config.data?.edadMinHembraMeses
   const historial = useQuery({
     queryKey: ['sanidad-examen-reproductivo', animal.id],
     queryFn: () => listExamenesReproductivos(animal.id),
@@ -72,9 +75,12 @@ export function ExamenReproductivoModal({ animal, onClose, onSaved }: ExamenRepr
 
   return <Modal open title="Registrar examen reproductivo" onClose={onClose} wide description={`Examen reproductivo de ${animal.codigo}.`}>
     <div className="page-stack">
+      <p className="muted">{edadMinima ? `Edad mínima configurada: ${edadMinima} meses. Se comprueba en la fecha del examen.` : 'Configure las edades mínimas en Sanidad → Planes sanitarios antes de guardar.'}</p>
+      <p className="muted">La edad no acredita aptitud. Para APTO complete la evaluación física y reproductiva y documente la conclusión en observaciones. Una fecha de nacimiento estimada no acredita por sí sola la madurez.</p>
+      {config.error && <Alert tone="danger">{normalizeApiError(config.error).message}<button type="button" onClick={() => void config.refetch()}>Reintentar</button></Alert>}
       <form className="form-grid" onSubmit={(event) => { event.preventDefault(); crear.mutate(event.currentTarget) }}>
         <Field label="Fecha" required><input name="fecha" type="date" required /></Field>
-        <Field label="Resultado general" required><select name="resultado" required defaultValue="APTO">{(Object.keys(RESULTADO_EXAMEN_REPRODUCTIVO_LABELS) as ResultadoExamenReproductivo[]).map((resultado) => <option key={resultado} value={resultado}>{RESULTADO_EXAMEN_REPRODUCTIVO_LABELS[resultado]}</option>)}</select></Field>
+        <Field label="Resultado general" required><select name="resultado" required defaultValue="OBSERVACION">{(Object.keys(RESULTADO_EXAMEN_REPRODUCTIVO_LABELS) as ResultadoExamenReproductivo[]).map((resultado) => <option key={resultado} value={resultado}>{RESULTADO_EXAMEN_REPRODUCTIVO_LABELS[resultado]}</option>)}</select></Field>
 
         {animal.sexo === 'MACHO' && <>
           <Field label="Circunferencia escrotal (cm)"><input name="circunferenciaEscrotalCm" type="number" inputMode="decimal" step="0.1" /></Field>
@@ -99,7 +105,7 @@ export function ExamenReproductivoModal({ animal, onClose, onSaved }: ExamenRepr
         </Field>)}
 
         <div className="form-full"><Field label="Observaciones"><textarea name="observaciones" rows={3} maxLength={1000} /></Field></div>
-        <div className="form-actions"><Button type="submit" loading={crear.isPending}>Guardar examen</Button></div>
+        <div className="form-actions"><Button type="submit" disabled={!edadMinima || Boolean(config.error)} loading={crear.isPending}>Guardar examen</Button></div>
       </form>
       {crear.error && <Alert tone="danger">{normalizeApiError(crear.error).message}</Alert>}
 

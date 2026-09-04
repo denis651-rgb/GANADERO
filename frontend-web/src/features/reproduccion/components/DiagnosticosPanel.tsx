@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { AnimalSearchSelect } from './AnimalSearchSelect'
 import type { AnimalSummary } from '@/features/animales/types'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { getLote } from '@/features/lotes/api'
 import { Plus } from 'lucide-react'
 import { useAuth } from '@/auth/auth-context'
 import {
@@ -42,6 +43,12 @@ export function DiagnosticosPanel({ diagnosticos, servicios, isLoading, error, c
   const [resultado, setResultado] = useState('')
   const [propiedadId, setPropiedadId] = useState('')
   const [potreroId, setPotreroId] = useState('')
+  const [loteId, setLoteId] = useState('')
+  const loteCatalogo = catalogs?.lots.find((lote) => lote.id === loteId)
+  const loteActual = useQuery({
+    queryKey: ['lote', loteId], queryFn: () => getLote(loteId),
+    enabled: showForm && !!loteId && !loteCatalogo,
+  })
 
   const crear = useMutation({
     mutationFn: (form: HTMLFormElement) => {
@@ -57,7 +64,7 @@ export function DiagnosticosPanel({ diagnosticos, servicios, isLoading, error, c
         observaciones: String(data.get('observaciones') || '') || undefined,
         propiedadId: propiedadId || undefined,
         potreroId: potreroId || undefined,
-        loteId: String(data.get('loteId') || '') || undefined,
+        loteId: loteId || undefined,
         clienteUuid: crypto.randomUUID(),
       })
     },
@@ -69,6 +76,7 @@ export function DiagnosticosPanel({ diagnosticos, servicios, isLoading, error, c
     const animal = seleccionado ?? catalogs?.hembras.find((item) => item.id === id)
     setPropiedadId(animal?.propiedadActualId ?? '')
     setPotreroId(animal?.potreroActualId ?? '')
+    setLoteId(animal?.loteActualId ?? '')
   }
 
   const errorVisible = error ?? crear.error
@@ -97,7 +105,7 @@ export function DiagnosticosPanel({ diagnosticos, servicios, isLoading, error, c
     <Modal open={showForm} title="Registrar diagnóstico" onClose={() => setShowForm(false)} description="Registra el resultado de un diagnóstico de gestación.">
       <form className="form-grid" onSubmit={(event) => { event.preventDefault(); crear.mutate(event.currentTarget) }}>
         <AnimalSearchSelect label="Animal" name="animalId" sexo="HEMBRA" value={animalId} onChange={seleccionarAnimal} />
-        <Field label="Servicio asociado"><select name="servicioId"><option value="">Sin asociar</option>{servicios.filter((item) => !animalId || item.hembraId === animalId).map((servicio) => <option key={servicio.id} value={servicio.id}>Servicio {new Date(servicio.fechaServicio).toLocaleString('es-BO')} (#{servicio.numeroIntento})</option>)}</select></Field>
+        <Field label="Servicio asociado" hint="Un resultado positivo abre la gestación. Sin servicio, se registra con antecedentes desconocidos, sin inventar una monta."><select name="servicioId" key={animalId}><option value="">Sin servicio conocido</option>{servicios.filter((item) => item.hembraId === animalId && item.estado !== 'ANULADO' && item.estado !== 'FINALIZADO').map((servicio) => <option key={servicio.id} value={servicio.id}>Servicio {new Date(servicio.fechaServicio).toLocaleString('es-BO')} (#{servicio.numeroIntento})</option>)}</select></Field>
         <Field label="Fecha y hora del diagnóstico" required><input name="fechaDiagnostico" type="datetime-local" required /></Field>
         <Field label="Resultado" required><select name="resultado" required value={resultado} onChange={(event) => setResultado(event.target.value)}><option value="" disabled>Selecciona…</option>{Object.entries(RESULTADO_GESTACION_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
         {resultado === 'POSITIVO' && <>
@@ -106,7 +114,7 @@ export function DiagnosticosPanel({ diagnosticos, servicios, isLoading, error, c
         </>}
         <Field label="Propiedad"><select name="propiedadId" value={propiedadId} onChange={(event) => setPropiedadId(event.target.value)}><option value="">Sin especificar</option>{catalogs?.properties.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
         <Field label="Potrero"><select name="potreroId" value={potreroId} onChange={(event) => setPotreroId(event.target.value)}><option value="">Sin especificar</option>{catalogs?.paddocks.filter((item) => item.propiedadId === propiedadId || !propiedadId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
-        <Field label="Lote"><select name="loteId"><option value="">Sin especificar</option>{catalogs?.lots.filter((item) => item.propiedadId === propiedadId || !propiedadId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
+        <Field label="Lote" hint="Se completa con el lote actual del animal. No cambia su pertenencia al lote."><input readOnly value={!animalId ? 'Selecciona primero el animal' : !loteId ? 'Sin lote asignado' : loteCatalogo?.nombre || loteActual.data?.nombre || (loteActual.isError ? 'Lote asignado (nombre no disponible)' : 'Cargando lote…')} /></Field>
         <div className="form-full"><Field label="Observaciones"><textarea name="observaciones" rows={2} maxLength={1000} /></Field></div>
         <div className="form-actions"><Button type="submit" loading={crear.isPending}>Registrar diagnóstico</Button></div>
       </form>

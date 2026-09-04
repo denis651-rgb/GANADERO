@@ -35,8 +35,10 @@ class CriaRazaTest {
   when(repo.createCria(any(),any())).thenAnswer(i->i.getArgument(0));
   when(razas.findById(razaId,empresa)).thenReturn(Optional.of(new Raza(razaId,null,"NELORE","Nelore","BOVINO",null,true)));
   when(categorias.findActive(empresa)).thenReturn(List.of(new CategoriaAnimal(categoriaId,null,"TERNERA","Ternera","HEMBRA",0,12,null,true)));
+  var gestaciones=mock(GestacionService.class);
+  when(gestaciones.cerrar(any(),any(),any(),any(),eq(true),any())).thenReturn(new GestacionCiclo(UUID.randomUUID(),madreId,null,null,true,LocalDate.now().minusDays(2),null,null,"ABIERTA",null,null));
   var service=new ReproduccionCicloService(repo,animales,mock(ParentescoRepository.class),mock(PesajeRepository.class),context,
-   mock(TimelineEventPublisher.class),mock(ApplicationEventPublisher.class),mock(ObjectProvider.class),mock(CodigoService.class),razas,categorias);
+   mock(TimelineEventPublisher.class),mock(ApplicationEventPublisher.class),mock(ObjectProvider.class),mock(CodigoService.class),razas,categorias,gestaciones);
   service.registrarParto(command(madreId,razaId));
   verify(animales).create(argThat(a->razaId.equals(a.razaPrincipalId())&&categoriaId.equals(a.categoriaActualId())),any());
   assertThrows(BusinessException.class,()->service.registrarParto(command(madreId,null)));
@@ -44,6 +46,6 @@ class CriaRazaTest {
  }
  private RegistrarPartoCommand command(UUID madre,UUID raza){
   return new RegistrarPartoCommand(madre,null,null,LocalDate.now().minusDays(1),TipoParto.NORMAL,DificultadParto.SIN_ASISTENCIA,false,null,null,null,
-   List.of(new RegistrarPartoCommand.CriaCommand(SexoAnimal.HEMBRA,null,EstadoNacimiento.VIVO,null,null,true,null,"Luna",null,raza)));
+   List.of(new RegistrarPartoCommand.CriaCommand(SexoAnimal.HEMBRA,null,EstadoNacimiento.VIVO,null,null,true,null,"Luna",null,raza)),UUID.randomUUID());
  }
 }

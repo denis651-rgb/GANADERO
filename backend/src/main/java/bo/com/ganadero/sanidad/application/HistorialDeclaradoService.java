@@ -46,8 +46,12 @@ public class HistorialDeclaradoService {
         Animal animal = animales.findById(c.animalId(), u.empresaId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.ANIMAL_NOT_FOUND));
         context.requirePropertyAccess(u, animal.propiedadActualId());
+        ReglasSanitarias.fechaAnimal(animal, c.fechaAplicacion(), true);
+        ReglasSanitarias.exigir(animal.fechaIngreso() == null || !c.fechaAplicacion().isAfter(animal.fechaIngreso()),
+                "El antecedente del proveedor no puede ser posterior al ingreso del animal.");
         PlanSanitarioItem item = c.planItemId() == null ? null
                 : requireItemCompatible(c.planItemId(), u.empresaId(), c.tipoActividad());
+        if (item != null) ReglasSanitarias.intervaloVacuna(repo, u.empresaId(), animal.id(), item, item.productoId(), c.fechaAplicacion());
         LocalDate proxima = item != null && item.frecuenciaDias() != null
                 ? c.fechaAplicacion().plusDays(item.frecuenciaDias()) : null;
         AplicacionSanitaria value = new AplicacionSanitaria(UUID.randomUUID(), u.empresaId(), null,

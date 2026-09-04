@@ -21,6 +21,7 @@ import { Modal } from '@/shared/components/Modal'
 import { normalizeApiError } from '@/shared/api/errors'
 import { formatDate } from '@/shared/utils/date'
 import './PartosPanel.css'
+import { GestacionSelect } from './GestacionSelect'
 
 interface AbortosPanelProps {
   abortos: PageResponse<Aborto>
@@ -34,11 +35,13 @@ export function AbortosPanel({ abortos, isLoading, error, catalogs, refresh }: A
   const { can } = useAuth()
   const canRegistrar = can('REPRODUCCION_REGISTRAR')
   const [showForm, setShowForm] = useState(false)
+  const [animalId, setAnimalId] = useState('')
 
   const crear = useMutation({
     mutationFn: (form: HTMLFormElement) => {
       const data = new FormData(form)
       return registrarAborto({
+        cicloGestacionId: String(data.get('cicloGestacionId') || ''),
         animalId: String(data.get('animalId')),
         fechaEvento: String(data.get('fechaEvento')),
         edadGestacionalEstimada: Number(data.get('edadGestacionalEstimada')) || undefined,
@@ -76,7 +79,8 @@ export function AbortosPanel({ abortos, isLoading, error, catalogs, refresh }: A
 
     <Modal open={showForm} title="Registrar aborto" onClose={() => setShowForm(false)} description="Registra un evento de aborto y sus posibles causas.">
       <form className="form-grid" onSubmit={(event) => { event.preventDefault(); crear.mutate(event.currentTarget) }}>
-        <AnimalSearchSelect label="Animal" name="animalId" sexo="HEMBRA" />
+        <AnimalSearchSelect label="Animal" name="animalId" sexo="HEMBRA" value={animalId} onChange={setAnimalId} />
+        <GestacionSelect key={animalId} animalId={animalId} />
         <Field label="Fecha del evento" required><input name="fechaEvento" type="date" required /></Field>
         <Field label="Edad gestacional estimada (días)"><input name="edadGestacionalEstimada" type="number" inputMode="numeric" min="0" max="400" /></Field>
         <Field label="Causa"><input name="causa" maxLength={300} /></Field>

@@ -67,7 +67,7 @@ public class ProyectarCalendarioSanitarioService {
     int procesar(LocalDate hoy) {
         List<AnimalItemPendiente> pendientes = jdbc.sql("""
                         select an.id as animal_id, an.codigo, an.nombre,
-                               an.fecha_nacimiento, an.fecha_ingreso, cat.edad_min_meses,
+                               an.fecha_nacimiento, an.fecha_nacimiento_estimada, an.origen, an.fecha_ingreso, cat.edad_min_meses,
                                i.id as item_id, i.tipo_actividad, i.edad_min_dias, i.edad_max_dias, i.dias_alerta
                         from animal an
                         join categoria_animal cat on cat.id = an.categoria_actual_id
@@ -89,7 +89,7 @@ public class ProyectarCalendarioSanitarioService {
                 .query((rs, rowNum) -> new AnimalItemPendiente(
                         Rows.uuid(rs, "animal_id"), rs.getString("codigo"), rs.getString("nombre"),
                         rs.getString("fecha_nacimiento") == null ? null : LocalDate.parse(rs.getString("fecha_nacimiento")),
-                        LocalDate.parse(rs.getString("fecha_ingreso")),
+                        LocalDate.parse(rs.getString("fecha_ingreso")), rs.getBoolean("fecha_nacimiento_estimada"), rs.getString("origen"),
                         (Integer) rs.getObject("edad_min_meses"),
                         Rows.uuid(rs, "item_id"), TipoActividadSanitaria.valueOf(rs.getString("tipo_actividad")),
                         rs.getInt("edad_min_dias"), (Integer) rs.getObject("edad_max_dias"), rs.getInt("dias_alerta")))
@@ -98,7 +98,7 @@ public class ProyectarCalendarioSanitarioService {
         int procesados = 0;
         Instant ahora = Instant.now();
         for (AnimalItemPendiente item : pendientes) {
-            if (item.fechaNacimiento() != null) {
+            if (item.fechaNacimiento() != null && !item.fechaNacimientoEstimada() && "NACIDO".equals(item.origen())) {
                 if (proyectarNacidoEnFinca(item, hoy, ahora)) procesados++;
             } else {
                 if (proyectarCompradoSinHistorial(item, hoy, ahora)) procesados++;
@@ -135,10 +135,10 @@ public class ProyectarCalendarioSanitarioService {
     private boolean proyectarCompradoSinHistorial(AnimalItemPendiente item, LocalDate hoy, Instant ahora) {
         if (hoy.isBefore(item.fechaIngreso())) return false;
         int edadMinMeses = item.edadMinMesesCategoria() == null ? 0 : item.edadMinMesesCategoria();
-        LocalDate fechaReferencia = item.fechaIngreso().minusDays(edadMinMeses * 30L);
+        LocalDate fechaReferencia = item.fechaNacimiento() != null ? item.fechaNacimiento() : item.fechaIngreso().minusDays(edadMinMeses * 30L);
         LocalDate fechaEntradaVentana = fechaReferencia.plusDays(item.edadMinDias());
-        boolean dentroDeVentana = item.edadMaxDias() == null
-                || !hoy.isAfter(fechaReferencia.plusDays(item.edadMaxDias()));
+        boolean dentroDeVentana = !hoy.isBefore(fechaEntradaVentana) && (item.edadMaxDias() == null
+                || !hoy.isAfter(fechaReferencia.plusDays(item.edadMaxDias())));
 
         Map<String, Object> metadata = datosAnimal(item);
         metadata.put("dentroDeVentana", dentroDeVentana);
@@ -165,7 +165,7 @@ public class ProyectarCalendarioSanitarioService {
     }
 
     private record AnimalItemPendiente(UUID animalId, String codigo, String nombre, LocalDate fechaNacimiento,
-                                       LocalDate fechaIngreso, Integer edadMinMesesCategoria, UUID itemId,
+                                       LocalDate fechaIngreso, boolean fechaNacimientoEstimada, String origen, Integer edadMinMesesCategoria, UUID itemId,
                                        TipoActividadSanitaria tipoActividad, int edadMinDias, Integer edadMaxDias,
                                        int diasAlerta) {}
 }

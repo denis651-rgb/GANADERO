@@ -7,5 +7,6 @@ public interface JornadaSanitariaRepository {
  JornadaSanitaria confirmar(UUID id,UUID empresa,UUID actor); AplicacionSanitaria crearAplicacion(AplicacionSanitaria a,UUID actor);
  Optional<AplicacionSanitaria> aplicacion(UUID id,UUID empresa);
  List<AplicacionSanitaria> aplicaciones(UUID jornada,UUID empresa);
+ List<AplicacionSanitaria> vacunacionesRelacionadas(UUID empresa, UUID animal, PlanSanitarioItem item, UUID producto);
  List<UUID> aplicacionesPrevias(UUID empresa,UUID animal,UUID planItem,UUID excluirAplicacion);
 }

@@ -48,6 +48,7 @@ export function ControlNeonatalModal({ animalId, animalCodigo, onClose, onSaved 
   })
 
   return <Modal open title="Registrar control neonatal" onClose={onClose} wide description={`Checklist de control neonatal para ${animalCodigo}.`}>
+    <p className="muted">Requiere fecha de nacimiento confirmada. Día 0: nacimiento. Primera semana: días 1 a 7. Fuera de ese período registre un caso clínico; los controles anteriores se conservan.</p>
     <form className="form-grid" onSubmit={(event) => { event.preventDefault(); crear.mutate(event.currentTarget) }}>
       <Field label="Momento" required><select name="momento" required defaultValue="DIA_0">{(Object.keys(MOMENTO_CONTROL_NEONATAL_LABELS) as MomentoControlNeonatal[]).map((momento) => <option key={momento} value={momento}>{MOMENTO_CONTROL_NEONATAL_LABELS[momento]}</option>)}</select></Field>
       <Field label="Fecha del control" required><input name="fechaControl" type="date" required /></Field>

@@ -1,6 +1,18 @@
 import { http } from '@/shared/api/http'
 import type { ApiResponse } from '@/shared/api/types'
 
+export interface ConfiguracionSanitaria {
+  edadMinMachoMeses: number | null
+  edadMinHembraMeses: number | null
+  version: number
+}
+export async function getConfiguracionSanitaria() {
+  return (await http.get<ApiResponse<ConfiguracionSanitaria>>('/api/v1/sanidad/configuracion')).data.data
+}
+export async function guardarConfiguracionSanitaria(input: ConfiguracionSanitaria) {
+  return (await http.put<ApiResponse<ConfiguracionSanitaria>>('/api/v1/sanidad/configuracion', input)).data.data
+}
+
 export type TipoActividad = 'VACUNACION' | 'DESPARASITACION' | 'VITAMINIZACION' | 'CONTROL' | 'PRUEBA_DIAGNOSTICA' | 'OTRO' | 'VIGILANCIA_EPIDEMIOLOGICA'
 export type OrigenRegulatorio = 'OBLIGATORIO_SENASAG' | 'CAMPANA_RIESGO' | 'RECOMENDADO_VETERINARIO' | 'CONFIGURABLE_ESTABLECIMIENTO'
 export type EstadoPlan = 'BORRADOR' | 'ACTIVO' | 'FINALIZADO' | 'ANULADO'

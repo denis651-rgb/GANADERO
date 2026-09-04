@@ -26,6 +26,7 @@ import { Modal } from '@/shared/components/Modal'
 import { normalizeApiError } from '@/shared/api/errors'
 import { formatDate } from '@/shared/utils/date'
 import './PartosPanel.css'
+import { GestacionSelect } from './GestacionSelect'
 
 interface PartosPanelProps {
   partos: PageResponse<Parto>
@@ -58,6 +59,7 @@ export function PartosPanel({ partos, isLoading, error, catalogs, refresh }: Par
   const { can } = useAuth()
   const canRegistrar = can('REPRODUCCION_REGISTRAR')
   const [showForm, setShowForm] = useState(false)
+  const [madreId, setMadreId] = useState('')
   const [crias, setCrias] = useState<CriaRow[]>(() => [nuevaCria()])
   const razas = useQuery({ queryKey: ['razas'], queryFn: listRazas, enabled: showForm, staleTime: 300_000 })
 
@@ -65,6 +67,7 @@ export function PartosPanel({ partos, isLoading, error, catalogs, refresh }: Par
     mutationFn: (form: HTMLFormElement) => {
       const data = new FormData(form)
       return registrarParto({
+        cicloGestacionId: String(data.get('cicloGestacionId') || ''),
         madreId: String(data.get('madreId')),
         fechaParto: String(data.get('fechaParto')),
         tipoParto: String(data.get('tipoParto')) as Parto['tipoParto'],
@@ -119,7 +122,8 @@ export function PartosPanel({ partos, isLoading, error, catalogs, refresh }: Par
 
     <Modal open={showForm} title="Registrar parto" onClose={() => setShowForm(false)} wide description="Registra el parto y los datos de cada cría.">
       <form className="form-grid" onSubmit={(event) => { event.preventDefault(); crear.mutate(event.currentTarget) }}>
-        <AnimalSearchSelect label="Madre" name="madreId" sexo="HEMBRA" />
+        <AnimalSearchSelect label="Madre" name="madreId" sexo="HEMBRA" value={madreId} onChange={setMadreId} />
+        <GestacionSelect key={madreId} animalId={madreId} />
         <Field label="Fecha del parto" required><input name="fechaParto" type="date" required /></Field>
         <Field label="Tipo de parto" required><select name="tipoParto" required><option value="" disabled>Selecciona…</option>{Object.entries(TIPO_PARTO_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
         <Field label="Dificultad" required><select name="dificultad" required><option value="" disabled>Selecciona…</option>{Object.entries(DIFICULTAD_PARTO_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>

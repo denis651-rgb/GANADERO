@@ -38,10 +38,10 @@ describe('ResumenPanel — atención sanitaria', () => {
     attendAlert.mockClear()
   })
 
-  it('muestra "Todo al día" cuando no hay alertas pendientes', async () => {
+  it('muestra que no hay alertas pendientes', async () => {
     alertsByType = {}
     renderPanel()
-    expect(await screen.findByText('Todo al día')).toBeInTheDocument()
+    expect(await screen.findByText('Sin alertas pendientes')).toBeInTheDocument()
   })
 
   it('muestra las alertas críticas antes que las de seguimiento normal', async () => {
@@ -68,7 +68,7 @@ describe('ResumenPanel — atención sanitaria', () => {
     alertsByType = { CASO_CLINICO_CRITICO: [alerta({ id: 'c-1', tipo: 'CASO_CLINICO_CRITICO', titulo: 'Caso crítico' })] }
     renderPanel()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Marcar atendida' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Reconocer aviso' }))
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
     await waitFor(() => expect(attendAlert).toHaveBeenCalledWith('c-1'))
   })

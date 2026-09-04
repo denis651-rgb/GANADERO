@@ -206,6 +206,7 @@ export interface CriaInput {
 }
 
 export interface RegistrarPartoInput {
+  cicloGestacionId: string
   madreId: string
   diagnosticoGestacionId?: string
   servicioId?: string
@@ -220,6 +221,7 @@ export interface RegistrarPartoInput {
 }
 
 export interface RegistrarAbortoInput {
+  cicloGestacionId: string
   animalId: string
   gestacionId?: string
   servicioId?: string
@@ -378,6 +380,28 @@ export async function registrarParto(input: RegistrarPartoInput) {
   return (await http.post<ApiResponse<PartoResult>>('/api/v1/reproduccion/partos', input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
 }
 
+export interface GestacionCiclo {
+  id: string
+  animalId: string
+  servicioId?: string
+  diagnosticoId?: string
+  antecedentesDesconocidos: boolean
+  fechaConfirmacion: string
+  fechaInicioEstimada?: string
+  observaciones?: string
+  estado: 'ABIERTA' | 'FINALIZADA_PARTO' | 'FINALIZADA_ABORTO'
+  fechaCierre?: string
+  eventoId?: string
+}
+
+export async function listGestaciones(animalId: string) {
+  return (await http.get<ApiResponse<GestacionCiclo[]>>('/api/v1/reproduccion/gestaciones', { params: { animalId } })).data.data
+}
+
+export async function abrirGestacion(input: { animalId: string; diagnosticoId?: string; fechaConfirmacion?: string; fechaInicioEstimada?: string; observaciones?: string }) {
+  return (await http.post<ApiResponse<GestacionCiclo>>('/api/v1/reproduccion/gestaciones', input)).data.data
+}
+
 export async function listAbortos(params?: { animalId?: string; propiedadId?: string; page?: number; size?: number }) {
   return (await http.get<ApiResponse<PageResponse<Aborto>>>('/api/v1/reproduccion/abortos', { params })).data.data
 }
@@ -392,6 +416,10 @@ export async function listDestetes(params?: { animalId?: string; propiedadId?: s
 
 export async function registrarDestete(input: RegistrarDesteteInput) {
   return (await http.post<ApiResponse<Destete>>('/api/v1/reproduccion/destetes', input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
+}
+
+export async function getMadreDestete(criaId: string) {
+  return (await http.get<ApiResponse<{ id: string; nombre?: string; codigo: string }>>('/api/v1/reproduccion/destetes/madre', { params: { criaId } })).data.data
 }
 
 export async function listCelos(params?: { animalId?: string; propiedadId?: string; estado?: EstadoRegistroReproduccion; page?: number; size?: number }) {

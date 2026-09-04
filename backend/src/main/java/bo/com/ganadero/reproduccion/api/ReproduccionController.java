@@ -2,6 +2,7 @@ package bo.com.ganadero.reproduccion.api;
 
 import bo.com.ganadero.reproduccion.application.ReproduccionService;
 import bo.com.ganadero.reproduccion.application.ReproduccionCicloService;
+import bo.com.ganadero.reproduccion.application.GestacionService;
 import bo.com.ganadero.reproduccion.domain.*;
 import bo.com.ganadero.reproduccion.domain.EstadoRegistroReproduccion;
 import bo.com.ganadero.reproduccion.domain.IntensidadCelo;
@@ -23,10 +24,25 @@ import java.util.UUID;
 public class ReproduccionController {
     private final ReproduccionService service;
     private final ReproduccionCicloService ciclo;
+    private final GestacionService gestaciones;
 
-    public ReproduccionController(ReproduccionService service, ReproduccionCicloService ciclo) {
+    public ReproduccionController(ReproduccionService service, ReproduccionCicloService ciclo, GestacionService gestaciones) {
         this.service = service;
         this.ciclo = ciclo;
+        this.gestaciones = gestaciones;
+    }
+
+    public record AbrirGestacionRequest(@jakarta.validation.constraints.NotNull UUID animalId, UUID diagnosticoId,
+        java.time.LocalDate fechaConfirmacion, java.time.LocalDate fechaInicioEstimada,
+        @jakarta.validation.constraints.Size(max=1000) String observaciones) {}
+
+    @GetMapping("/gestaciones")
+    ApiResponse<java.util.List<GestacionCiclo>> gestaciones(@RequestParam UUID animalId,HttpServletRequest request){
+        return ok(gestaciones.list(animalId),request);
+    }
+    @PostMapping("/gestaciones")
+    ApiResponse<GestacionCiclo> abrirGestacion(@Valid @RequestBody AbrirGestacionRequest body,HttpServletRequest request){
+        return ok(gestaciones.registrar(body.animalId(),body.diagnosticoId(),body.fechaConfirmacion(),body.fechaInicioEstimada(),body.observaciones()),request);
     }
 
     @PostMapping("/partos")
@@ -46,6 +62,11 @@ public class ReproduccionController {
       @RequestParam(required=false) UUID propiedadId,@RequestParam(defaultValue="0") @Min(0) int page,
       @RequestParam(defaultValue="20") @Min(1) @Max(500) int size,HttpServletRequest request){
         return ok(ciclo.listarAbortos(animalId,propiedadId,page,size),request);}
+
+    @GetMapping("/destetes/madre")
+    ApiResponse<ReproduccionCicloService.MadreDestete> madreDestete(@RequestParam UUID criaId,HttpServletRequest request){
+        return ok(ciclo.madreParaDestete(criaId),request);
+    }
 
     @PostMapping("/destetes")
     ApiResponse<Destete> registrarDestete(@Valid @RequestBody RegistrarDesteteRequest body,HttpServletRequest request){

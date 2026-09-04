@@ -64,7 +64,7 @@ class ControlNeonatalServiceTest {
         MotorAlertas motorAlertas = mock(MotorAlertas.class);
         ClinicaService service = new ClinicaService(repo, animales, userContext(), mock(ObjectProvider.class),
                 alertasProvider(motorAlertas), mock(bo.com.ganadero.timeline.application.TimelineEventPublisher.class),
-                mock(ApplicationEventPublisher.class));
+                mock(ApplicationEventPublisher.class), mock(ConfiguracionSanitariaService.class));
 
         ControlNeonatal control = service.crearControl(new CrearControlNeonatalCommand(animal.id(),
                 LocalDate.of(2026, 1, 1), MomentoControlNeonatal.DIA_0, EstadoCalostrado.CORRECTO,
@@ -86,7 +86,7 @@ class ControlNeonatalServiceTest {
         MotorAlertas motorAlertas = mock(MotorAlertas.class);
         ClinicaService service = new ClinicaService(repo, animales, userContext(), mock(ObjectProvider.class),
                 alertasProvider(motorAlertas), mock(bo.com.ganadero.timeline.application.TimelineEventPublisher.class),
-                mock(ApplicationEventPublisher.class));
+                mock(ApplicationEventPublisher.class), mock(ConfiguracionSanitariaService.class));
 
         service.crearControl(new CrearControlNeonatalCommand(animal.id(), LocalDate.of(2026, 1, 1),
                 MomentoControlNeonatal.DIA_0, EstadoCalostrado.INSUFICIENTE, true, null, false, null, null, null, null));
@@ -108,7 +108,7 @@ class ControlNeonatalServiceTest {
         MotorAlertas motorAlertas = mock(MotorAlertas.class);
         ClinicaService service = new ClinicaService(repo, animales, userContext(), mock(ObjectProvider.class),
                 alertasProvider(motorAlertas), mock(bo.com.ganadero.timeline.application.TimelineEventPublisher.class),
-                mock(ApplicationEventPublisher.class));
+                mock(ApplicationEventPublisher.class), mock(ConfiguracionSanitariaService.class));
 
         service.crearControl(new CrearControlNeonatalCommand(animal.id(), LocalDate.of(2026, 1, 4),
                 MomentoControlNeonatal.PRIMERA_SEMANA, EstadoCalostrado.CORRECTO, true, null, true, "Decaido", null, null, null));
@@ -130,7 +130,7 @@ class ControlNeonatalServiceTest {
         MotorAlertas motorAlertas = mock(MotorAlertas.class);
         ClinicaService service = new ClinicaService(repo, animales, userContext(), mock(ObjectProvider.class),
                 alertasProvider(motorAlertas), mock(bo.com.ganadero.timeline.application.TimelineEventPublisher.class),
-                mock(ApplicationEventPublisher.class));
+                mock(ApplicationEventPublisher.class), mock(ConfiguracionSanitariaService.class));
 
         service.crearControl(new CrearControlNeonatalCommand(animal.id(), LocalDate.of(2026, 1, 4),
                 MomentoControlNeonatal.PRIMERA_SEMANA, EstadoCalostrado.CORRECTO, true, null, false, null, null, null, null));
@@ -161,7 +161,7 @@ class ControlNeonatalServiceTest {
         MotorAlertas motorAlertas = mock(MotorAlertas.class);
         ClinicaService service = new ClinicaService(repo, animales, userContext(), mock(ObjectProvider.class),
                 alertasProvider(motorAlertas), mock(bo.com.ganadero.timeline.application.TimelineEventPublisher.class),
-                mock(ApplicationEventPublisher.class));
+                mock(ApplicationEventPublisher.class), mock(ConfiguracionSanitariaService.class));
 
         assertThatThrownBy(() -> service.crearControl(new CrearControlNeonatalCommand(animal.id(),
                 LocalDate.of(2026, 1, 1), MomentoControlNeonatal.DIA_0, EstadoCalostrado.CORRECTO,
@@ -201,9 +201,9 @@ class ControlNeonatalServiceTest {
                 + "values(:id,'N-000234','HEMBRA',:raza,:cat,'CARNE','NACIDO',:pot,:ingreso)")
                 .param("id", animalId.toString()).param("raza", razaId.toString()).param("cat", categoriaId.toString())
                 .param("pot", potreroId.toString()).param("ingreso", LocalDate.now().toString()).update();
-        return new Animal(animalId, null, "N-000234", null, SexoAnimal.HEMBRA, null, false, razaId,
+        return new Animal(animalId, null, "N-000234", null, SexoAnimal.HEMBRA, LocalDate.of(2026, 1, 1), false, razaId,
                 categoriaId, null, PropositoAnimal.CARNE, OrigenAnimal.NACIDO, PROPIEDAD_ID, potreroId, null,
-                EstadoAnimal.ACTIVO, LocalDate.now(), null, null, null, null, null, 0);
+                EstadoAnimal.ACTIVO, LocalDate.of(2026, 1, 1), null, null, null, null, null, 0);
     }
 
     private UserContext userContext() {

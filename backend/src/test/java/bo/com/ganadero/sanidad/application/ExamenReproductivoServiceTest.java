@@ -133,7 +133,7 @@ class ExamenReproductivoServiceTest {
         when(alertasProvider.getIfAvailable()).thenReturn(motorAlertas);
         return new ClinicaService(repo, animales, userContext(), mock(ObjectProvider.class), alertasProvider,
                 mock(bo.com.ganadero.timeline.application.TimelineEventPublisher.class),
-                mock(ApplicationEventPublisher.class));
+                mock(ApplicationEventPublisher.class), mock(ConfiguracionSanitariaService.class));
     }
 
     private AnimalRepository mockAnimalRepository(Animal animal) {
@@ -162,7 +162,7 @@ class ExamenReproductivoServiceTest {
                 .param("pot", potreroId.toString()).param("ingreso", LocalDate.now().toString()).update();
         return new Animal(animalId, null, codigo, null, sexo, null, false, razaId,
                 categoriaId, null, PropositoAnimal.CARNE, OrigenAnimal.NACIDO, PROPIEDAD_ID, potreroId, null,
-                EstadoAnimal.ACTIVO, LocalDate.now(), null, null, null, null, null, 0);
+                EstadoAnimal.ACTIVO, LocalDate.of(2025, 1, 1), null, null, null, null, null, 0);
     }
 
     private UserContext userContext() {

@@ -18,7 +18,6 @@ import { PesajesPage } from '@/features/pesajes/pages/PesajesPage'
 import { PesajeDetailPage } from '@/features/pesajes/pages/PesajeDetailPage'
 import { ReproduccionPage } from '@/features/reproduccion/pages/ReproduccionPage'
 import { SanidadPage } from '@/features/sanidad/pages/SanidadPage'
-import { AlimentacionPage } from '@/features/alimentacion/pages/AlimentacionPage'
 import { VentasPage } from '@/features/ventas/pages/VentasPage'
 import { AlertasPage } from '@/features/alertas/pages/AlertasPage'
 import { ReportesPage } from '@/features/reportes/pages/ReportesPage'
@@ -44,7 +43,6 @@ export function AppRouter() {
         <Route path="pesajes/:id" element={<PesajeDetailPage />} />
         <Route path="reproduccion" element={<ReproduccionPage />} />
         <Route path="sanidad" element={<SanidadPage />} />
-        <Route path="alimentacion" element={<AlimentacionPage />} />
         <Route path="ventas" element={<VentasPage />} />
         <Route path="alertas" element={<AlertasPage />} />
         <Route path="reportes" element={<ReportesPage />} />

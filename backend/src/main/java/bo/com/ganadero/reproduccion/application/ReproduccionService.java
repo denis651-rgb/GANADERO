@@ -50,22 +50,24 @@ public class ReproduccionService {
     private final TimelineEventPublisher timeline;
     private ObjectProvider<MotorAlertas> alertas;
     private ObjectProvider<AlertaConfiguracionPort> configuracionAlertas;
+    private final GestacionService gestaciones;
 
     public ReproduccionService(ReproduccionRepository registros, AnimalRepository animales,
                                UserContext context, ApplicationEventPublisher events,
-                               TimelineEventPublisher timeline) {
+                               TimelineEventPublisher timeline, GestacionService gestaciones) {
         this.registros = registros;
         this.animales = animales;
         this.context = context;
         this.events = events;
         this.timeline = timeline;
+        this.gestaciones = gestaciones;
     }
 
     @Autowired
     public ReproduccionService(ReproduccionRepository registros, AnimalRepository animales, UserContext context,
             ApplicationEventPublisher events, TimelineEventPublisher timeline, ObjectProvider<MotorAlertas> alertas,
-            ObjectProvider<AlertaConfiguracionPort> configuracionAlertas) {
-        this(registros, animales, context, events, timeline); this.alertas=alertas; this.configuracionAlertas=configuracionAlertas;
+            ObjectProvider<AlertaConfiguracionPort> configuracionAlertas, GestacionService gestaciones) {
+        this(registros, animales, context, events, timeline, gestaciones); this.alertas=alertas; this.configuracionAlertas=configuracionAlertas;
     }
 
     @Transactional(readOnly = true)
@@ -173,6 +175,7 @@ public class ReproduccionService {
         Instant fecha = validarFecha(command.fechaServicio());
         Animal animal = requireHembraActiva(user, command.hembraId());
         validarPosteriorAlNacimiento(fecha, animal);
+        gestaciones.validarServicio(user, animal, fecha);
 
         UUID property = comandoPropiedad(command.propiedadId(), animal);
         context.requirePropertyAccess(user, property);
@@ -193,6 +196,7 @@ public class ReproduccionService {
             if (celo.estado() == EstadoRegistroReproduccion.ANULADO) {
                 throw new BusinessException(ErrorCode.SERVICIO_CELO_INCOMPATIBLE);
             }
+            if (fecha.isBefore(celo.fechaDeteccion())) throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "El servicio no puede ser anterior al celo asociado.");
         }
 
         int numeroIntento = registros.countServicios(animal.id(), user.empresaId()) + 1;
@@ -234,6 +238,8 @@ public class ReproduccionService {
         CurrentUser user = context.requirePermission("REPRODUCCION_REGISTRAR");
         Instant fecha = validarFecha(command.fechaDiagnostico());
         Animal animal = requireHembraActiva(user, command.animalId());
+        validarPosteriorAlNacimiento(fecha, animal);
+        gestaciones.validarDiagnostico(user, animal, command.servicioId(), fecha, command.resultado());
 
         UUID property = comandoPropiedad(command.propiedadId(), animal);
         context.requirePropertyAccess(user, property);
@@ -242,7 +248,7 @@ public class ReproduccionService {
         if (command.servicioId() != null) {
             servicio = registros.findServicioById(command.servicioId(), user.empresaId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.REPRODUCCION_NOT_FOUND));
-            if (!servicio.hembraId().equals(animal.id()) || servicio.estado() == EstadoServicio.ANULADO) {
+            if (!servicio.hembraId().equals(animal.id()) || servicio.estado() == EstadoServicio.ANULADO || servicio.estado() == EstadoServicio.FINALIZADO) {
                 throw new BusinessException(ErrorCode.DIAGNOSTICO_SERVICIO_INCOMPATIBLE);
             }
             if (!fecha.isAfter(servicio.fechaServicio())) {
@@ -277,6 +283,8 @@ public class ReproduccionService {
                 clienteUuid, command.idempotencyKey(), EstadoRegistroReproduccion.ACTIVO,
                 null, null, null, null, 0);
         DiagnosticoGestacion saved = registros.createDiagnostico(value, user.userId());
+        if (saved.resultado() == ResultadoGestacion.POSITIVO) gestaciones.confirmar(user, animal, saved);
+        boolean gestacionAbierta = gestaciones.asociarDiagnostico(user, saved);
         UUID servicioDiagnosticadoId = servicio == null ? null : servicio.id();
         if (servicioDiagnosticadoId != null) motor().ifPresent(m -> m.resolverPorOrigen(user.empresaId(), "SERVICIO", servicioDiagnosticadoId));
         if (saved.resultado() == ResultadoGestacion.POSITIVO && saved.fechaProbableParto() != null) {
@@ -290,7 +298,7 @@ public class ReproduccionService {
             EstadoServicio estado = switch (saved.resultado()) {
                 case POSITIVO -> EstadoServicio.GESTACION_CONFIRMADA;
                 case NEGATIVO -> EstadoServicio.NO_PRENADA;
-                case DUDOSO -> EstadoServicio.PENDIENTE_DIAGNOSTICO;
+                case DUDOSO -> gestacionAbierta ? EstadoServicio.GESTACION_CONFIRMADA : EstadoServicio.PENDIENTE_DIAGNOSTICO;
                 case PERDIDA_GESTACION -> EstadoServicio.FINALIZADO;
             };
             registros.updateServicioEstado(servicio.id(), user.empresaId(), estado, user.userId());

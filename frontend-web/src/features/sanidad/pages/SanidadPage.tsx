@@ -5,6 +5,7 @@ import { Activity, ClipboardList, HeartPulse, LayoutDashboard, Stethoscope, Syri
 import { useAuth } from '@/auth/auth-context'
 import { listCasos, listJornadas, listPlanes, listTratamientos, type TipoActividad } from '@/features/sanidad/api'
 import { useSanidadCatalogs } from '@/features/sanidad/catalogs'
+import { ConfiguracionSanitariaPanel } from '@/features/sanidad/components/ConfiguracionSanitariaPanel'
 import { CasosPanel } from '@/features/sanidad/components/CasosPanel'
 import { EnfermedadesPanel } from '@/features/sanidad/components/EnfermedadesPanel'
 import { JornadasPanel } from '@/features/sanidad/components/JornadasPanel'
@@ -49,7 +50,7 @@ export function SanidadPage() {
   const tratamientos = useQuery({ queryKey: ['sanidad-tratamientos'], queryFn: () => listTratamientos() })
 
   const refresh = () => {
-    for (const key of ['sanidad-planes', 'sanidad-jornadas', 'sanidad-casos', 'sanidad-tratamientos', 'sanidad-items', 'sanidad-enfermedades', 'sanidad-aplicaciones', 'sanidad-catalogos']) {
+    for (const key of ['sanidad-planes', 'sanidad-jornadas', 'sanidad-casos', 'sanidad-tratamientos', 'sanidad-items', 'sanidad-enfermedades', 'sanidad-aplicaciones', 'sanidad-catalogos', 'sanidad-alertas-resumen']) {
       void client.invalidateQueries({ queryKey: [key] })
     }
   }
@@ -75,6 +76,7 @@ export function SanidadPage() {
         <button type="button" className={`tab-button ${subSeccion === 'planes' ? 'active' : ''}`} onClick={() => setSubSeccion('planes')} aria-current={subSeccion === 'planes' ? 'page' : undefined}><ClipboardList size={16} aria-hidden="true" />Planes</button>
         <button type="button" className={`tab-button ${subSeccion === 'enfermedades' ? 'active' : ''}`} onClick={() => setSubSeccion('enfermedades')} aria-current={subSeccion === 'enfermedades' ? 'page' : undefined}><Activity size={16} aria-hidden="true" />Enfermedades</button>
       </nav>
+      {subSeccion === 'planes' && <ConfiguracionSanitariaPanel />}
       {subSeccion === 'planes' && <PlanesPanel planes={planes.data!} isLoading={planes.isPending} error={planes.error} catalogs={catalogs.data} refresh={refresh} />}
       {subSeccion === 'enfermedades' && <EnfermedadesPanel />}
     </>}

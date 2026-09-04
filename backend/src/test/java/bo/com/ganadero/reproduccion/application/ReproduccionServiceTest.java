@@ -113,7 +113,7 @@ class ReproduccionServiceTest {
         machoId = UUID.randomUUID();
         CurrentUser user = new CurrentUser(UUID.randomUUID(), company, UUID.randomUUID(),
                 Set.of(), Set.of("REPRODUCCION_REGISTRAR", "REPRODUCCION_VER"), Set.of(property), false);
-        service = new ReproduccionService(registros, animales, new UserContext(() -> user), events, timeline);
+        service = new ReproduccionService(registros, animales, new UserContext(() -> user), events, timeline, mock(GestacionService.class));
     }
 
     @Test

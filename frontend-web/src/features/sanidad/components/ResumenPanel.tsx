@@ -65,7 +65,7 @@ function AtencionSanitariaCard({ onIrA }: { onIrA: (seccion: Seccion) => void })
   return <Card className="attention-card">
     <div className="section-heading">
       <div><span className="eyebrow">Prioridad diaria</span><h2>Atención requerida</h2></div>
-      {!alertasQuery.isPending && !hasAttention && <span className="status-badge status-activo">Todo al día</span>}
+      {!alertasQuery.isPending && !alertasQuery.error && !hasAttention && <span className="status-badge status-activo">Sin alertas pendientes</span>}
     </div>
     {alertasQuery.isPending && <LoadingState message="Cargando alertas sanitarias…" />}
     {alertasQuery.error && <Alert tone="danger">{normalizeApiError(alertasQuery.error).message}</Alert>}
@@ -77,15 +77,15 @@ function AtencionSanitariaCard({ onIrA }: { onIrA: (seccion: Seccion) => void })
             <div><strong>{item.mensaje}</strong><span>{item.detalle}</span></div>
             <div className="inline-actions">
               <button type="button" className="text-link" onClick={() => onIrA(item.seccion)}>Ir a {item.seccionLabel}</button>
-              <button type="button" className="text-link" onClick={() => setAttendTarget(item)}>Marcar atendida</button>
+              <button type="button" className="text-link" onClick={() => setAttendTarget(item)}>Reconocer aviso</button>
             </div>
           </li>
         })}</ul>
-      : <p className="attention-empty">No hay alertas sanitarias pendientes. El hato está al día.</p>)}
+      : <p className="attention-empty">No hay alertas sanitarias pendientes. Esto no confirma vacunación, recuperación ni un historial sanitario completo.</p>)}
 
     <ConfirmDialog
       open={Boolean(attendTarget)}
-      title="Marcar alerta como atendida"
+      title="Reconocer aviso sanitario"
       confirmLabel="Confirmar"
       variant="warning"
       loading={attend.isPending}
@@ -93,7 +93,7 @@ function AtencionSanitariaCard({ onIrA }: { onIrA: (seccion: Seccion) => void })
       onClose={() => setAttendTarget(null)}
       onConfirm={() => { if (attendTarget && !attend.isPending) attend.mutate(attendTarget.id) }}
     >
-      {attendTarget && <p className="muted">«{attendTarget.mensaje}» dejará de aparecer en atención requerida. Podés seguir el seguimiento completo desde {attendTarget.seccionLabel}.</p>}
+      {attendTarget && <p className="muted">«{attendTarget.mensaje}» dejará de aparecer en atención requerida. Esta acción solo reconoce el aviso: no registra vacunas ni dosis y no resuelve el problema sanitario. Registre la atención real desde {attendTarget.seccionLabel}.</p>}
     </ConfirmDialog>
   </Card>
 }
@@ -108,7 +108,7 @@ export function ResumenPanel({ planes, jornadas, casos, tratamientos, catalogs, 
     return fecha.getMonth() === ahora.getMonth() && fecha.getFullYear() === ahora.getFullYear() && jornada.estado !== 'ANULADA'
   }).length
   const recientes = [...jornadas].sort((a, b) => new Date(b.fechaInicio).getTime() - new Date(a.fechaInicio).getTime()).slice(0, 5)
-  const casosRecientes = casos.filter((caso) => caso.estado !== 'CERRADO').slice(0, 5)
+  const casosRecientes = casos.filter((caso) => !['CERRADO', 'ANULADO'].includes(caso.estado)).slice(0, 5)
 
   const metricas: Array<{ label: string; valor: number; icon: typeof Syringe }> = [
     { label: 'Planes activos', valor: planesActivos, icon: ClipboardList },
