@@ -3,6 +3,7 @@ package bo.com.ganadero.pesajes.application;
 import bo.com.ganadero.alertas.application.MotorAlertas;
 import bo.com.ganadero.alertas.application.ProgramarAlertaCommand;
 import bo.com.ganadero.alertas.application.TipoAlerta;
+import bo.com.ganadero.shared.db.Rows;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,19 +28,21 @@ public class ProcesarPesajesAtrasadosService {
     @Transactional
     public int procesar() {
         List<PesajeAtrasado> atrasados = jdbc.sql("""
-                        select v.id, v.empresa_id, v.codigo, v.nombre,
-                               v.ultimo_pesaje, v.dias_sin_pesaje
-                        from produccion.v_animales_sin_pesaje v
-                        join core.configuraciones_empresa c on c.empresa_id = v.empresa_id
-                        where c.dias_sin_pesaje > 0
-                          and v.dias_sin_pesaje > c.dias_sin_pesaje
-                        order by v.dias_sin_pesaje desc
+                        select a.id, a.codigo, a.nombre,
+                               (select max(p.fecha) from pesaje p where p.animal_id=a.id and p.estado='ACTIVO') as ultimo_pesaje,
+                               cast(julianday('now') - julianday(coalesce(
+                                   (select max(p.fecha) from pesaje p where p.animal_id=a.id and p.estado='ACTIVO'), a.created_at)) as integer) as dias_sin_pesaje
+                        from animal a, propiedad c
+                        where a.estado='ACTIVO' and c.dias_sin_pesaje > 0
+                        having dias_sin_pesaje > c.dias_sin_pesaje
+                        order by dias_sin_pesaje desc
                         limit 1000
                         """)
                 .query((rs, rowNum) -> new PesajeAtrasado(
-                        rs.getObject("id", UUID.class), rs.getObject("empresa_id", UUID.class),
+                        Rows.uuid(rs, "id"), null,
                         rs.getString("codigo"), rs.getString("nombre"),
-                        rs.getObject("ultimo_pesaje", LocalDate.class), rs.getLong("dias_sin_pesaje")))
+                        rs.getString("ultimo_pesaje") == null ? null : LocalDate.parse(rs.getString("ultimo_pesaje")),
+                        rs.getLong("dias_sin_pesaje")))
                 .list();
 
         Instant ahora = Instant.now();

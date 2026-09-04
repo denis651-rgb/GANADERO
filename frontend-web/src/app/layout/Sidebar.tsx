@@ -1,11 +1,10 @@
 import { NavLink } from 'react-router'
-import { LogOut } from 'lucide-react'
 import { appModules, MODULE_STATUS_LABEL } from '@/app/modules'
 import { useAuth } from '@/auth/auth-context'
 import { cn } from '@/shared/utils/cn'
 
 export function Sidebar() {
-  const { user, can, signOut } = useAuth()
+  const { user, can } = useAuth()
 
   return (
     <aside className="sidebar" aria-label="Navegación principal">
@@ -38,15 +37,11 @@ export function Sidebar() {
 
       <div className="sidebar-footer">
         <div className="user-summary">
-          <span className="avatar">{user?.displayName.slice(0, 1).toUpperCase()}</span>
+          <span className="avatar">{user.displayName.slice(0, 1).toUpperCase()}</span>
           <div>
-            <strong>{user?.displayName}</strong>
-            <span>{user?.companyName}</span>
+            <strong>{user.displayName}</strong>
           </div>
         </div>
-        <button type="button" className="icon-button" onClick={() => void signOut()} aria-label="Cerrar sesión">
-          <LogOut size={19} />
-        </button>
       </div>
     </aside>
   )

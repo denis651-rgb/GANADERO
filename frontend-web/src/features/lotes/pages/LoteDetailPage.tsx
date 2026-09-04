@@ -1,11 +1,12 @@
 ﻿import { useDeferredValue, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Plus, Search, Trash2 } from 'lucide-react'
-import { addAnimales, cerrarLote, getLote, listMembresias, retirarAnimales } from '@/features/lotes/api'
+import { ArrowLeft, Bug, Plus, Search, Trash2 } from 'lucide-react'
+import { addAnimales, cerrarLote, getLote, listMembresias, retirarAnimales, updateLote } from '@/features/lotes/api'
 import type { ModoIngreso } from '@/features/lotes/api'
 import { listAnimals } from '@/features/animales/api'
 import { listPropiedades } from '@/features/propiedades/api'
+import { ControlEctoparasitarioModal } from '@/features/sanidad/components/ControlEctoparasitarioModal'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
@@ -22,6 +23,8 @@ export function LoteDetailPage() {
   const { showToast } = useToast()
   const client = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
+  const [showCapacity, setShowCapacity] = useState(false)
+  const [maximo, setMaximo] = useState('')
   const [addSearch, setAddSearch] = useState('')
   const deferredAddSearch = useDeferredValue(addSearch)
   const [addSelected, setAddSelected] = useState<Set<string>>(new Set())
@@ -35,13 +38,14 @@ export function LoteDetailPage() {
   const [retiroMotivo, setRetiroMotivo] = useState('')
   const [showClose, setShowClose] = useState(false)
   const [closeMotivo, setCloseMotivo] = useState('')
+  const [showControlEcto, setShowControlEcto] = useState(false)
 
   const lote = useQuery({ queryKey: ['lote', id], queryFn: () => getLote(id), enabled: Boolean(id) })
   const miembros = useQuery({ queryKey: ['lote-miembros', id, true], queryFn: () => listMembresias(id, true), enabled: Boolean(id) })
   const historicos = useQuery({ queryKey: ['lote-miembros', id, false], queryFn: () => listMembresias(id, false), enabled: Boolean(id) })
   const catalogs = useQuery({ queryKey: ['lote-catalogs'], queryFn: async () => {
-    const [propiedades, animales] = await Promise.all([listPropiedades(), listAnimals({ search: undefined, estado: 'ACTIVO', sexo: '', page: 0, size: 500 })])
-    return { propiedades, animales: animales.content }
+    const propiedades = await listPropiedades()
+    return { propiedades }
   } })
   const disponiblesQuery = useQuery({
     queryKey: ['lote-animales-disponibles', deferredAddSearch],
@@ -49,9 +53,19 @@ export function LoteDetailPage() {
     enabled: showAdd,
   })
 
+  const cupos = lote.data?.cantidadMaxima == null ? null : Math.max(0, lote.data.cantidadMaxima - lote.data.cantidadActual)
+  const capacity = useMutation({
+    mutationFn: () => updateLote(id, { cantidadMaxima: Number(maximo), version: lote.data!.version }),
+    onSuccess: async () => {
+      setShowCapacity(false)
+      showToast('Cantidad máxima actualizada.')
+      await Promise.all([client.invalidateQueries({ queryKey: ['lote', id] }), client.invalidateQueries({ queryKey: ['lotes'] })])
+    },
+  })
   const add = useMutation({
     mutationFn: () => {
       if (addSelected.size === 0) return Promise.reject(new Error('Selecciona al menos un animal.'))
+      if (cupos != null && addSelected.size > cupos) return Promise.reject(new Error(`Solo quedan ${cupos} cupos. Seleccionaste ${addSelected.size} animales. No se incorporó ninguno.`))
       return addAnimales(id, {
         animalIds: Array.from(addSelected),
         modo: addModo,
@@ -70,7 +84,9 @@ export function LoteDetailPage() {
         setAddObservacion('')
         showToast(`${result.ingresados} animal(es) ingresado(s) al lote.`)
       }
-      void client.invalidateQueries({ queryKey: ['lote-miembros', id] })
+      void client.invalidateQueries({ queryKey: ['lote-miembros'] })
+      void client.invalidateQueries({ queryKey: ['lote'] })
+      void client.invalidateQueries({ queryKey: ['lotes'] })
       void client.invalidateQueries({ queryKey: ['animals'] })
     },
   })
@@ -91,7 +107,9 @@ export function LoteDetailPage() {
         setRetiroMotivo('')
         showToast(`${result.retirados} animal(es) retirado(s) del lote.`)
       }
-      void client.invalidateQueries({ queryKey: ['lote-miembros', id] })
+      void client.invalidateQueries({ queryKey: ['lote-miembros'] })
+      void client.invalidateQueries({ queryKey: ['lote'] })
+      void client.invalidateQueries({ queryKey: ['lotes'] })
       void client.invalidateQueries({ queryKey: ['animals'] })
     },
   })
@@ -103,7 +121,7 @@ export function LoteDetailPage() {
       await client.invalidateQueries({ queryKey: ['lotes'] })
     },
   })
-  const error = lote.error ?? miembros.error ?? catalogs.error ?? add.error ?? retirar.error ?? close.error
+  const error = lote.error ?? miembros.error ?? historicos.error ?? catalogs.error ?? add.error ?? retirar.error ?? close.error
 
   const candidatos = useMemo(() => {
     const asignados = new Set(miembros.data?.map((item) => item.animalId) ?? [])
@@ -130,39 +148,50 @@ export function LoteDetailPage() {
   const value = lote.data
 
   return <div className="page-stack">
-    <PageHeader eyebrow="Lotes" title={`${value.codigo} · ${value.nombre}`} description={value.descripcion || 'Sin descripción.'} actions={<><Link className="button button-ghost" to="/lotes"><ArrowLeft size={18} aria-hidden="true" />Volver</Link>{value.estado === 'ACTIVO' && <Button variant="danger" onClick={() => setShowClose(true)}>Cerrar lote</Button>}</>} />
+    <PageHeader eyebrow="Lotes" title={`${value.codigo} · ${value.nombre}`} description={value.descripcion || 'Sin descripción.'} actions={<><Link className="button button-ghost" to="/lotes"><ArrowLeft size={18} aria-hidden="true" />Volver</Link><Button variant="secondary" onClick={() => setShowControlEcto(true)}><Bug size={18} aria-hidden="true" />Registrar control ectoparasitario</Button>{value.estado === 'ACTIVO' && <Button variant="danger" onClick={() => setShowClose(true)}>Cerrar lote</Button>}</>} />
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
     <div className="two-column-grid">
       <Card><dl className="detail-list"><div><dt>Propiedad</dt><dd>{catalogs.data?.propiedades.find((item) => item.id === value.propiedadId)?.nombre ?? '—'}</dd></div><div><dt>Estado</dt><dd>{value.estado}</dd></div><div><dt>Apertura</dt><dd>{new Date(value.fechaApertura).toLocaleDateString('es-BO')}</dd></div><div><dt>Cierre</dt><dd>{value.fechaCierre ? new Date(value.fechaCierre).toLocaleDateString('es-BO') : '—'}</dd></div></dl></Card>
-      <Card><h3>Miembros activos</h3>{miembros.isPending && <LoadingState message="Cargando animales…" />}{miembros.data && <p className="muted">{miembros.data.length} animal(es) en el lote.</p>}</Card>
+      <Card><h3>Ocupación del lote</h3><p>{value.cantidadActual} / {value.cantidadMaxima ?? 'Sin límite'} animales</p><p className="muted">{cupos == null ? 'Sin límite configurado.' : `${cupos} cupos disponibles`}</p>
+        {value.estado === 'ACTIVO' && <Button variant="secondary" onClick={() => { setMaximo(value.cantidadMaxima?.toString() ?? ''); capacity.reset(); setShowCapacity(true) }}>Configurar cantidad máxima</Button>}
+      </Card>
     </div>
     <Card>
       <div className="filter-heading"><span><Plus size={18} />Animales del lote</span>{value.estado === 'ACTIVO' && <div className="row-actions">{retiroSelected.size > 0 && <Button variant="danger" onClick={() => setShowRetiro(true)}>Retirar seleccionados ({retiroSelected.size})</Button>}<Button variant="secondary" onClick={() => setShowAdd(true)}><Plus size={16} />Agregar animales</Button></div>}</div>
       {miembros.isPending && <LoadingState message="Cargando miembros…" />}
       {miembros.data?.length === 0 && <EmptyState title="Lote vacío" description="Agrega animales al lote para empezar a trabajar con ellos." />}
       {miembros.data && miembros.data.length > 0 && <div className="table-wrapper"><table><caption className="visually-hidden">Animales integrantes del lote</caption><thead><tr>{value.estado === 'ACTIVO' && <th scope="col">Selección</th>}<th scope="col">Animal</th><th scope="col">Ingreso</th><th scope="col">Motivo</th><th scope="col">Acciones</th></tr></thead><tbody>{miembros.data.map((item) => {
-        const animal = catalogs.data?.animales.find((a) => a.id === item.animalId)
-        return <tr key={item.id}>{value.estado === 'ACTIVO' && <td><input type="checkbox" aria-label="Seleccionar animal" checked={retiroSelected.has(item.animalId)} onChange={() => toggleRetiro(item.animalId)} /></td>}<td><strong>{animal?.codigo ?? '—'}</strong>{animal?.nombre ? ` · ${animal.nombre}` : ''}</td><td>{new Date(item.fechaIngreso).toLocaleString('es-BO')}</td><td>{item.motivoIngreso ?? '—'}</td><td>{value.estado === 'ACTIVO' && <Button variant="ghost" aria-label="Retirar animal" onClick={() => { setRetiroSelected(new Set([item.animalId])); setShowRetiro(true) }}><Trash2 size={16} /></Button>}</td></tr>
+        const animal = { codigo: item.animalCodigo, nombre: item.animalNombre }
+        return <tr key={item.id}>{value.estado === 'ACTIVO' && <td><input type="checkbox" aria-label="Seleccionar animal" checked={retiroSelected.has(item.animalId)} onChange={() => toggleRetiro(item.animalId)} /></td>}<td><strong>{animal.nombre?.trim() || animal.codigo || 'Animal sin nombre'}</strong></td><td>{new Date(item.fechaIngreso).toLocaleString('es-BO')}</td><td>{item.motivoIngreso ?? '—'}</td><td>{value.estado === 'ACTIVO' && <Button variant="ghost" aria-label="Retirar animal" onClick={() => { setRetiroSelected(new Set([item.animalId])); setShowRetiro(true) }}><Trash2 size={16} /></Button>}</td></tr>
       })}</tbody></table></div>}
     </Card>
-    {historicos.data && historicos.data.length > 0 && <Card><h3>Historial de membresías</h3><div className="table-wrapper"><table><caption className="visually-hidden">Historial de animales del lote</caption><thead><tr><th scope="col">Animal</th><th scope="col">Ingreso</th><th scope="col">Salida</th><th scope="col">Motivo de ingreso</th><th scope="col">Motivo de salida</th></tr></thead><tbody>{historicos.data.filter((item) => item.fechaSalida).map((item) => { const animal = catalogs.data?.animales.find((a) => a.id === item.animalId); return <tr key={item.id}><td><strong>{animal?.codigo ?? '—'}</strong></td><td>{new Date(item.fechaIngreso).toLocaleString('es-BO')}</td><td>{item.fechaSalida ? new Date(item.fechaSalida).toLocaleString('es-BO') : '—'}</td><td>{item.motivoIngreso ?? '—'}</td><td>{item.motivoSalida ?? '—'}</td></tr> })}</tbody></table></div></Card>}
+    {historicos.data && historicos.data.some((item) => item.fechaSalida) && <Card><h3>Historial de entradas y salidas</h3><div className="table-wrapper"><table><caption className="visually-hidden">Historial de animales del lote</caption><thead><tr><th scope="col">Animal</th><th scope="col">Ingreso</th><th scope="col">Salida</th><th scope="col">Motivo de ingreso</th><th scope="col">Motivo de salida</th></tr></thead><tbody>{historicos.data.filter((item) => item.fechaSalida).map((item) => { const animal = { codigo: item.animalCodigo, nombre: item.animalNombre }; return <tr key={item.id}><td><strong>{animal.nombre?.trim() || animal.codigo || 'Animal sin nombre'}</strong></td><td>{new Date(item.fechaIngreso).toLocaleString('es-BO')}</td><td>{item.fechaSalida ? new Date(item.fechaSalida).toLocaleString('es-BO') : '—'}</td><td>{item.motivoIngreso ?? '—'}</td><td>{item.motivoSalida ?? '—'}</td></tr> })}</tbody></table></div></Card>}
     {value.estado === 'CERRADO' && <Alert tone="info">Este lote está cerrado y no admite más animales.</Alert>}
 
+    <Modal open={showCapacity} title="Cantidad máxima del lote" onClose={() => { if (!capacity.isPending) setShowCapacity(false) }}>
+      <form className="form-grid" onSubmit={(event) => { event.preventDefault(); capacity.mutate() }}>
+        <Field label="Cantidad máxima de animales" hint={`No puede ser menor que la ocupación actual: ${value.cantidadActual} animales.`}><input type="number" required min={Math.max(1, value.cantidadActual)} max="2147483647" step="1" value={maximo} onChange={(event) => setMaximo(event.target.value)} /></Field>
+        <div className="form-actions"><Button type="submit" loading={capacity.isPending}>Guardar máximo</Button></div>
+      </form>
+      {capacity.error && <Alert tone="danger">{normalizeApiError(capacity.error).message}</Alert>}
+    </Modal>
     <Modal open={showAdd} title="Agregar animales al lote" onClose={() => { if (!add.isPending) setShowAdd(false) }} wide>
       <div className="page-stack">
         <div className="filter-heading"><span className="search-box"><Search size={18} aria-hidden="true" /><input type="search" aria-label="Buscar animales para agregar al lote" value={addSearch} onChange={(event) => { setAddSearch(event.target.value); setAddSelected(new Set()) }} placeholder="Buscar por código o nombre…" /></span><span className="muted">{addSelected.size} seleccionado(s)</span></div>
+        <p>{cupos == null ? 'Sin límite configurado.' : `${cupos} cupos disponibles. Si la selección supera el máximo, no se incorporará ningún animal.`}</p>
+        {cupos != null && addSelected.size > cupos && <p role="status">Seleccionaste {addSelected.size} animales y solo quedan {cupos} cupos. Reduce la selección.</p>}
         {add.isSuccess && !add.data.ok && <Alert tone="danger">{add.data.resultados.filter((r) => r.estado === 'ERROR').map((r) => `${r.mensaje} (${r.animalId})`).join(' · ')}</Alert>}
         {add.error && <Alert tone="danger">{normalizeApiError(add.error).message}</Alert>}
         {disponiblesQuery.isPending && <LoadingState message="Buscando animales…" />}
         {candidatos.length === 0 && !disponiblesQuery.isPending && <EmptyState title="Sin animales disponibles" description="No hay animales activos de esta propiedad fuera del lote." />}
-        {candidatos.length > 0 && <div className="checkbox-stack">{candidatos.map((animal) => <label key={animal.id}><input type="checkbox" checked={addSelected.has(animal.id)} onChange={() => toggleAdd(animal.id)} /> {animal.codigo}{animal.nombre ? ` · ${animal.nombre}` : ''}</label>)}</div>}
+        {candidatos.length > 0 && <div className="checkbox-stack">{candidatos.map((animal) => <label key={animal.id}><input type="checkbox" checked={addSelected.has(animal.id)} onChange={() => toggleAdd(animal.id)} /> {animal.nombre?.trim() || animal.codigo}</label>)}</div>}
         <div className="form-grid">
           <Field label="Modo"><select value={addModo} onChange={(event) => setAddModo(event.target.value as ModoIngreso)}><option value="PARCIAL">Parcial (procesa el resto)</option><option value="ATOMICO">Atómico (todo o nada)</option></select></Field>
           <Field label="Fecha de ingreso"><input type="datetime-local" value={addFechaIngreso} onChange={(event) => setAddFechaIngreso(event.target.value)} /></Field>
           <Field label="Motivo"><input value={addMotivo} onChange={(event) => setAddMotivo(event.target.value)} maxLength={1000} /></Field>
           <Field label="Observación"><textarea value={addObservacion} onChange={(event) => setAddObservacion(event.target.value)} maxLength={2000} /></Field>
         </div>
-        <div className="form-actions"><Button type="button" loading={add.isPending} disabled={addSelected.size === 0} onClick={() => add.mutate()}>Agregar {addSelected.size} animal(es)</Button></div>
+        <div className="form-actions"><Button type="button" loading={add.isPending} disabled={addSelected.size === 0 || (cupos != null && addSelected.size > cupos)} onClick={() => add.mutate()}>Agregar {addSelected.size} animal(es)</Button></div>
       </div>
     </Modal>
 
@@ -186,5 +215,7 @@ export function LoteDetailPage() {
         <div className="form-actions"><Button type="button" variant="danger" loading={close.isPending} onClick={() => close.mutate()}>Confirmar cierre</Button></div>
       </div>
     </Modal>
+
+    {showControlEcto && <ControlEctoparasitarioModal loteGanaderoId={id} destinoLabel={`${value.codigo} · ${value.nombre}`} onClose={() => setShowControlEcto(false)} onSaved={() => setShowControlEcto(false)} />}
   </div>
 }

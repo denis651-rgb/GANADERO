@@ -50,6 +50,11 @@ public class AnimalController {
         return ok(AnimalResponse.from(service.create(b.command())), r);
     }
 
+    @PostMapping("/animales/lote")
+    ApiResponse<List<AnimalResponse>> createBatch(@Valid @RequestBody CrearAnimalesLoteRequest b, HttpServletRequest r) {
+        return ok(service.createBatch(b.commands()).stream().map(AnimalResponse::from).toList(), r);
+    }
+
     @GetMapping("/animales/{id}")
     ApiResponse<AnimalResponse> get(@PathVariable UUID id, HttpServletRequest r) {
         return ok(AnimalResponse.from(service.get(id)), r);

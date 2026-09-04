@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildDashboardModel, formatPesoKg, type DashboardModel } from './dashboardModel'
+import { buildAttentionItems, buildDashboardModel, formatPesoKg } from './dashboardModel'
 import type { DashboardResumen } from './api'
 
 const resumenVacio: DashboardResumen = {
@@ -34,41 +34,19 @@ const resumenConDatos: DashboardResumen = {
 
 describe('buildDashboardModel', () => {
   it('marca sin datos cuando no hay registros', () => {
-    const model = buildDashboardModel(resumenVacio, { operacionesPendientes: 0, conflictos: 0, archivosPendientes: 0 }, 'TODA_EMPRESA')
+    const model = buildDashboardModel(resumenVacio)
     expect(model.tieneDatos).toBe(false)
   })
 
   it('detecta datos por animales', () => {
-    const model = buildDashboardModel(resumenConDatos, { operacionesPendientes: 0, conflictos: 0, archivosPendientes: 0 }, 'TODA_EMPRESA')
+    const model = buildDashboardModel(resumenConDatos)
     expect(model.tieneDatos).toBe(true)
   })
 
-  it('detecta datos por pendientes locales', () => {
-    const model = buildDashboardModel(resumenVacio, { operacionesPendientes: 3, conflictos: 0, archivosPendientes: 0 }, 'TODA_EMPRESA')
-    expect(model.tieneDatos).toBe(true)
-  })
-
-  it('detecta datos por conflictos locales', () => {
-    const model = buildDashboardModel(resumenVacio, { operacionesPendientes: 0, conflictos: 1, archivosPendientes: 0 }, 'TODA_EMPRESA')
-    expect(model.tieneDatos).toBe(true)
-  })
-
-  it('expone el alcance recibido', () => {
-    const model = buildDashboardModel(resumenConDatos, { operacionesPendientes: 0, conflictos: 0, archivosPendientes: 0 }, 'PROPIEDADES_ASIGNADAS')
-    expect(model.scope).toBe('PROPIEDADES_ASIGNADAS')
-  })
-
-  it('preserva resumen y datos locales', () => {
-    const model: DashboardModel = buildDashboardModel(
-      resumenConDatos,
-      { operacionesPendientes: 2, conflictos: 0, archivosPendientes: 1, ultimaSincronizacion: '2026-08-07T12:00:00Z' },
-      'TODA_EMPRESA',
-    )
+  it('preserva el resumen', () => {
+    const model = buildDashboardModel(resumenConDatos)
     expect(model.resumen.totalAnimales).toBe(25)
     expect(model.resumen.gananciaPromedioKg).toBe(0.62)
-    expect(model.local.operacionesPendientes).toBe(2)
-    expect(model.local.archivosPendientes).toBe(1)
-    expect(model.local.ultimaSincronizacion).toBe('2026-08-07T12:00:00Z')
   })
 })
 
@@ -80,5 +58,41 @@ describe('formatPesoKg', () => {
   it('devuelve guion largo para valores nulos', () => {
     expect(formatPesoKg(undefined)).toBe('—')
     expect(formatPesoKg(null as unknown as undefined)).toBe('—')
+  })
+})
+
+describe('buildAttentionItems', () => {
+  it('no genera items cuando no hay alertas ni animales sin pesaje', () => {
+    expect(buildAttentionItems(resumenVacio)).toEqual([])
+  })
+
+  it('agrega el recordatorio de pesaje como severidad warning', () => {
+    const items = buildAttentionItems({ ...resumenVacio, animalesSinPesaje: 5 })
+    expect(items).toEqual([
+      {
+        key: 'SIN_PESAJE_RECIENTE',
+        severidad: 'warning',
+        mensaje: '5 animales sin pesaje reciente',
+        detalle: 'Registra controles para mantener actualizado el seguimiento productivo.',
+        actionHref: '/pesajes',
+        actionLabel: 'Registrar pesaje',
+      },
+    ])
+  })
+
+  it('ordena danger antes que warning antes que info, sin importar el orden de origen', () => {
+    const resumen: DashboardResumen = {
+      ...resumenVacio,
+      animalesSinPesaje: 2,
+      alertas: [
+        { tipo: 'INFO_X', mensaje: 'Aviso informativo', severidad: 'info', total: 1 },
+        { tipo: 'DANGER_X', mensaje: 'Vencimiento crítico', severidad: 'danger', total: 3 },
+      ],
+    }
+
+    const items = buildAttentionItems(resumen)
+
+    expect(items.map((item) => item.severidad)).toEqual(['danger', 'warning', 'info'])
+    expect(items[0].mensaje).toBe('Vencimiento crítico')
   })
 })

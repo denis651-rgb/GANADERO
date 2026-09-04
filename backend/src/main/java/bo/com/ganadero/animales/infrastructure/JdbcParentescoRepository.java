@@ -3,6 +3,7 @@ package bo.com.ganadero.animales.infrastructure;
 import bo.com.ganadero.animales.domain.Parentesco;
 import bo.com.ganadero.animales.domain.ParentescoRepository;
 import bo.com.ganadero.animales.domain.TipoParentesco;
+import bo.com.ganadero.shared.db.Rows;
 import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -25,33 +26,33 @@ class JdbcParentescoRepository implements ParentescoRepository {
 
     @Override
     public List<Parentesco> findByAnimal(UUID animalId, UUID empresa) {
-        return jdbc.sql("select * from ganado.parentescos where animal_id=:animal and empresa_id=:e order by tipo_parentesco")
-                .param("animal", animalId).param("e", empresa).query(this::map).list();
+        return jdbc.sql("select * from parentesco where animal_id=:animal order by tipo_parentesco")
+                .param("animal", animalId.toString()).query(this::map).list();
     }
 
     @Override
     public Optional<Parentesco> findById(UUID id, UUID animalId, UUID empresa) {
-        return jdbc.sql("select * from ganado.parentescos where id=:id and animal_id=:animal and empresa_id=:e")
-                .param("id", id).param("animal", animalId).param("e", empresa).query(this::map).optional();
+        return jdbc.sql("select * from parentesco where id=:id and animal_id=:animal")
+                .param("id", id.toString()).param("animal", animalId.toString()).query(this::map).optional();
     }
 
     @Override
     public Optional<UUID> findRegisteredParentId(UUID animalId, UUID empresa) {
-        return jdbc.sql("select animal_padre_id from ganado.parentescos where animal_id=:animal and empresa_id=:e and animal_padre_id is not null limit 1")
-                .param("animal", animalId).param("e", empresa).query(UUID.class).optional();
+        return jdbc.sql("select animal_padre_id from parentesco where animal_id=:animal and animal_padre_id is not null limit 1")
+                .param("animal", animalId.toString()).query(String.class).optional().map(UUID::fromString);
     }
 
     @Override
     public Parentesco create(Parentesco p, UUID actor) {
         try {
             jdbc.sql("""
-                    insert into ganado.parentescos(id,empresa_id,animal_id,tipo_parentesco,animal_padre_id,
+                    insert into parentesco(id,animal_id,tipo_parentesco,animal_padre_id,
                         nombre_externo,raza_externa_id,registro_genealogico,fecha_registro,registrado_por)
-                    values(:id,:e,:animal,:tipo,:padre,:externo,:raza,:registro,now(),:actor)""")
-                    .param("id", p.id()).param("e", p.empresaId()).param("animal", p.animalId())
-                    .param("tipo", p.tipo().name()).param("padre", p.animalPadreId())
-                    .param("externo", p.nombreExterno()).param("raza", p.razaExternaId())
-                    .param("registro", p.registroGenealogico()).param("actor", actor)
+                    values(:id,:animal,:tipo,:padre,:externo,:raza,:registro,strftime('%Y-%m-%dT%H:%M:%fZ','now'),:actor)""")
+                    .param("id", p.id().toString()).param("animal", p.animalId().toString())
+                    .param("tipo", p.tipo().name()).param("padre", p.animalPadreId() == null ? null : p.animalPadreId().toString())
+                    .param("externo", p.nombreExterno()).param("raza", p.razaExternaId() == null ? null : p.razaExternaId().toString())
+                    .param("registro", p.registroGenealogico()).param("actor", actor.toString())
                     .update();
         } catch (DataIntegrityViolationException ex) {
             throw new BusinessException(ErrorCode.PARENTESCO_ALREADY_EXISTS);
@@ -63,13 +64,13 @@ class JdbcParentescoRepository implements ParentescoRepository {
     public Parentesco update(Parentesco p, UUID actor) {
         try {
             int changed = jdbc.sql("""
-                    update ganado.parentescos set tipo_parentesco=:tipo,animal_padre_id=:padre,nombre_externo=:externo,
+                    update parentesco set tipo_parentesco=:tipo,animal_padre_id=:padre,nombre_externo=:externo,
                         raza_externa_id=:raza,registro_genealogico=:registro,registrado_por=:actor
-                    where id=:id and animal_id=:animal and empresa_id=:e""")
-                    .param("tipo", p.tipo().name()).param("padre", p.animalPadreId())
-                    .param("externo", p.nombreExterno()).param("raza", p.razaExternaId())
-                    .param("registro", p.registroGenealogico()).param("actor", actor)
-                    .param("id", p.id()).param("animal", p.animalId()).param("e", p.empresaId())
+                    where id=:id and animal_id=:animal""")
+                    .param("tipo", p.tipo().name()).param("padre", p.animalPadreId() == null ? null : p.animalPadreId().toString())
+                    .param("externo", p.nombreExterno()).param("raza", p.razaExternaId() == null ? null : p.razaExternaId().toString())
+                    .param("registro", p.registroGenealogico()).param("actor", actor.toString())
+                    .param("id", p.id().toString()).param("animal", p.animalId().toString())
                     .update();
             if (changed == 0) throw new BusinessException(ErrorCode.PARENTESCO_NOT_FOUND);
         } catch (DataIntegrityViolationException ex) {
@@ -80,16 +81,16 @@ class JdbcParentescoRepository implements ParentescoRepository {
 
     @Override
     public void delete(UUID id, UUID animalId, UUID empresa) {
-        jdbc.sql("delete from ganado.parentescos where id=:id and animal_id=:animal and empresa_id=:e")
-                .param("id", id).param("animal", animalId).param("e", empresa).update();
+        jdbc.sql("delete from parentesco where id=:id and animal_id=:animal")
+                .param("id", id.toString()).param("animal", animalId.toString()).update();
     }
 
     private Parentesco map(ResultSet rs, int rowNum) throws SQLException {
         return new Parentesco(
-                rs.getObject("id", UUID.class), rs.getObject("empresa_id", UUID.class),
-                rs.getObject("animal_id", UUID.class), TipoParentesco.valueOf(rs.getString("tipo_parentesco")),
-                rs.getObject("animal_padre_id", UUID.class), rs.getString("nombre_externo"),
-                rs.getObject("raza_externa_id", UUID.class), rs.getString("registro_genealogico"),
-                rs.getTimestamp("fecha_registro").toInstant(), rs.getObject("registrado_por", UUID.class));
+                Rows.uuid(rs, "id"), null,
+                Rows.uuid(rs, "animal_id"), TipoParentesco.valueOf(rs.getString("tipo_parentesco")),
+                Rows.uuid(rs, "animal_padre_id"), rs.getString("nombre_externo"),
+                Rows.uuid(rs, "raza_externa_id"), rs.getString("registro_genealogico"),
+                Rows.instant(rs, "fecha_registro"), Rows.uuid(rs, "registrado_por"));
     }
 }

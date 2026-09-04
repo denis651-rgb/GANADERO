@@ -55,6 +55,9 @@ public enum TipoEventoAnimal {
     TRATAMIENTO_INICIADO("SANIDAD", "Tratamiento iniciado"),
     TRATAMIENTO_APLICADO("SANIDAD", "Tratamiento aplicado"),
     TRATAMIENTO_FINALIZADO("SANIDAD", "Tratamiento finalizado"),
+    CONTROL_NEONATAL_REGISTRADO("SANIDAD", "Control neonatal registrado"),
+    CONTROL_ECTOPARASITARIO_REGISTRADO("SANIDAD", "Control ectoparasitario registrado"),
+    EXAMEN_REPRODUCTIVO_REGISTRADO("SANIDAD", "Examen reproductivo registrado"),
 
     FOTO_AGREGADA("ARCHIVOS", "Fotografía agregada"),
     FOTO_PRINCIPAL_CAMBIADA("ARCHIVOS", "Fotografía principal"),

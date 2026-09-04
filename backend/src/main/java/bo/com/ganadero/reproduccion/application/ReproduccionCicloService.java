@@ -26,11 +26,14 @@ public class ReproduccionCicloService {
  private final PesajeRepository pesajes; private final UserContext context; private final TimelineEventPublisher timeline;
  private final ApplicationEventPublisher events; private final ObjectProvider<MotorAlertas> alertas;
  private final CodigoService codigos;
+ private final RazaRepository razas;
+ private final CategoriaAnimalRepository categorias;
+ private final GestacionService gestaciones;
  private int diasHastaDestete=210; private int diasAlertaDestete=7;
  public ReproduccionCicloService(ReproduccionRepository repo,AnimalRepository animales,ParentescoRepository parentescos,
   PesajeRepository pesajes,UserContext context,TimelineEventPublisher timeline,ApplicationEventPublisher events,
-  ObjectProvider<MotorAlertas> alertas,CodigoService codigos){this.repo=repo;this.animales=animales;this.parentescos=parentescos;this.pesajes=pesajes;
-  this.context=context;this.timeline=timeline;this.events=events;this.alertas=alertas;this.codigos=codigos;}
+  ObjectProvider<MotorAlertas> alertas,CodigoService codigos,RazaRepository razas,CategoriaAnimalRepository categorias,GestacionService gestaciones){this.repo=repo;this.animales=animales;this.parentescos=parentescos;this.pesajes=pesajes;
+  this.context=context;this.timeline=timeline;this.events=events;this.alertas=alertas;this.codigos=codigos;this.razas=razas;this.categorias=categorias;this.gestaciones=gestaciones;}
  @Value("${ganadero.reproduccion.dias-hasta-destete:210}") void setDiasHastaDestete(int dias){if(dias<1)throw new IllegalArgumentException();this.diasHastaDestete=dias;}
  @Value("${ganadero.reproduccion.dias-alerta-destete:7}") void setDiasAlertaDestete(int dias){if(dias<0)throw new IllegalArgumentException();this.diasAlertaDestete=dias;}
 
@@ -38,20 +41,20 @@ public class ReproduccionCicloService {
  public PartoResult registrarParto(RegistrarPartoCommand c){
   CurrentUser u=context.requirePermission("REPRODUCCION_REGISTRAR"); Animal madre=hembra(u,c.madreId());
   LocalDate fecha=fecha(c.fechaParto()); validarPosteriorNacimiento(fecha,madre); if(c.crias()==null||c.crias().isEmpty()) throw new BusinessException(ErrorCode.PARTO_CRIAS_INVALIDAS);
-  DiagnosticoGestacion dg=null; if(c.diagnosticoGestacionId()!=null){dg=repo.findDiagnosticoById(c.diagnosticoGestacionId(),u.empresaId())
-   .orElseThrow(()->new BusinessException(ErrorCode.PARTO_GESTACION_INCOMPATIBLE));
-   if(!dg.animalId().equals(madre.id())||dg.resultado()!=ResultadoGestacion.POSITIVO) throw new BusinessException(ErrorCode.PARTO_GESTACION_INCOMPATIBLE);
-   if(repo.existsActivePartoForGestacion(u.empresaId(),dg.id())) throw new BusinessException(ErrorCode.PARTO_GESTACION_DUPLICADA);}
-  Servicio servicio=servicioCompatible(u,c.servicioId(),madre.id()); UUID partoId=UUID.randomUUID();
-  Parto parto=repo.createParto(new Parto(partoId,u.empresaId(),madre.id(),c.diagnosticoGestacionId(),c.servicioId(),fecha,
+  UUID partoId=UUID.randomUUID();
+  GestacionCiclo gestacion=gestaciones.cerrar(u,madre.id(),c.cicloGestacionId(),fecha,true,partoId);
+  if((c.servicioId()!=null&&!c.servicioId().equals(gestacion.servicioId()))||(c.diagnosticoGestacionId()!=null&&!c.diagnosticoGestacionId().equals(gestacion.diagnosticoId())))throw new BusinessException(ErrorCode.PARTO_GESTACION_INCOMPATIBLE);
+  Servicio servicio=servicioCompatible(u,gestacion.servicioId(),madre.id());
+  Parto parto=repo.createParto(new Parto(partoId,u.empresaId(),madre.id(),gestacion.diagnosticoId(),gestacion.servicioId(),fecha,
    c.tipoParto()==null?TipoParto.NORMAL:c.tipoParto(),c.dificultad()==null?DificultadParto.SIN_ASISTENCIA:c.dificultad(),
    c.asistido(),c.responsableId(),c.resultadoMadre(),c.crias().size(),c.observaciones(),madre.propiedadActualId(),
    madre.potreroActualId(),madre.loteActualId(),partoId,null,EstadoRegistroReproduccion.ACTIVO,null,null,null,
    null,null,null,null,null,null,null,0),u.userId());
   List<CriaParto> creadas=new ArrayList<>(); for(RegistrarPartoCommand.CriaCommand item:c.crias()) creadas.add(crearCria(u,madre,servicio,parto,item));
-  if(c.servicioId()!=null) repo.updateServicioEstado(c.servicioId(),u.empresaId(),EstadoServicio.FINALIZADO,u.userId());
+  gestaciones.vincular(true,parto.id(),gestacion.id());
+  if(gestacion.servicioId()!=null) repo.updateServicioEstado(gestacion.servicioId(),u.empresaId(),EstadoServicio.FINALIZADO,u.userId());
   publicar(u,madre.id(),TipoEventoAnimal.PARTO_REGISTRADO,parto.id(),"Parto registrado");
-  audit(u,AuditActions.REGISTRAR_PARTO,"PARTO",parto.id()); resolver(u,"GESTACION",c.diagnosticoGestacionId()); resolver(u,"MADRE",madre.id());
+  audit(u,AuditActions.REGISTRAR_PARTO,"PARTO",parto.id()); resolverAlertasGestacion(u,madre.id(),gestacion); resolver(u,"MADRE",madre.id());
   return new PartoResult(parto,creadas);
  }
 
@@ -64,12 +67,18 @@ public class ReproduccionCicloService {
 
  private CriaParto crearCria(CurrentUser u,Animal madre,Servicio servicio,Parto parto,RegistrarPartoCommand.CriaCommand c){
   UUID animalId=null; if(c.crearAnimal()){
-   if(c.estadoNacimiento()!=EstadoNacimiento.VIVO||c.nombreAnimal()==null||c.nombreAnimal().isBlank())
+   if(c.estadoNacimiento()!=EstadoNacimiento.VIVO||c.nombreAnimal()==null||c.nombreAnimal().isBlank()||c.razaPrincipalId()==null)
     throw new BusinessException(ErrorCode.CRIA_ANIMAL_DATOS_REQUERIDOS);
+   if(razas.findById(c.razaPrincipalId(),u.empresaId()).filter(Raza::activo).isEmpty())
+    throw new BusinessException(ErrorCode.BREED_NOT_FOUND);
+   String categoriaCodigo=c.sexo()==SexoAnimal.HEMBRA?"TERNERA":"TERNERO";
+   UUID categoriaId=categorias.findActive(u.empresaId()).stream()
+    .filter(cat->categoriaCodigo.equals(cat.codigo())&&cat.appliesTo(c.sexo()))
+    .map(CategoriaAnimal::id).findFirst().orElseThrow(()->new BusinessException(ErrorCode.ANIMAL_CATEGORY_NOT_FOUND));
    animalId=UUID.randomUUID(); UUID potrero=c.potreroInicialId()==null?madre.potreroActualId():c.potreroInicialId();
    if(potrero!=null&&!animales.validLocation(u.empresaId(),madre.propiedadActualId(),potrero)) throw new BusinessException(ErrorCode.INVALID_ANIMAL_LOCATION);
    String codigo=codigos.paraCreacion(u,TipoCodigo.ANIMAL,null,null,c.codigoAnimal());
-   Animal animal=new Animal(animalId,u.empresaId(),codigo,c.nombreAnimal(),c.sexo(),parto.fechaParto(),false,null,null,null,
+   Animal animal=new Animal(animalId,u.empresaId(),codigo,c.nombreAnimal(),c.sexo(),parto.fechaParto(),false,c.razaPrincipalId(),categoriaId,null,
     madre.proposito(),OrigenAnimal.NACIDO,madre.propiedadActualId(),potrero,null,EstadoAnimal.ACTIVO,parto.fechaParto(),null,
     c.pesoNacimientoKg(),null,null,c.observaciones(),0); animales.create(animal,u.userId());
    parentescos.create(new Parentesco(UUID.randomUUID(),u.empresaId(),animalId,TipoParentesco.MADRE,madre.id(),null,null,null,Instant.now(),u.userId()),u.userId());
@@ -88,14 +97,23 @@ public class ReproduccionCicloService {
  }
 
  @Transactional public Aborto registrarAborto(RegistrarAbortoCommand c){CurrentUser u=context.requirePermission("REPRODUCCION_REGISTRAR"); Animal a=hembra(u,c.animalId());
-  LocalDate f=fecha(c.fechaEvento()); validarPosteriorNacimiento(f,a); if(c.gestacionId()!=null){DiagnosticoGestacion d=repo.findDiagnosticoById(c.gestacionId(),u.empresaId())
-   .orElseThrow(()->new BusinessException(ErrorCode.PARTO_GESTACION_INCOMPATIBLE)); if(!d.animalId().equals(a.id()))throw new BusinessException(ErrorCode.PARTO_GESTACION_INCOMPATIBLE);
-   repo.updateDiagnosticoResultado(d.id(),u.empresaId(),ResultadoGestacion.PERDIDA_GESTACION,u.userId());}
-  servicioCompatible(u,c.servicioId(),a.id()); if(c.servicioId()!=null)repo.updateServicioEstado(c.servicioId(),u.empresaId(),EstadoServicio.FINALIZADO,u.userId());
-  UUID id=UUID.randomUUID(); Aborto saved=repo.createAborto(new Aborto(id,u.empresaId(),a.id(),c.gestacionId(),c.servicioId(),f,c.edadGestacionalEstimada(),
+  LocalDate f=fecha(c.fechaEvento()); validarPosteriorNacimiento(f,a); UUID id=UUID.randomUUID();
+  GestacionCiclo gestacion=gestaciones.cerrar(u,a.id(),c.cicloGestacionId(),f,false,id);
+  if((c.servicioId()!=null&&!c.servicioId().equals(gestacion.servicioId()))||(c.gestacionId()!=null&&!c.gestacionId().equals(gestacion.diagnosticoId())))throw new BusinessException(ErrorCode.PARTO_GESTACION_INCOMPATIBLE);
+  servicioCompatible(u,gestacion.servicioId(),a.id()); if(gestacion.servicioId()!=null)repo.updateServicioEstado(gestacion.servicioId(),u.empresaId(),EstadoServicio.FINALIZADO,u.userId());
+  Aborto saved=repo.createAborto(new Aborto(id,u.empresaId(),a.id(),gestacion.diagnosticoId(),gestacion.servicioId(),f,c.edadGestacionalEstimada(),
    c.causa(),c.diagnostico(),c.veterinarioId(),c.observaciones(),a.propiedadActualId(),a.potreroActualId(),a.loteActualId(),id,null,
    EstadoRegistroReproduccion.ACTIVO,null,null,null,null,0),u.userId()); publicar(u,a.id(),TipoEventoAnimal.ABORTO_REGISTRADO,id,"Aborto registrado");
-  audit(u,"REGISTRAR_ABORTO","ABORTO",id); cancelar(u,"GESTACION",c.gestacionId(),"GESTACION_PERDIDA"); cancelar(u,"MADRE",a.id(),"GESTACION_PERDIDA"); return saved;}
+  gestaciones.vincular(false,id,gestacion.id());
+  audit(u,"REGISTRAR_ABORTO","ABORTO",id); resolverAlertasGestacion(u,a.id(),gestacion); cancelar(u,"MADRE",a.id(),"GESTACION_PERDIDA"); return saved;}
+
+ public record MadreDestete(UUID id,String nombre,String codigo) {}
+ @Transactional(readOnly=true) public MadreDestete madreParaDestete(UUID criaId){
+  CurrentUser u=context.requirePermission("REPRODUCCION_VER"); animal(u,criaId);
+  CriaParto cria=repo.findCriaByAnimal(criaId,u.empresaId()).orElseThrow(()->new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION,"La cría no tiene un parto registrado para identificar a su madre."));
+  Parto parto=repo.findPartoById(cria.partoId(),u.empresaId()).orElseThrow(()->new BusinessException(ErrorCode.REPRODUCCION_NOT_FOUND));
+  Animal madre=hembra(u,parto.madreId());return new MadreDestete(madre.id(),madre.nombre(),madre.codigo());
+ }
 
  @Transactional public Destete registrarDestete(RegistrarDesteteCommand c){CurrentUser u=context.requirePermission("REPRODUCCION_REGISTRAR");
   Animal cria=animal(u,c.animalCriaId()); Animal madre=hembra(u,c.madreId()); LocalDate f=fecha(c.fechaDestete());
@@ -118,6 +136,10 @@ public class ReproduccionCicloService {
  private LocalDate fecha(LocalDate f){LocalDate v=f==null?LocalDate.now():f;if(v.isAfter(LocalDate.now()))throw new BusinessException(ErrorCode.REPRODUCCION_FECHA_INVALIDA);return v;}
  private void validarPosteriorNacimiento(LocalDate fecha,Animal animal){if(animal.fechaNacimiento()!=null&&!fecha.isAfter(animal.fechaNacimiento()))throw new BusinessException(ErrorCode.REPRODUCCION_FECHA_ANTERIOR_NACIMIENTO);}
  private void resolver(CurrentUser u,String tipo,UUID id){if(id!=null){MotorAlertas m=alertas.getIfAvailable();if(m!=null)m.resolverPorOrigen(u.empresaId(),tipo,id);}}
+ private void resolverAlertasGestacion(CurrentUser u,UUID animal,GestacionCiclo g){
+  resolver(u,"GESTACION",g.diagnosticoId());
+  gestaciones.diagnosticos(g.id()).forEach(id->resolver(u,"GESTACION",id));
+ }
  private void cancelar(CurrentUser u,String tipo,UUID id,String motivo){if(id!=null){MotorAlertas m=alertas.getIfAvailable();if(m!=null)m.cancelarPorOrigen(u.empresaId(),tipo,id,motivo);}}
  private void publicar(CurrentUser u,UUID animal,TipoEventoAnimal tipo,UUID origen,String texto){timeline.publish(new RegistrarEventoTimeline(u.empresaId(),animal,tipo,null,texto,null,origen,Map.of(),u.userId(),Instant.now(),null));}
  private void audit(CurrentUser u,String accion,String entidad,UUID id){events.publishEvent(new ReproduccionAuditEvent(u.empresaId(),u.userId(),accion,entidad,id,Instant.now()));}

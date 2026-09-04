@@ -17,11 +17,13 @@ public record MembresiaResponse(
         String modo,
         UUID ingresadoPor,
         UUID salidaPor,
-        long version) {
+        long version,
+        String animalCodigo,
+        String animalNombre) {
 
     public static MembresiaResponse from(MembresiaLote m) {
         return new MembresiaResponse(m.id(), m.loteId(), m.animalId(), m.fechaIngreso(), m.fechaSalida(),
                 m.motivoIngreso(), m.motivoSalida(), m.observacion(), m.modo(), m.ingresadoPor(), m.salidaPor(),
-                m.version());
+                m.version(), m.animalCodigo(), m.animalNombre());
     }
 }

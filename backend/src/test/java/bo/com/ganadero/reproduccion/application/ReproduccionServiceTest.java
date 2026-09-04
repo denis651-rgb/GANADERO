@@ -40,6 +40,56 @@ import static org.mockito.Mockito.when;
 
 class ReproduccionServiceTest {
 
+    private RegistrarCeloCommand intervalo(boolean confirmar, String motivo, UUID observacion) {
+        return new RegistrarCeloCommand(null, hembraId, java.time.Instant.parse("2026-01-20T12:00:00Z"),
+                TipoCelo.VISUAL, null, "Nueva observación", null, null, null, null, null, confirmar, motivo, observacion);
+    }
+
+    private Celo prepararIntervalo(long horas, boolean anulado) {
+        when(animales.findById(hembraId, company)).thenReturn(Optional.of(hembra(property)));
+        when(registros.createCelo(any(), any())).thenAnswer(inv -> inv.getArgument(0));
+        Celo previo = mock(Celo.class);
+        when(previo.id()).thenReturn(UUID.randomUUID());
+        when(previo.fechaDeteccion()).thenReturn(intervalo(false, null, null).fechaDeteccion().minusSeconds(horas * 3600));
+        when(previo.estado()).thenReturn(anulado ? EstadoRegistroReproduccion.ANULADO : EstadoRegistroReproduccion.ACTIVO);
+        when(registros.celosDeAnimal(hembraId, company)).thenReturn(List.of(previo));
+        return previo;
+    }
+
+    @Test void exigeConfirmacionYJustificacionDentroDe24Horas() {
+        prepararIntervalo(1, false);
+        assertThatThrownBy(() -> service.registrarCelo(intervalo(false, null, null))).isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.registrarCelo(intervalo(true, " ", null))).isInstanceOf(BusinessException.class);
+        assertThat(service.registrarCelo(intervalo(true, "Detección revisada", null)).observaciones()).contains("Detección revisada");
+    }
+
+    @Test void desde24HorasSoloExigeConfirmacionHasta18Dias() {
+        prepararIntervalo(24, false);
+        assertThatThrownBy(() -> service.registrarCelo(intervalo(false, null, null))).isInstanceOf(BusinessException.class);
+        assertThat(service.registrarCelo(intervalo(true, null, null))).isNotNull();
+    }
+
+    @Test void permiteExactamente18DiasEIgnoraAnulados() {
+        prepararIntervalo(18 * 24, false);
+        assertThat(service.registrarCelo(intervalo(false, null, null))).isNotNull();
+        prepararIntervalo(1, true);
+        assertThat(service.registrarCelo(intervalo(false, null, null))).isNotNull();
+    }
+
+    @Test void detectaDuplicadosAlRegistrarFechasAnteriores() {
+        prepararIntervalo(-1, false);
+        assertThatThrownBy(() -> service.registrarCelo(intervalo(false, null, null))).isInstanceOf(BusinessException.class);
+    }
+
+    @Test void observacionNoCreaOtroCeloNiAlerta() {
+        Celo previo = prepararIntervalo(1, false);
+        when(registros.findCeloById(previo.id(), company)).thenReturn(Optional.of(previo));
+        assertThat(service.registrarCelo(intervalo(false, null, previo.id()))).isSameAs(previo);
+        verify(registros).agregarObservacionCelo(org.mockito.ArgumentMatchers.eq(previo.id()), org.mockito.ArgumentMatchers.contains("Nueva observación"), any());
+        verify(registros, never()).createCelo(any(), any());
+        verify(timeline, never()).publish(any());
+    }
+
     private ReproduccionRepository registros;
     private AnimalRepository animales;
     private ApplicationEventPublisher events;
@@ -63,7 +113,7 @@ class ReproduccionServiceTest {
         machoId = UUID.randomUUID();
         CurrentUser user = new CurrentUser(UUID.randomUUID(), company, UUID.randomUUID(),
                 Set.of(), Set.of("REPRODUCCION_REGISTRAR", "REPRODUCCION_VER"), Set.of(property), false);
-        service = new ReproduccionService(registros, animales, new UserContext(() -> user), events, timeline);
+        service = new ReproduccionService(registros, animales, new UserContext(() -> user), events, timeline, mock(GestacionService.class));
     }
 
     @Test
@@ -221,19 +271,6 @@ class ReproduccionServiceTest {
         assertThat(animal.celos()).hasSize(1);
         assertThat(animal.servicios()).isEmpty();
         assertThat(animal.diagnosticos()).isEmpty();
-    }
-
-    @Test
-    void usuarioSinPermisoNoAccede() {
-        CurrentUser sinPermiso = new CurrentUser(UUID.randomUUID(), company, UUID.randomUUID(),
-                Set.of(), Set.of(), Set.of(property), false);
-        ReproduccionService restringido = new ReproduccionService(registros, animales,
-                new UserContext(() -> sinPermiso), events, timeline);
-
-        assertThatThrownBy(() -> restringido.reproduccionAnimal(hembraId))
-                .isInstanceOfSatisfying(BusinessException.class,
-                        e -> assertThat(e.code()).isEqualTo(ErrorCode.USER_NOT_AUTHORIZED));
-        verify(animales, never()).findById(any(), any());
     }
 
     private Animal hembra(UUID property) {

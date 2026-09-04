@@ -2,6 +2,7 @@ package bo.com.ganadero.archivos.application;
 
 import bo.com.ganadero.animales.application.AnimalService;
 import bo.com.ganadero.shared.config.AppProperties;
+import bo.com.ganadero.shared.db.Rows;
 import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import bo.com.ganadero.shared.security.CurrentUser;
@@ -9,7 +10,6 @@ import bo.com.ganadero.shared.security.UserContext;
 import bo.com.ganadero.timeline.application.RegistrarEventoTimeline;
 import bo.com.ganadero.timeline.application.TimelineEventPublisher;
 import bo.com.ganadero.timeline.domain.TipoEventoAnimal;
-import jakarta.validation.constraints.NotBlank;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -24,7 +24,7 @@ import java.util.*;
 
 @Service
 public class DocumentoService {
-    private final SupabaseStorageClient client;
+    private final FileStorageClient client;
     private final AppProperties properties;
     private final UserContext context;
     private final JdbcClient jdbc;
@@ -33,7 +33,7 @@ public class DocumentoService {
     private final AnimalService animales;
     private final ImagenValidador validador;
 
-    public DocumentoService(SupabaseStorageClient client, AppProperties properties, UserContext context,
+    public DocumentoService(FileStorageClient client, AppProperties properties, UserContext context,
                             JdbcClient jdbc, TimelineEventPublisher timeline, ApplicationEventPublisher events,
                             AnimalService animales, ImagenValidador validador) {
         this.client = client;
@@ -44,25 +44,6 @@ public class DocumentoService {
         this.events = events;
         this.animales = animales;
         this.validador = validador;
-    }
-
-    public PresignResult presign(PresignRequest request) {
-        CurrentUser user = context.requirePermission("DOCUMENTO_SUBIR");
-        String extension = extension(request.mimeType());
-        String entidad = entidadFolder(request.entidadTipo());
-        String path = "empresas/" + user.empresaId() + "/documentos/" + entidad + "/" + UUID.randomUUID() + "." + extension;
-        return new PresignResult(path, path.substring(path.lastIndexOf('/') + 1),
-                "/api/v1/sync/files/upload?path=" + path, "POST", request.mimeType(),
-                properties.storage().signedUrlTtl().toSeconds());
-    }
-
-    public StoredUpload uploadFirma(MultipartFile file, String path) {
-        CurrentUser user = context.requirePermission("DOCUMENTO_SUBIR");
-        byte[] content = bytes(file);
-        validate(file, content);
-        validatePath(user, path);
-        client.upload(path, content, file.getContentType());
-        return new StoredUpload(path, client.signedUrl(path));
     }
 
     @Transactional
@@ -80,16 +61,20 @@ public class DocumentoService {
         if (principal && !animal) throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION);
         String extension = extension(file.getContentType());
         String entidad = entidadFolder(entidadTipo);
-        String path = "empresas/" + user.empresaId() + "/documentos/" + entidad + "/" + UUID.randomUUID() + "." + extension;
+        String path = "documentos/" + entidad + "/" + UUID.randomUUID() + "." + extension;
         client.upload(path, content, file.getContentType());
         UUID id = UUID.randomUUID();
-        jdbc.sql("insert into archivos.documentos(id,empresa_id,entidad_tipo,entidad_id,nombre_original," +
-                "nombre_almacenado,mime_type,tamano_bytes,es_principal,ancho_px,alto_px,created_by) " +
-                "values(:id,:e,:tipo,:entidad,:original,:almacenado,:mime,:size,:principal,:ancho,:alto,:actor)")
-                .param("id", id).param("e", user.empresaId()).param("tipo", entidadTipo == null ? "GENERAL" : entidadTipo)
-                .param("entidad", entidadId).param("original", file.getOriginalFilename()).param("almacenado", path)
+        jdbc.sql("""
+                insert into documento(id,entidad_tipo,entidad_id,nombre_original,nombre_almacenado,
+                    mime_type,tamano_bytes,es_principal,ancho_px,alto_px,created_by)
+                values(:id,:tipo,:entidad,:original,:almacenado,:mime,:size,:principal,:ancho,:alto,:actor)
+                """)
+                .param("id", id.toString()).param("tipo", entidadTipo == null ? "GENERAL" : entidadTipo)
+                .param("entidad", entidadId == null ? null : entidadId.toString())
+                .param("original", file.getOriginalFilename()).param("almacenado", path)
                 .param("mime", file.getContentType()).param("size", file.getSize()).param("principal", principal)
-                .param("ancho", dimensiones.ancho()).param("alto", dimensiones.alto()).param("actor", user.userId()).update();
+                .param("ancho", dimensiones.ancho()).param("alto", dimensiones.alto())
+                .param("actor", user.userId().toString()).update();
         if (animal) {
             Map<String, Object> metadata = new HashMap<>();
             metadata.put("nombreOriginal", file.getOriginalFilename());
@@ -102,69 +87,63 @@ public class DocumentoService {
                     null, "Se agregó la fotografía " + file.getOriginalFilename() + ".", null, id, metadata,
                     user.userId(), Instant.now(), null));
             if (principal) {
-                establecerPrincipal(user, entidadId, id, file.getOriginalFilename());
+                establecerPrincipal(entidadId, id, file.getOriginalFilename(), user.userId());
             }
         }
-        audit(user, "SUBIR_FOTO", id, Map.of("animalId", entidadId == null ? null : entidadId.toString(),
+        audit(user, "SUBIR_FOTO", id, Map.of("animalId", entidadId == null ? "" : entidadId.toString(),
                 "principal", principal));
-        return new DocumentoResponse(id, entidadTipo == null ? "GENERAL" : entidadTipo, entidadId,
-                file.getOriginalFilename(), path, file.getContentType(), file.getSize(), principal,
-                dimensiones.ancho(), dimensiones.alto(), user.userId(), null, 0,
-                client.signedUrl(path), Instant.now());
+        return require(id);
     }
 
     @Transactional
     public DocumentoResponse markPrincipal(UUID id) {
         CurrentUser user = context.requirePermission("DOCUMENTO_SUBIR");
-        DocumentoResponse doc = require(id, user.empresaId());
+        DocumentoResponse doc = require(id);
         if (doc.esPrincipal()) return doc;
         if (!"ANIMAL".equalsIgnoreCase(doc.entidadTipo()) || doc.entidadId() == null) {
             throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION);
         }
-        establecerPrincipal(user, doc.entidadId(), doc.id(), doc.nombreOriginal());
+        establecerPrincipal(doc.entidadId(), doc.id(), doc.nombreOriginal(), user.userId());
         audit(user, "MARCAR_PRINCIPAL", id, Map.of("animalId", doc.entidadId().toString()));
-        return require(id, user.empresaId());
+        return require(id);
     }
 
-    private void establecerPrincipal(CurrentUser user, UUID animalId, UUID fotoId, String nombreOriginal) {
-        jdbc.sql("update archivos.documentos set es_principal=false where empresa_id=:e and entidad_tipo='ANIMAL' and entidad_id=:animal and es_principal=true")
-                .param("e", user.empresaId()).param("animal", animalId).update();
-        jdbc.sql("update archivos.documentos set es_principal=true,updated_at=now(),version=version+1 where id=:id")
-                .param("id", fotoId).update();
-        String path = jdbc.sql("select nombre_almacenado from archivos.documentos where id=:id")
-                .param("id", fotoId).query(String.class).single();
+    private void establecerPrincipal(UUID animalId, UUID fotoId, String nombreOriginal, UUID actor) {
+        jdbc.sql("update documento set es_principal=0 where entidad_tipo='ANIMAL' and entidad_id=:animal and es_principal=1")
+                .param("animal", animalId.toString()).update();
+        jdbc.sql("update documento set es_principal=1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),version=version+1 where id=:id")
+                .param("id", fotoId.toString()).update();
+        String path = jdbc.sql("select nombre_almacenado from documento where id=:id")
+                .param("id", fotoId.toString()).query(String.class).single();
         animales.asignarFotoPrincipal(animalId, path);
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("fotoId", fotoId.toString());
         metadata.put("nombreOriginal", nombreOriginal);
         metadata.put("esPrincipal", true);
-        timeline.publish(new RegistrarEventoTimeline(user.empresaId(), animalId, TipoEventoAnimal.FOTO_PRINCIPAL_CAMBIADA,
+        timeline.publish(new RegistrarEventoTimeline(null, animalId, TipoEventoAnimal.FOTO_PRINCIPAL_CAMBIADA,
                 null, "La fotografía " + nombreOriginal + " es ahora la principal.", null, fotoId, metadata,
-                user.userId(), Instant.now(), null));
+                actor, Instant.now(), null));
     }
 
     public List<DocumentoResponse> list(String entidadTipo, UUID entidadId) {
-        CurrentUser user = context.requirePermission("DOCUMENTO_VER");
+        context.requirePermission("DOCUMENTO_VER");
         return jdbc.sql("""
-                select d.*, nullif(trim(concat(coalesce(pu.nombres,''),' ',coalesce(pu.apellidos,''))),'') as usuario_nombre
-                from archivos.documentos d
-                left join seguridad.perfiles_usuario pu on pu.id = d.created_by
-                where d.empresa_id=:e
-                and (cast(:tipo as text) is null or d.entidad_tipo=:tipo) and (cast(:entidad as uuid) is null or d.entidad_id=:entidad)
-                order by d.created_at desc
-                """).param("e", user.empresaId()).param("tipo", entidadTipo).param("entidad", entidadId)
+                select * from documento
+                where (:tipo is null or entidad_tipo=:tipo) and (:entidad is null or entidad_id=:entidad)
+                order by created_at desc
+                """).param("tipo", entidadTipo).param("entidad", entidadId == null ? null : entidadId.toString())
                 .query(this::map).list();
     }
 
     @Transactional
     public void delete(UUID id, boolean confirmarPrincipal) {
         CurrentUser user = context.requirePermission("DOCUMENTO_ELIMINAR");
-        DocumentoResponse doc = require(id, user.empresaId());
+        DocumentoResponse doc = require(id);
         if (doc.esPrincipal() && !confirmarPrincipal) {
             throw new BusinessException(ErrorCode.FOTO_PRINCIPAL_CONFIRMATION_REQUIRED);
         }
         client.delete(doc.nombreAlmacenado());
-        jdbc.sql("delete from archivos.documentos where id=:id").param("id", id).update();
+        jdbc.sql("delete from documento where id=:id").param("id", id.toString()).update();
         if (doc.esPrincipal() && doc.entidadId() != null) {
             animales.limpiarFotoPrincipal(doc.entidadId());
         }
@@ -173,7 +152,7 @@ public class DocumentoService {
             metadata.put("fotoId", id.toString());
             metadata.put("nombreOriginal", doc.nombreOriginal());
             metadata.put("esPrincipal", doc.esPrincipal());
-            timeline.publish(new RegistrarEventoTimeline(user.empresaId(), doc.entidadId(),
+            timeline.publish(new RegistrarEventoTimeline(null, doc.entidadId(),
                     TipoEventoAnimal.FOTO_ELIMINADA,
                     null, "Se eliminó la fotografía " + doc.nombreOriginal() + ".", null, id, metadata,
                     user.userId(), Instant.now(), null));
@@ -181,20 +160,9 @@ public class DocumentoService {
         audit(user, "ELIMINAR_FOTO", id, Map.of("esPrincipal", doc.esPrincipal()));
     }
 
-    public String signedUrl(String path) {
-        CurrentUser user = context.currentUser();
-        String prefix = "empresas/" + user.empresaId() + "/documentos/";
-        if (path == null || !path.startsWith(prefix) || path.contains("..")) throw new BusinessException(ErrorCode.PROPERTY_ACCESS_DENIED);
-        return client.signedUrl(path);
-    }
-
-    private DocumentoResponse require(UUID id, UUID empresa) {
-        return jdbc.sql("""
-                select d.*, nullif(trim(concat(coalesce(pu.nombres,''),' ',coalesce(pu.apellidos,''))),'') as usuario_nombre
-                from archivos.documentos d
-                left join seguridad.perfiles_usuario pu on pu.id = d.created_by
-                where d.id=:id and d.empresa_id=:e
-                """).param("id", id).param("e", empresa).query(this::map)
+    private DocumentoResponse require(UUID id) {
+        return jdbc.sql("select * from documento where id=:id")
+                .param("id", id.toString()).query(this::map)
                 .optional().orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENTO_NOT_FOUND));
     }
 
@@ -219,13 +187,6 @@ public class DocumentoService {
         validador.validar(content, file.getContentType());
     }
 
-    private void validatePath(CurrentUser user, String path) {
-        String prefix = "empresas/" + user.empresaId() + "/documentos/";
-        if (path == null || !path.startsWith(prefix) || path.contains("..") || path.contains(":")) {
-            throw new BusinessException(ErrorCode.PROPERTY_ACCESS_DENIED);
-        }
-    }
-
     private String entidadFolder(String entidadTipo) {
         return entidadTipo == null || entidadTipo.isBlank() ? "general" : entidadTipo.toLowerCase(Locale.ROOT);
     }
@@ -245,24 +206,13 @@ public class DocumentoService {
     }
 
     private DocumentoResponse map(ResultSet r, int row) throws SQLException {
-        return new DocumentoResponse(r.getObject("id", UUID.class), r.getString("entidad_tipo"),
-                r.getObject("entidad_id", UUID.class), r.getString("nombre_original"),
+        return new DocumentoResponse(Rows.uuid(r, "id"), r.getString("entidad_tipo"),
+                Rows.uuid(r, "entidad_id"), r.getString("nombre_original"),
                 r.getString("nombre_almacenado"), r.getString("mime_type"), r.getLong("tamano_bytes"),
                 r.getBoolean("es_principal"), r.getObject("ancho_px", Integer.class),
-                r.getObject("alto_px", Integer.class), r.getObject("created_by", UUID.class),
-                r.getString("usuario_nombre"), r.getLong("version"), client.signedUrl(r.getString("nombre_almacenado")),
-                r.getTimestamp("created_at").toInstant());
-    }
-
-    public record PresignRequest(@NotBlank String mimeType, String entidadTipo, UUID entidadId,
-                                 @NotBlank String nombreOriginal, Long tamanoBytes) {
-    }
-
-    public record PresignResult(String path, String nombreAlmacenado, String uploadUrl, String metodo,
-                                String mimeType, long expiresInSeconds) {
-    }
-
-    public record StoredUpload(String path, String signedUrl) {
+                r.getObject("alto_px", Integer.class), Rows.uuid(r, "created_by"),
+                null, r.getLong("version"), client.url(r.getString("nombre_almacenado")),
+                Rows.instant(r, "created_at"));
     }
 
     public record DocumentoResponse(UUID id, String entidadTipo, UUID entidadId, String nombreOriginal,

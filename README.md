@@ -1,58 +1,55 @@
 # GANADERO
 
-GANADERO es una aplicación de gestión ganadera organizada como monorepositorio. Conserva un backend modular Spring Boot, un frontend React y PostgreSQL/PostGIS, con integración de Supabase Auth y Storage.
+GANADERO es una aplicación de gestión ganadera de escritorio para Windows: backend Spring
+Boot embebido, SQLite local y una ventana Electron con el frontend React. Un solo usuario
+local, sin login remoto ni dependencias de nube — todos los datos e imágenes viven en
+`%APPDATA%/Ganadero/`.
 
 ## Estructura
 
 ```text
-backend/             API Spring Boot y migraciones Flyway
+backend/             API Spring Boot modular, SQLite + Flyway
 frontend-web/        aplicación React, TypeScript y Vite
+electron/             shell de escritorio: proceso principal, empaquetado, instalador
 database/            documentación de base de datos
-infrastructure/      Docker Compose, Render, respaldos y scripts
-docs/                arquitectura, API, manual y documentación por aplicación
+docs/                arquitectura, API y manuales por aplicación
 .github/workflows/   CI de backend y frontend
 ```
 
 ## Requisitos
 
-- Java 21.
+- JDK 21 completo (con `jlink`/`jpackage`, no solo un JRE) — necesario para correr el
+  backend y para que `electron/` genere el runtime embebido.
 - Node.js en la versión indicada por `frontend-web/.node-version`.
-- Docker.
-- PostgreSQL/PostGIS (incluido en el Compose local).
 
-## Variables de entorno
-
-Use `.env.example` como catálogo y los ejemplos de cada aplicación como punto de partida. Copie únicamente las variables necesarias a archivos locales ignorados. Nunca confirme secretos ni exponga `SUPABASE_SERVICE_ROLE_KEY` en el frontend.
+No hace falta Docker ni una base de datos externa: SQLite vive en un archivo local.
 
 ## Ejecución local
 
-Base de datos:
-
-```bash
-docker compose -f infrastructure/compose.yaml up -d
-```
-
-Backend en Linux/macOS:
+Backend:
 
 ```bash
 cd backend
 ./mvnw spring-boot:run
 ```
 
-Backend en Windows:
-
-```powershell
-cd backend
-.\mvnw.cmd spring-boot:run
-```
-
-Frontend:
+Frontend (navegador, para desarrollo rápido de UI):
 
 ```bash
 cd frontend-web
 npm ci
 npm run dev
 ```
+
+Como app de escritorio (Electron, con el backend embebido):
+
+```bash
+cd electron
+npm install
+npm run dev
+```
+
+Ver `electron/README.md` para el flujo de empaquetado (instalador `.exe`).
 
 ## Verificación y build
 
@@ -81,9 +78,12 @@ Los cambios se revisan mediante Pull Request; no se fusionan automáticamente ra
 
 ## Migraciones
 
-Las migraciones ejecutables están en `backend/src/main/resources/db/migration`. Flyway es la autoridad del esquema. No editar ni renombrar migraciones aplicadas. Consulte [database/README.md](database/README.md).
+Las migraciones ejecutables están en `backend/src/main/resources/db/migration`. Flyway es la
+autoridad del esquema. No editar ni renombrar migraciones aplicadas. Consulte
+[database/README.md](database/README.md).
 
 ## Documentación
 
 - [Backend](docs/backend/PRIMEROS_PASOS.md)
 - [Frontend](docs/frontend/PRIMEROS_PASOS.md)
+- [Escritorio (Electron)](electron/README.md)

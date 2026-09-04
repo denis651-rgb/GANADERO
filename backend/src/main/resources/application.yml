@@ -3,8 +3,12 @@ spring:
     name: ganadero-backend
   profiles:
     default: local
+  datasource:
+    url: jdbc:sqlite:${GANADERO_DB_PATH:./data/ganadero.db}?foreign_keys=on
+    driver-class-name: org.sqlite.JDBC
   jpa:
     open-in-view: false
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
     hibernate:
       ddl-auto: validate
     properties:
@@ -34,13 +38,6 @@ management:
       enabled: false
 
 ganadero:
-  push:
-    enabled: ${GANADERO_PUSH_ENABLED:false}
-    vapid-public-key: ${GANADERO_PUSH_VAPID_PUBLIC_KEY:}
-    vapid-private-key: ${GANADERO_PUSH_VAPID_PRIVATE_KEY:}
-    subject: ${GANADERO_PUSH_SUBJECT:mailto:soporte@ganadero.bo}
-    max-attempts: ${GANADERO_PUSH_MAX_ATTEMPTS:5}
-    ttl-seconds: ${GANADERO_PUSH_TTL_SECONDS:604800}
   alertas:
     scheduler:
       enabled: ${GANADERO_ALERTAS_SCHEDULER_ENABLED:true}
@@ -55,9 +52,6 @@ app:
   internal-jobs:
     enabled: ${APP_INTERNAL_JOBS_ENABLED:false}
     secret: ${GANADERO_CRON_SECRET:}
-  invitations:
-    expiration-hours: ${APP_INVITATION_EXPIRATION_HOURS:72}
-    max-resend-attempts: ${APP_INVITATION_MAX_RESEND_ATTEMPTS:5}
   qr:
     signing-secret: ${APP_QR_SIGNING_SECRET:}
     payload-version: ${APP_QR_PAYLOAD_VERSION:1}
@@ -66,9 +60,8 @@ app:
   system-status:
     enabled: ${APP_SYSTEM_STATUS_ENABLED:false}
   storage:
-    bucket: ${SUPABASE_STORAGE_BUCKET:ganadero-private}
+    root-path: ${GANADERO_MEDIA_PATH:./data/media}
     max-bytes: ${APP_STORAGE_MAX_BYTES:5242880}
-    signed-url-ttl: ${APP_STORAGE_SIGNED_URL_TTL:PT10M}
     allowed-mime-types: image/jpeg,image/png,image/webp
     allowed-extensions: jpg,jpeg,png,webp
 

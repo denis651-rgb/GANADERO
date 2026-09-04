@@ -10,8 +10,6 @@ import { listLotes } from '@/features/lotes/api'
 import { listPropiedades } from '@/features/propiedades/api'
 import { listPotreros } from '@/features/potreros/api'
 import { AnimalPicker } from '@/features/pesajes/components/AnimalPicker'
-import { queueSyncOperation } from '@/offline/operationQueue'
-import { offlineFormCatalogs } from '@/offline/catalogs'
 import { createUuid } from '@/shared/utils/uuid'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
@@ -47,7 +45,6 @@ export function RegistrarPesajeForm({ onSaved, onCancel }: RegistrarPesajeFormPr
   const catalogs = useQuery({
     queryKey: ['pesaje-form-catalogs'],
     queryFn: async () => {
-      if (!navigator.onLine) return offlineFormCatalogs()
       const [properties, paddocks, lots] = await Promise.all([
         listPropiedades(),
         listPotreros(),
@@ -88,18 +85,6 @@ export function RegistrarPesajeForm({ onSaved, onCancel }: RegistrarPesajeFormPr
       idempotencyKey: id,
     }
     try {
-      if (!navigator.onLine) {
-        await queueSyncOperation({
-          tipo: 'PESAJE_REGISTRAR',
-          entidad: 'PESAJE',
-          idempotencyKey: id,
-          datos: input,
-        })
-        setMessage({ tone: 'info', text: 'Pesaje guardado en el dispositivo. Quedó pendiente de sincronización.' })
-        reset({ animalId: '', tipo: 'RUTINA' })
-        setSelected(null)
-        return
-      }
       const created = await registrarPesaje(input)
       void queryClient.invalidateQueries({ queryKey: ['pesajes'] })
       setMessage({ tone: 'success', text: `Pesaje de ${created.pesoKg} kg registrado para ${created.codigoAnimal ?? created.animalId}.` })

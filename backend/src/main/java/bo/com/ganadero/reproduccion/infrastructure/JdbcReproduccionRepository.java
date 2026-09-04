@@ -1,6 +1,7 @@
 package bo.com.ganadero.reproduccion.infrastructure;
 
 import bo.com.ganadero.reproduccion.domain.*;
+import bo.com.ganadero.shared.db.Rows;
 import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -24,83 +25,82 @@ import java.util.UUID;
 public class JdbcReproduccionRepository implements ReproduccionRepository {
     private final JdbcClient jdbc;
 
+    public void agregarObservacionCelo(UUID id, String texto, UUID actor) {
+        int updated = jdbc.sql("update celo set observaciones=coalesce(observaciones,'') || :texto, version=version+1, updated_by=:actor, updated_at=current_timestamp where id=:id and estado='ACTIVO'")
+                .param("texto", texto).param("actor", actor.toString()).param("id", id.toString()).update();
+        if (updated != 1) throw new BusinessException(ErrorCode.REPRODUCCION_NOT_FOUND);
+    }
+
     public JdbcReproduccionRepository(JdbcClient jdbc) {
         this.jdbc = jdbc;
     }
 
     private static final String SELECT_CELO =
             "select c.*, a.codigo as animal_codigo, a.nombre as animal_nombre, " +
-            "pt.nombre as potrero_nombre, pr.nombre as propiedad_nombre " +
-            "from reproduccion.celos c " +
-            "left join ganado.animales a on a.id=c.animal_id " +
-            "left join campo.potreros pt on pt.id=c.potrero_id " +
-            "left join core.propiedades pr on pr.id=c.propiedad_id ";
+            "pt.nombre as potrero_nombre " +
+            "from celo c " +
+            "left join animal a on a.id=c.animal_id " +
+            "left join potrero pt on pt.id=c.potrero_id ";
 
     private static final String SELECT_SERVICIO =
             "select s.*, a.codigo as animal_codigo, a.nombre as animal_nombre, " +
             "m.codigo as macho_codigo, m.nombre as macho_nombre, " +
-            "pt.nombre as potrero_nombre, pr.nombre as propiedad_nombre " +
-            "from reproduccion.servicios s " +
-            "left join ganado.animales a on a.id=s.hembra_id " +
-            "left join ganado.animales m on m.id=s.macho_id " +
-            "left join campo.potreros pt on pt.id=s.potrero_id " +
-            "left join core.propiedades pr on pr.id=s.propiedad_id ";
+            "pt.nombre as potrero_nombre " +
+            "from servicio s " +
+            "left join animal a on a.id=s.hembra_id " +
+            "left join animal m on m.id=s.macho_id " +
+            "left join potrero pt on pt.id=s.potrero_id ";
 
     private static final String SELECT_DIAGNOSTICO =
             "select d.*, a.codigo as animal_codigo, a.nombre as animal_nombre, " +
-            "pt.nombre as potrero_nombre, pr.nombre as propiedad_nombre " +
-            "from reproduccion.diagnosticos_gestacion d " +
-            "left join ganado.animales a on a.id=d.animal_id " +
-            "left join campo.potreros pt on pt.id=d.potrero_id " +
-            "left join core.propiedades pr on pr.id=d.propiedad_id ";
+            "pt.nombre as potrero_nombre " +
+            "from diagnostico_gestacion d " +
+            "left join animal a on a.id=d.animal_id " +
+            "left join potrero pt on pt.id=d.potrero_id ";
 
     private static final String SELECT_PARTO =
             "select p.*, a.codigo as animal_codigo, a.nombre as animal_nombre, " +
             "m.id as macho_id, m.codigo as macho_codigo, m.nombre as macho_nombre, " +
-            "pt.nombre as potrero_nombre, pr.nombre as propiedad_nombre " +
-            "from reproduccion.partos p " +
-            "left join ganado.animales a on a.id=p.madre_id " +
-            "left join reproduccion.servicios s on s.id=p.servicio_id " +
-            "left join ganado.animales m on m.id=s.macho_id " +
-            "left join campo.potreros pt on pt.id=p.potrero_id " +
-            "left join core.propiedades pr on pr.id=p.propiedad_id ";
+            "pt.nombre as potrero_nombre " +
+            "from parto p " +
+            "left join animal a on a.id=p.madre_id " +
+            "left join servicio s on s.id=p.servicio_id " +
+            "left join animal m on m.id=s.macho_id " +
+            "left join potrero pt on pt.id=p.potrero_id ";
 
     private static final String SELECT_CRIA =
             "select c.*, a.codigo as animal_codigo, a.nombre as animal_nombre " +
-            "from reproduccion.crias_parto c " +
-            "join reproduccion.partos p on p.id=c.parto_id " +
-            "left join ganado.animales a on a.id=c.animal_cria_id ";
+            "from cria_parto c " +
+            "join parto p on p.id=c.parto_id " +
+            "left join animal a on a.id=c.animal_cria_id ";
 
     private static final String SELECT_ABORTO =
             "select ab.*, a.codigo as animal_codigo, a.nombre as animal_nombre, " +
-            "pt.nombre as potrero_nombre, pr.nombre as propiedad_nombre " +
-            "from reproduccion.abortos ab " +
-            "left join ganado.animales a on a.id=ab.animal_id " +
-            "left join campo.potreros pt on pt.id=ab.potrero_id " +
-            "left join core.propiedades pr on pr.id=ab.propiedad_id ";
+            "pt.nombre as potrero_nombre " +
+            "from aborto ab " +
+            "left join animal a on a.id=ab.animal_id " +
+            "left join potrero pt on pt.id=ab.potrero_id ";
 
     private static final String SELECT_DESTETE =
             "select d.*, a.codigo as animal_codigo, a.nombre as animal_nombre, " +
-            "pt.nombre as potrero_nombre, pr.nombre as propiedad_nombre " +
-            "from reproduccion.destetes d " +
-            "left join ganado.animales a on a.id=d.animal_cria_id " +
-            "left join campo.potreros pt on pt.id=d.potrero_id " +
-            "left join core.propiedades pr on pr.id=d.propiedad_id ";
+            "pt.nombre as potrero_nombre " +
+            "from destete d " +
+            "left join animal a on a.id=d.animal_cria_id " +
+            "left join potrero pt on pt.id=d.potrero_id ";
 
     @Override
     public CeloPage findAllCelos(UUID empresa, Set<UUID> propiedades, boolean todasPropiedades,
                                  UUID animalId, Instant fechaDesde, Instant fechaHasta, IntensidadCelo intensidad,
                                  EstadoRegistroReproduccion estado, UUID propiedadId, int page, int size) {
         Map<String, Object> params = new HashMap<>();
-        StringBuilder filter = new StringBuilder(" where c.empresa_id=:e");
+        StringBuilder filter = new StringBuilder(" where 1=1");
         params.put("e", empresa);
-        aplicarFiltroPropiedad(filter, params, "p.propiedad_id", propiedades, todasPropiedades);
         if (animalId != null) {
             filter.append(" and c.animal_id=:animal");
             params.put("animal", animalId);
         }
         if (propiedadId != null) {
-            filter.append(" and c.propiedad_id=:property");
+            filter.append("");
             params.put("property", propiedadId);
         }
         if (fechaDesde != null) { filter.append(" and c.fecha_deteccion>=:desde"); params.put("desde", Timestamp.from(fechaDesde)); }
@@ -119,19 +119,19 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
 
     @Override
     public Optional<Celo> findCeloById(UUID id, UUID empresa) {
-        return jdbc.sql(SELECT_CELO + " where c.id=:id and c.empresa_id=:e")
+        return jdbc.sql(SELECT_CELO + " where c.id=:id")
                 .param("id", id).param("e", empresa).query(this::mapCelo).optional();
     }
 
     @Override
     public Optional<Celo> findCeloByClienteUuid(UUID clienteUuid, UUID empresa) {
-        return jdbc.sql(SELECT_CELO + " where c.cliente_uuid=:cliente and c.empresa_id=:e")
+        return jdbc.sql(SELECT_CELO + " where c.cliente_uuid=:cliente")
                 .param("cliente", clienteUuid).param("e", empresa).query(this::mapCelo).optional();
     }
 
     @Override
     public List<Celo> celosDeAnimal(UUID animalId, UUID empresa) {
-        return jdbc.sql(SELECT_CELO + " where c.animal_id=:animal and c.empresa_id=:e"
+        return jdbc.sql(SELECT_CELO + " where c.animal_id=:animal"
                 + " order by c.fecha_deteccion asc, c.created_at asc")
                 .param("animal", animalId).param("e", empresa).query(this::mapCelo).list();
     }
@@ -141,9 +141,9 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
         int inserted;
         try {
             inserted = jdbc.sql("""
-                    insert into reproduccion.celos(id,empresa_id,animal_id,fecha_deteccion,tipo_deteccion,intensidad,
-                    detectado_por,observaciones,propiedad_id,potrero_id,lote_id,cliente_uuid,idempotency_key,estado,created_by,updated_by)
-                    values(:id,:e,:animal,:fecha,:tipo,:intensidad,:detectado,:observaciones,:propiedad,:potrero,:lote,
+                    insert into celo(id,animal_id,fecha_deteccion,tipo_deteccion,intensidad,
+                    detectado_por,observaciones,potrero_id,lote_id,cliente_uuid,idempotency_key,estado,created_by,updated_by)
+                    values(:id,:animal,:fecha,:tipo,:intensidad,:detectado,:observaciones,:potrero,:lote,
                     :cliente,:idempotency,:estado,:actor,:actor)
                     on conflict (id) do nothing
                     """).params(paramsCelo(celo, actor)).update();
@@ -167,10 +167,11 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
 
     @Override
     public Celo annulCelo(UUID id, UUID empresa, String motivo, long version, UUID actor) {
-        int updated = jdbc.sql("update reproduccion.celos set estado='ANULADO', anulado_at=now(), " +
-                        "anulado_by=:actor, motivo_anulacion=:motivo, updated_at=now(), updated_by=:actor, " +
-                        "version=version+1 where id=:id and empresa_id=:empresa and estado='ACTIVO' and version=:version")
-                .param("actor", actor).param("motivo", motivo).param("id", id).param("empresa", empresa)
+        int updated = jdbc.sql("update celo set estado='ANULADO', anulado_at=:fecha, " +
+                        "anulado_by=:actor, motivo_anulacion=:motivo, updated_at=:fecha, updated_by=:actor, " +
+                        "version=version+1 where id=:id and estado='ACTIVO' and version=:version")
+                .param("actor", actor.toString()).param("motivo", motivo).param("id", id.toString())
+                .param("fecha", Instant.now().toString())
                 .param("version", version).update();
         if (updated == 0) throw new BusinessException(ErrorCode.VERSION_CONFLICT);
         return findCeloById(id, empresa).orElseThrow();
@@ -180,15 +181,14 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
     public ServicioPage findAllServicios(UUID empresa, Set<UUID> propiedades, boolean todasPropiedades,
                                          UUID animalId, UUID propiedadId, int page, int size) {
         Map<String, Object> params = new HashMap<>();
-        StringBuilder filter = new StringBuilder(" where s.empresa_id=:e");
+        StringBuilder filter = new StringBuilder(" where 1=1");
         params.put("e", empresa);
-        aplicarFiltroPropiedad(filter, params, "s.propiedad_id", propiedades, todasPropiedades);
         if (animalId != null) {
             filter.append(" and s.hembra_id=:animal");
             params.put("animal", animalId);
         }
         if (propiedadId != null) {
-            filter.append(" and s.propiedad_id=:property");
+            filter.append("");
             params.put("property", propiedadId);
         }
         long total = jdbc.sql("select count(*)" + SELECT_SERVICIO.substring(SELECT_SERVICIO.indexOf("from"))
@@ -203,19 +203,19 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
 
     @Override
     public Optional<Servicio> findServicioById(UUID id, UUID empresa) {
-        return jdbc.sql(SELECT_SERVICIO + " where s.id=:id and s.empresa_id=:e")
+        return jdbc.sql(SELECT_SERVICIO + " where s.id=:id")
                 .param("id", id).param("e", empresa).query(this::mapServicio).optional();
     }
 
     @Override
     public Optional<Servicio> findServicioByClienteUuid(UUID clienteUuid, UUID empresa) {
-        return jdbc.sql(SELECT_SERVICIO + " where s.cliente_uuid=:cliente and s.empresa_id=:e")
+        return jdbc.sql(SELECT_SERVICIO + " where s.cliente_uuid=:cliente")
                 .param("cliente", clienteUuid).param("e", empresa).query(this::mapServicio).optional();
     }
 
     @Override
     public List<Servicio> serviciosDeAnimal(UUID animalId, UUID empresa) {
-        return jdbc.sql(SELECT_SERVICIO + " where s.hembra_id=:animal and s.empresa_id=:e"
+        return jdbc.sql(SELECT_SERVICIO + " where s.hembra_id=:animal"
                 + " order by s.fecha_servicio asc, s.created_at asc")
                 .param("animal", animalId).param("e", empresa).query(this::mapServicio).list();
     }
@@ -225,12 +225,12 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
         int inserted;
         try {
             inserted = jdbc.sql("""
-                    insert into reproduccion.servicios(id,empresa_id,hembra_id,celo_id,fecha_servicio,tipo_servicio,
+                    insert into servicio(id,hembra_id,celo_id,fecha_servicio,tipo_servicio,
                     macho_id,codigo_semen,proveedor_semen,tecnico_id,numero_intento,fecha_diagnostico_recomendada,
-                    observaciones,propiedad_id,potrero_id,lote_id,
+                    observaciones,potrero_id,lote_id,
                     cliente_uuid,idempotency_key,estado,created_by,updated_by)
-                    values(:id,:e,:animal,:celo,:fecha,:tipo,:macho,:codigoSemen,:proveedorSemen,:tecnico,:intento,
-                    :fechaDiagnostico,:observaciones,:propiedad,:potrero,:lote,
+                    values(:id,:animal,:celo,:fecha,:tipo,:macho,:codigoSemen,:proveedorSemen,:tecnico,:intento,
+                    :fechaDiagnostico,:observaciones,:potrero,:lote,
                     :cliente,:idempotency,:estado,:actor,:actor)
                     on conflict (id) do nothing
                     """).params(paramsServicio(servicio, actor)).update();
@@ -254,17 +254,18 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
 
     @Override
     public int countServicios(UUID animalId, UUID empresa) {
-        Long count = jdbc.sql("select count(*) from reproduccion.servicios " +
-                        "where empresa_id=:e and hembra_id=:animal and estado <> 'ANULADO'")
+        Long count = jdbc.sql("select count(*) from servicio " +
+                        "where hembra_id=:animal and estado <> 'ANULADO'")
                 .param("e", empresa).param("animal", animalId).query(Long.class).single();
         return count == null ? 0 : count.intValue();
     }
 
     @Override
     public void updateServicioEstado(UUID id, UUID empresa, EstadoServicio estado, UUID actor) {
-        jdbc.sql("update reproduccion.servicios set estado=:estado, updated_at=now(), updated_by=:actor, " +
-                        "version=version+1 where id=:id and empresa_id=:empresa and estado <> 'ANULADO'")
-                .param("estado", estado.name()).param("actor", actor).param("id", id).param("empresa", empresa)
+        jdbc.sql("update servicio set estado=:estado, updated_at=:fecha, updated_by=:actor, " +
+                        "version=version+1 where id=:id and estado <> 'ANULADO'")
+                .param("estado", estado.name()).param("actor", actor.toString()).param("id", id.toString())
+                .param("fecha", Instant.now().toString())
                 .update();
     }
 
@@ -272,15 +273,14 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
     public DiagnosticoPage findAllDiagnosticos(UUID empresa, Set<UUID> propiedades, boolean todasPropiedades,
                                                UUID animalId, UUID propiedadId, int page, int size) {
         Map<String, Object> params = new HashMap<>();
-        StringBuilder filter = new StringBuilder(" where d.empresa_id=:e");
+        StringBuilder filter = new StringBuilder(" where 1=1");
         params.put("e", empresa);
-        aplicarFiltroPropiedad(filter, params, "d.propiedad_id", propiedades, todasPropiedades);
         if (animalId != null) {
             filter.append(" and d.animal_id=:animal");
             params.put("animal", animalId);
         }
         if (propiedadId != null) {
-            filter.append(" and d.propiedad_id=:property");
+            filter.append("");
             params.put("property", propiedadId);
         }
         long total = jdbc.sql("select count(*)" + SELECT_DIAGNOSTICO.substring(SELECT_DIAGNOSTICO.indexOf("from"))
@@ -295,19 +295,19 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
 
     @Override
     public Optional<DiagnosticoGestacion> findDiagnosticoById(UUID id, UUID empresa) {
-        return jdbc.sql(SELECT_DIAGNOSTICO + " where d.id=:id and d.empresa_id=:e")
+        return jdbc.sql(SELECT_DIAGNOSTICO + " where d.id=:id")
                 .param("id", id).param("e", empresa).query(this::mapDiagnostico).optional();
     }
 
     @Override
     public Optional<DiagnosticoGestacion> findDiagnosticoByClienteUuid(UUID clienteUuid, UUID empresa) {
-        return jdbc.sql(SELECT_DIAGNOSTICO + " where d.cliente_uuid=:cliente and d.empresa_id=:e")
+        return jdbc.sql(SELECT_DIAGNOSTICO + " where d.cliente_uuid=:cliente")
                 .param("cliente", clienteUuid).param("e", empresa).query(this::mapDiagnostico).optional();
     }
 
     @Override
     public List<DiagnosticoGestacion> diagnosticosDeAnimal(UUID animalId, UUID empresa) {
-        return jdbc.sql(SELECT_DIAGNOSTICO + " where d.animal_id=:animal and d.empresa_id=:e"
+        return jdbc.sql(SELECT_DIAGNOSTICO + " where d.animal_id=:animal"
                 + " order by d.fecha_diagnostico asc, d.created_at asc")
                 .param("animal", animalId).param("e", empresa).query(this::mapDiagnostico).list();
     }
@@ -317,11 +317,11 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
         int inserted;
         try {
             inserted = jdbc.sql("""
-                    insert into reproduccion.diagnosticos_gestacion(id,empresa_id,animal_id,servicio_id,
+                    insert into diagnostico_gestacion(id,animal_id,servicio_id,
                     fecha_diagnostico,resultado,metodo,dias_gestacion_estimados,fecha_probable_parto,veterinario_id,observaciones,
-                    propiedad_id,potrero_id,lote_id,cliente_uuid,idempotency_key,estado,created_by,updated_by)
-                    values(:id,:e,:animal,:servicio,:fecha,:resultado,:metodo,:diasGestacion,:fechaParto,:veterinario,:observaciones,
-                    :propiedad,:potrero,:lote,:cliente,:idempotency,:estado,:actor,:actor)
+                    potrero_id,lote_id,cliente_uuid,idempotency_key,estado,created_by,updated_by)
+                    values(:id,:animal,:servicio,:fecha,:resultado,:metodo,:diasGestacion,:fechaParto,:veterinario,:observaciones,
+                    :potrero,:lote,:cliente,:idempotency,:estado,:actor,:actor)
                     on conflict (id) do nothing
                     """).params(paramsDiagnostico(diagnostico, actor)).update();
         } catch (DataIntegrityViolationException ex) {
@@ -345,8 +345,8 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
 
     @Override
     public void updateDiagnosticoResultado(UUID id, UUID empresa, ResultadoGestacion resultado, UUID actor) {
-        jdbc.sql("update reproduccion.diagnosticos_gestacion set resultado=:resultado, updated_at=now(), " +
-                        "updated_by=:actor, version=version+1 where id=:id and empresa_id=:empresa and estado='ACTIVO'")
+        jdbc.sql("update diagnostico_gestacion set resultado=:resultado, updated_at=now(), " +
+                        "updated_by=:actor, version=version+1 where id=:id and estado='ACTIVO'")
                 .param("resultado", resultado.name()).param("actor", actor).param("id", id)
                 .param("empresa", empresa).update();
     }
@@ -355,15 +355,14 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
     public PartoPage findAllPartos(UUID empresa, Set<UUID> propiedades, boolean todasPropiedades,
                                    UUID animalId, UUID propiedadId, int page, int size) {
         Map<String, Object> params = new HashMap<>();
-        StringBuilder filter = new StringBuilder(" where p.empresa_id=:e");
+        StringBuilder filter = new StringBuilder(" where 1=1");
         params.put("e", empresa);
-        aplicarFiltroPropiedad(filter, params, "p.propiedad_id", propiedades, todasPropiedades);
         if (animalId != null) {
             filter.append(" and p.madre_id=:animal");
             params.put("animal", animalId);
         }
         if (propiedadId != null) {
-            filter.append(" and p.propiedad_id=:property");
+            filter.append("");
             params.put("property", propiedadId);
         }
         long total = jdbc.sql("select count(*)" + SELECT_PARTO.substring(SELECT_PARTO.indexOf("from"))
@@ -378,19 +377,19 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
 
     @Override
     public Optional<Parto> findPartoById(UUID id, UUID empresa) {
-        return jdbc.sql(SELECT_PARTO + " where p.id=:id and p.empresa_id=:e")
+        return jdbc.sql(SELECT_PARTO + " where p.id=:id")
                 .param("id", id).param("e", empresa).query(this::mapParto).optional();
     }
 
     @Override
     public Optional<Parto> findPartoByClienteUuid(UUID clienteUuid, UUID empresa) {
-        return jdbc.sql(SELECT_PARTO + " where p.cliente_uuid=:cliente and p.empresa_id=:e")
+        return jdbc.sql(SELECT_PARTO + " where p.cliente_uuid=:cliente")
                 .param("cliente", clienteUuid).param("e", empresa).query(this::mapParto).optional();
     }
 
     @Override
     public List<Parto> partosDeAnimal(UUID animalId, UUID empresa) {
-        return jdbc.sql(SELECT_PARTO + " where p.madre_id=:animal and p.empresa_id=:e"
+        return jdbc.sql(SELECT_PARTO + " where p.madre_id=:animal"
                 + " order by p.fecha_parto asc, p.created_at asc")
                 .param("animal", animalId).param("e", empresa).query(this::mapParto).list();
     }
@@ -400,11 +399,11 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
         int inserted;
         try {
             inserted = jdbc.sql("""
-                    insert into reproduccion.partos(id,empresa_id,madre_id,servicio_id,diagnostico_gestacion_id,
+                    insert into parto(id,madre_id,servicio_id,diagnostico_gestacion_id,
                     fecha_parto,tipo_parto,dificultad,asistido,responsable_id,resultado_madre,numero_crias,observaciones,
-                    propiedad_id,potrero_id,lote_id,cliente_uuid,idempotency_key,estado,created_by,updated_by)
-                    values(:id,:e,:animal,:servicio,:diagnostico,:fecha,:tipo,:dificultad,:asistido,:responsable,
-                    :resultadoMadre,:numeroCrias,:observaciones,:propiedad,:potrero,:lote,:cliente,:idempotency,:estado,:actor,:actor)
+                    potrero_id,lote_id,cliente_uuid,idempotency_key,estado,created_by,updated_by)
+                    values(:id,:animal,:servicio,:diagnostico,:fecha,:tipo,:dificultad,:asistido,:responsable,
+                    :resultadoMadre,:numeroCrias,:observaciones,:potrero,:lote,:cliente,:idempotency,:estado,:actor,:actor)
                     on conflict (id) do nothing
                     """).params(paramsParto(parto, actor)).update();
         } catch (DataIntegrityViolationException ex) {
@@ -427,18 +426,17 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
 
     @Override
     public boolean existsActivePartoForGestacion(UUID empresa, UUID gestacionId) {
-        return Boolean.TRUE.equals(jdbc.sql("select exists(select 1 from reproduccion.partos where empresa_id=:e " +
-                        "and diagnostico_gestacion_id=:g and estado='ACTIVO')")
-                .param("e", empresa).param("g", gestacionId).query(Boolean.class).single());
+        return Boolean.TRUE.equals(jdbc.sql("select exists(select 1 from parto where " +
+                        "diagnostico_gestacion_id=:g and estado='ACTIVO')")
+                .param("g", gestacionId).query(Boolean.class).single());
     }
 
     @Override
     public CriaPartoPage findAllCrias(UUID empresa, Set<UUID> propiedades, boolean todasPropiedades,
                                       UUID partoId, int page, int size) {
         Map<String, Object> params = new HashMap<>();
-        StringBuilder filter = new StringBuilder(" where c.empresa_id=:e");
+        StringBuilder filter = new StringBuilder(" where 1=1");
         params.put("e", empresa);
-        aplicarFiltroPropiedad(filter, params, "c.propiedad_id", propiedades, todasPropiedades);
         if (partoId != null) {
             filter.append(" and c.parto_id=:parto");
             params.put("parto", partoId);
@@ -455,19 +453,19 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
 
     @Override
     public Optional<CriaParto> findCriaById(UUID id, UUID empresa) {
-        return jdbc.sql(SELECT_CRIA + " where c.id=:id and c.empresa_id=:e")
+        return jdbc.sql(SELECT_CRIA + " where c.id=:id")
                 .param("id", id).param("e", empresa).query(this::mapCria).optional();
     }
 
     @Override
     public Optional<CriaParto> findCriaByClienteUuid(UUID clienteUuid, UUID empresa) {
-        return jdbc.sql(SELECT_CRIA + " where c.cliente_uuid=:cliente and c.empresa_id=:e")
+        return jdbc.sql(SELECT_CRIA + " where c.cliente_uuid=:cliente")
                 .param("cliente", clienteUuid).param("e", empresa).query(this::mapCria).optional();
     }
 
     @Override
     public List<CriaParto> criasDeParto(UUID partoId, UUID empresa) {
-        return jdbc.sql(SELECT_CRIA + " where c.parto_id=:parto and c.empresa_id=:e"
+        return jdbc.sql(SELECT_CRIA + " where c.parto_id=:parto"
                 + " order by c.created_at asc")
                 .param("parto", partoId).param("e", empresa).query(this::mapCria).list();
     }
@@ -477,10 +475,10 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
         int inserted;
         try {
             inserted = jdbc.sql("""
-                    insert into reproduccion.crias_parto(id,empresa_id,parto_id,animal_cria_id,sexo,
+                    insert into cria_parto(id,parto_id,animal_cria_id,sexo,
                     peso_nacimiento_kg,estado_nacimiento,hora_nacimiento,observaciones,cliente_uuid,idempotency_key,
                     created_by,updated_by)
-                    values(:id,:e,:parto,:animal,:sexo,:peso,:estadoNacimiento,:horaNacimiento,:observaciones,
+                    values(:id,:parto,:animal,:sexo,:peso,:estadoNacimiento,:horaNacimiento,:observaciones,
                     :cliente,:idempotency,:actor,:actor)
                     on conflict (id) do nothing
                     """).params(paramsCria(cria, actor)).update();
@@ -504,7 +502,7 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
 
     @Override
     public Optional<CriaParto> findCriaByAnimal(UUID animalId, UUID empresa) {
-        return jdbc.sql(SELECT_CRIA + " where c.animal_cria_id=:animal and c.empresa_id=:e")
+        return jdbc.sql(SELECT_CRIA + " where c.animal_cria_id=:animal")
                 .param("animal", animalId).param("e", empresa).query(this::mapCria).optional();
     }
 
@@ -512,15 +510,14 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
     public AbortoPage findAllAbortos(UUID empresa, Set<UUID> propiedades, boolean todasPropiedades,
                                      UUID animalId, UUID propiedadId, int page, int size) {
         Map<String, Object> params = new HashMap<>();
-        StringBuilder filter = new StringBuilder(" where ab.empresa_id=:e");
+        StringBuilder filter = new StringBuilder(" where 1=1");
         params.put("e", empresa);
-        aplicarFiltroPropiedad(filter, params, "ab.propiedad_id", propiedades, todasPropiedades);
         if (animalId != null) {
             filter.append(" and ab.animal_id=:animal");
             params.put("animal", animalId);
         }
         if (propiedadId != null) {
-            filter.append(" and ab.propiedad_id=:property");
+            filter.append("");
             params.put("property", propiedadId);
         }
         long total = jdbc.sql("select count(*)" + SELECT_ABORTO.substring(SELECT_ABORTO.indexOf("from"))
@@ -535,19 +532,19 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
 
     @Override
     public Optional<Aborto> findAbortoById(UUID id, UUID empresa) {
-        return jdbc.sql(SELECT_ABORTO + " where ab.id=:id and ab.empresa_id=:e")
+        return jdbc.sql(SELECT_ABORTO + " where ab.id=:id")
                 .param("id", id).param("e", empresa).query(this::mapAborto).optional();
     }
 
     @Override
     public Optional<Aborto> findAbortoByClienteUuid(UUID clienteUuid, UUID empresa) {
-        return jdbc.sql(SELECT_ABORTO + " where ab.cliente_uuid=:cliente and ab.empresa_id=:e")
+        return jdbc.sql(SELECT_ABORTO + " where ab.cliente_uuid=:cliente")
                 .param("cliente", clienteUuid).param("e", empresa).query(this::mapAborto).optional();
     }
 
     @Override
     public List<Aborto> abortosDeAnimal(UUID animalId, UUID empresa) {
-        return jdbc.sql(SELECT_ABORTO + " where ab.animal_id=:animal and ab.empresa_id=:e"
+        return jdbc.sql(SELECT_ABORTO + " where ab.animal_id=:animal"
                 + " order by ab.fecha_evento asc, ab.created_at asc")
                 .param("animal", animalId).param("e", empresa).query(this::mapAborto).list();
     }
@@ -557,11 +554,11 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
         int inserted;
         try {
             inserted = jdbc.sql("""
-                    insert into reproduccion.abortos(id,empresa_id,animal_id,servicio_id,gestacion_id,
-                    fecha_evento,edad_gestacional_estimada,causa,diagnostico,veterinario_id,observaciones,propiedad_id,potrero_id,lote_id,
+                    insert into aborto(id,animal_id,servicio_id,gestacion_id,
+                    fecha_evento,edad_gestacional_estimada,causa,diagnostico,veterinario_id,observaciones,potrero_id,lote_id,
                     cliente_uuid,idempotency_key,estado,created_by,updated_by)
-                    values(:id,:e,:animal,:servicio,:diagnostico,:fecha,:edadGestacional,:causa,:diagnosticoTexto,:veterinario,:observaciones,
-                    :propiedad,:potrero,:lote,:cliente,:idempotency,:estado,:actor,:actor)
+                    values(:id,:animal,:servicio,:diagnostico,:fecha,:edadGestacional,:causa,:diagnosticoTexto,:veterinario,:observaciones,
+                    :potrero,:lote,:cliente,:idempotency,:estado,:actor,:actor)
                     on conflict (id) do nothing
                     """).params(paramsAborto(aborto, actor)).update();
         } catch (DataIntegrityViolationException ex) {
@@ -586,15 +583,14 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
     public DestetePage findAllDestetes(UUID empresa, Set<UUID> propiedades, boolean todasPropiedades,
                                        UUID animalId, UUID propiedadId, int page, int size) {
         Map<String, Object> params = new HashMap<>();
-        StringBuilder filter = new StringBuilder(" where d.empresa_id=:e");
+        StringBuilder filter = new StringBuilder(" where 1=1");
         params.put("e", empresa);
-        aplicarFiltroPropiedad(filter, params, "d.propiedad_id", propiedades, todasPropiedades);
         if (animalId != null) {
             filter.append(" and d.animal_cria_id=:animal");
             params.put("animal", animalId);
         }
         if (propiedadId != null) {
-            filter.append(" and d.propiedad_id=:property");
+            filter.append("");
             params.put("property", propiedadId);
         }
         long total = jdbc.sql("select count(*)" + SELECT_DESTETE.substring(SELECT_DESTETE.indexOf("from"))
@@ -609,19 +605,19 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
 
     @Override
     public Optional<Destete> findDesteteById(UUID id, UUID empresa) {
-        return jdbc.sql(SELECT_DESTETE + " where d.id=:id and d.empresa_id=:e")
+        return jdbc.sql(SELECT_DESTETE + " where d.id=:id")
                 .param("id", id).param("e", empresa).query(this::mapDestete).optional();
     }
 
     @Override
     public Optional<Destete> findDesteteByClienteUuid(UUID clienteUuid, UUID empresa) {
-        return jdbc.sql(SELECT_DESTETE + " where d.cliente_uuid=:cliente and d.empresa_id=:e")
+        return jdbc.sql(SELECT_DESTETE + " where d.cliente_uuid=:cliente")
                 .param("cliente", clienteUuid).param("e", empresa).query(this::mapDestete).optional();
     }
 
     @Override
     public List<Destete> destetesDeAnimal(UUID animalId, UUID empresa) {
-        return jdbc.sql(SELECT_DESTETE + " where d.animal_cria_id=:animal and d.empresa_id=:e"
+        return jdbc.sql(SELECT_DESTETE + " where d.animal_cria_id=:animal"
                 + " order by d.fecha_destete asc, d.created_at asc")
                 .param("animal", animalId).param("e", empresa).query(this::mapDestete).list();
     }
@@ -631,11 +627,11 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
         int inserted;
         try {
             inserted = jdbc.sql("""
-                    insert into reproduccion.destetes(id,empresa_id,animal_cria_id,madre_id,
-                    fecha_destete,peso_destete_kg,tipo_destete,motivo,responsable_id,observaciones,propiedad_id,potrero_id,lote_id,
+                    insert into destete(id,animal_cria_id,madre_id,
+                    fecha_destete,peso_destete_kg,tipo_destete,motivo,responsable_id,observaciones,potrero_id,lote_id,
                     cliente_uuid,idempotency_key,estado,created_by,updated_by)
-                    values(:id,:e,:animal,:madre,:fecha,:peso,:tipoDestete,:motivo,:responsable,:observaciones,
-                    :propiedad,:potrero,:lote,:cliente,:idempotency,:estado,:actor,:actor)
+                    values(:id,:animal,:madre,:fecha,:peso,:tipoDestete,:motivo,:responsable,:observaciones,
+                    :potrero,:lote,:cliente,:idempotency,:estado,:actor,:actor)
                     on conflict (id) do nothing
                     """).params(paramsDestete(destete, actor)).update();
         } catch (DataIntegrityViolationException ex) {
@@ -827,19 +823,19 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
         String intensidad = r.getString("intensidad");
         String estado = r.getString("estado");
         return new Celo(
-                r.getObject("id", UUID.class), r.getObject("empresa_id", UUID.class),
-                r.getObject("animal_id", UUID.class), instant(r, "fecha_deteccion"),
+                Rows.uuid(r, "id"), null,
+                Rows.uuid(r, "animal_id"), instant(r, "fecha_deteccion"),
                 tipo == null ? null : TipoCelo.valueOf(tipo),
                 intensidad == null ? null : IntensidadCelo.valueOf(intensidad),
-                r.getObject("detectado_por", UUID.class), r.getString("observaciones"),
-                r.getObject("propiedad_id", UUID.class), r.getObject("potrero_id", UUID.class),
-                r.getObject("lote_id", UUID.class), r.getObject("cliente_uuid", UUID.class),
+                Rows.uuid(r, "detectado_por"), r.getString("observaciones"),
+                null, Rows.uuid(r, "potrero_id"),
+                Rows.uuid(r, "lote_id"), Rows.uuid(r, "cliente_uuid"),
                 r.getString("idempotency_key"),
                 estado == null ? null : EstadoRegistroReproduccion.valueOf(estado),
-                instant(r, "anulado_at"), r.getObject("anulado_by", UUID.class),
+                instant(r, "anulado_at"), Rows.uuid(r, "anulado_by"),
                 r.getString("motivo_anulacion"),
                 r.getString("animal_codigo"), r.getString("animal_nombre"),
-                r.getString("potrero_nombre"), r.getString("propiedad_nombre"),
+                r.getString("potrero_nombre"), null,
                 r.getLong("version"));
     }
 
@@ -847,22 +843,22 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
         String tipo = r.getString("tipo_servicio");
         String estado = r.getString("estado");
         return new Servicio(
-                r.getObject("id", UUID.class), r.getObject("empresa_id", UUID.class),
-                r.getObject("hembra_id", UUID.class), r.getObject("celo_id", UUID.class),
+                Rows.uuid(r, "id"), null,
+                Rows.uuid(r, "hembra_id"), Rows.uuid(r, "celo_id"),
                 instant(r, "fecha_servicio"),
-                tipo == null ? null : TipoServicio.valueOf(tipo), r.getObject("macho_id", UUID.class),
+                tipo == null ? null : TipoServicio.valueOf(tipo), Rows.uuid(r, "macho_id"),
                 r.getString("codigo_semen"), r.getString("proveedor_semen"),
-                r.getObject("tecnico_id", UUID.class), r.getInt("numero_intento"),
+                Rows.uuid(r, "tecnico_id"), r.getInt("numero_intento"),
                 instant(r, "fecha_diagnostico_recomendada"), r.getString("observaciones"),
-                r.getObject("propiedad_id", UUID.class), r.getObject("potrero_id", UUID.class),
-                r.getObject("lote_id", UUID.class), r.getObject("cliente_uuid", UUID.class),
+                null, Rows.uuid(r, "potrero_id"),
+                Rows.uuid(r, "lote_id"), Rows.uuid(r, "cliente_uuid"),
                 r.getString("idempotency_key"),
                 estado == null ? null : EstadoServicio.valueOf(estado),
-                instant(r, "anulado_at"), r.getObject("anulado_by", UUID.class),
+                instant(r, "anulado_at"), Rows.uuid(r, "anulado_by"),
                 r.getString("motivo_anulacion"),
                 r.getString("animal_codigo"), r.getString("animal_nombre"),
                 r.getString("macho_codigo"), r.getString("macho_nombre"),
-                r.getString("potrero_nombre"), r.getString("propiedad_nombre"),
+                r.getString("potrero_nombre"), null,
                 r.getLong("version"));
     }
 
@@ -871,80 +867,79 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
         String metodo = r.getString("metodo");
         String estado = r.getString("estado");
         return new DiagnosticoGestacion(
-                r.getObject("id", UUID.class), r.getObject("empresa_id", UUID.class),
-                r.getObject("animal_id", UUID.class), r.getObject("servicio_id", UUID.class),
+                Rows.uuid(r, "id"), null,
+                Rows.uuid(r, "animal_id"), Rows.uuid(r, "servicio_id"),
                 instant(r, "fecha_diagnostico"),
                 resultado == null ? null : ResultadoGestacion.valueOf(resultado),
                 metodo == null ? null : MetodoDiagnostico.valueOf(metodo),
-                r.getObject("dias_gestacion_estimados", Integer.class),
-                r.getObject("fecha_probable_parto", LocalDate.class),
-                r.getObject("veterinario_id", UUID.class), r.getString("observaciones"),
-                r.getObject("propiedad_id", UUID.class), r.getObject("potrero_id", UUID.class),
-                r.getObject("lote_id", UUID.class), r.getObject("cliente_uuid", UUID.class),
+                Rows.intOrNull(r, "dias_gestacion_estimados"),
+                Rows.localDate(r, "fecha_probable_parto"),
+                Rows.uuid(r, "veterinario_id"), r.getString("observaciones"),
+                null, Rows.uuid(r, "potrero_id"),
+                Rows.uuid(r, "lote_id"), Rows.uuid(r, "cliente_uuid"),
                 r.getString("idempotency_key"),
                 estado == null ? null : EstadoRegistroReproduccion.valueOf(estado),
                 r.getString("animal_codigo"), r.getString("animal_nombre"),
-                r.getString("potrero_nombre"), r.getString("propiedad_nombre"),
+                r.getString("potrero_nombre"), null,
                 r.getLong("version"));
     }
 
     private Parto mapParto(ResultSet r, int row) throws SQLException {
-        return new Parto(r.getObject("id", UUID.class), r.getObject("empresa_id", UUID.class),
-                r.getObject("madre_id", UUID.class), r.getObject("diagnostico_gestacion_id", UUID.class),
-                r.getObject("servicio_id", UUID.class), r.getObject("fecha_parto", LocalDate.class),
+        return new Parto(Rows.uuid(r, "id"), null,
+                Rows.uuid(r, "madre_id"), Rows.uuid(r, "diagnostico_gestacion_id"),
+                Rows.uuid(r, "servicio_id"), Rows.localDate(r, "fecha_parto"),
                 TipoParto.valueOf(r.getString("tipo_parto")), DificultadParto.valueOf(r.getString("dificultad")),
-                r.getBoolean("asistido"), r.getObject("responsable_id", UUID.class), r.getString("resultado_madre"),
-                r.getInt("numero_crias"), r.getString("observaciones"), r.getObject("propiedad_id", UUID.class),
-                r.getObject("potrero_id", UUID.class), r.getObject("lote_id", UUID.class),
-                r.getObject("cliente_uuid", UUID.class), r.getString("idempotency_key"),
+                r.getBoolean("asistido"), Rows.uuid(r, "responsable_id"), r.getString("resultado_madre"),
+                r.getInt("numero_crias"), r.getString("observaciones"), null,
+                Rows.uuid(r, "potrero_id"), Rows.uuid(r, "lote_id"),
+                Rows.uuid(r, "cliente_uuid"), r.getString("idempotency_key"),
                 EstadoRegistroReproduccion.valueOf(r.getString("estado")), instant(r, "anulado_at"),
-                r.getObject("anulado_by", UUID.class), r.getString("motivo_anulacion"), r.getString("animal_codigo"),
-                r.getString("animal_nombre"), r.getObject("macho_id", UUID.class), r.getString("macho_codigo"),
-                r.getString("macho_nombre"), r.getString("potrero_nombre"), r.getString("propiedad_nombre"),
+                Rows.uuid(r, "anulado_by"), r.getString("motivo_anulacion"), r.getString("animal_codigo"),
+                r.getString("animal_nombre"), Rows.uuid(r, "macho_id"), r.getString("macho_codigo"),
+                r.getString("macho_nombre"), r.getString("potrero_nombre"), null,
                 r.getLong("version"));
     }
 
     private CriaParto mapCria(ResultSet r, int row) throws SQLException {
-        return new CriaParto(r.getObject("id", UUID.class), r.getObject("empresa_id", UUID.class),
-                r.getObject("parto_id", UUID.class), r.getObject("animal_cria_id", UUID.class),
+        return new CriaParto(Rows.uuid(r, "id"), null,
+                Rows.uuid(r, "parto_id"), Rows.uuid(r, "animal_cria_id"),
                 bo.com.ganadero.animales.domain.SexoAnimal.valueOf(r.getString("sexo")),
                 r.getBigDecimal("peso_nacimiento_kg"), EstadoNacimiento.valueOf(r.getString("estado_nacimiento")),
-                r.getObject("hora_nacimiento", java.time.LocalTime.class), r.getString("observaciones"),
-                r.getObject("cliente_uuid", UUID.class),
+                bo.com.ganadero.shared.db.Rows.localTime(r, "hora_nacimiento"), r.getString("observaciones"),
+                Rows.uuid(r, "cliente_uuid"),
                 r.getString("idempotency_key"), r.getString("animal_codigo"), r.getString("animal_nombre"),
                 r.getLong("version"));
     }
 
     private Aborto mapAborto(ResultSet r, int row) throws SQLException {
-        return new Aborto(r.getObject("id", UUID.class), r.getObject("empresa_id", UUID.class),
-                r.getObject("animal_id", UUID.class), r.getObject("gestacion_id", UUID.class),
-                r.getObject("servicio_id", UUID.class), r.getObject("fecha_evento", LocalDate.class),
+        return new Aborto(Rows.uuid(r, "id"), null,
+                Rows.uuid(r, "animal_id"), Rows.uuid(r, "gestacion_id"),
+                Rows.uuid(r, "servicio_id"), Rows.localDate(r, "fecha_evento"),
                 r.getObject("edad_gestacional_estimada", Integer.class), r.getString("causa"),
-                r.getString("diagnostico"), r.getObject("veterinario_id", UUID.class), r.getString("observaciones"),
-                r.getObject("propiedad_id", UUID.class),
-                r.getObject("potrero_id", UUID.class), r.getObject("lote_id", UUID.class),
-                r.getObject("cliente_uuid", UUID.class), r.getString("idempotency_key"),
+                r.getString("diagnostico"), Rows.uuid(r, "veterinario_id"), r.getString("observaciones"),
+                null,
+                Rows.uuid(r, "potrero_id"), Rows.uuid(r, "lote_id"),
+                Rows.uuid(r, "cliente_uuid"), r.getString("idempotency_key"),
                 EstadoRegistroReproduccion.valueOf(r.getString("estado")), r.getString("animal_codigo"),
-                r.getString("animal_nombre"), r.getString("potrero_nombre"), r.getString("propiedad_nombre"),
+                r.getString("animal_nombre"), r.getString("potrero_nombre"), null,
                 r.getLong("version"));
     }
 
     private Destete mapDestete(ResultSet r, int row) throws SQLException {
-        return new Destete(r.getObject("id", UUID.class), r.getObject("empresa_id", UUID.class),
-                r.getObject("animal_cria_id", UUID.class), r.getObject("madre_id", UUID.class),
-                r.getObject("fecha_destete", LocalDate.class), r.getBigDecimal("peso_destete_kg"),
+        return new Destete(Rows.uuid(r, "id"), null,
+                Rows.uuid(r, "animal_cria_id"), Rows.uuid(r, "madre_id"),
+                Rows.localDate(r, "fecha_destete"), r.getBigDecimal("peso_destete_kg"),
                 TipoDestete.valueOf(r.getString("tipo_destete")), r.getString("motivo"),
-                r.getObject("responsable_id", UUID.class), r.getString("observaciones"),
-                r.getObject("propiedad_id", UUID.class),
-                r.getObject("potrero_id", UUID.class), r.getObject("lote_id", UUID.class),
-                r.getObject("cliente_uuid", UUID.class), r.getString("idempotency_key"),
+                Rows.uuid(r, "responsable_id"), r.getString("observaciones"),
+                null,
+                Rows.uuid(r, "potrero_id"), Rows.uuid(r, "lote_id"),
+                Rows.uuid(r, "cliente_uuid"), r.getString("idempotency_key"),
                 EstadoRegistroReproduccion.valueOf(r.getString("estado")), r.getString("animal_codigo"),
-                r.getString("animal_nombre"), r.getString("potrero_nombre"), r.getString("propiedad_nombre"),
+                r.getString("animal_nombre"), r.getString("potrero_nombre"), null,
                 r.getLong("version"));
     }
 
     private static Instant instant(ResultSet r, String column) throws SQLException {
-        OffsetDateTime value = r.getObject(column, OffsetDateTime.class);
-        return value == null ? null : value.toInstant();
+        return bo.com.ganadero.shared.db.Rows.instant(r, column);
     }
 }

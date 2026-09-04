@@ -1,0 +1,21 @@
+.servicios-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.servicios-heading h2 { margin: 0; }
+.servicios-panel .table-wrapper table { min-width: 760px; }
+.servicios-panel th { background: #f5f8f5; }
+.servicios-panel th, .servicios-panel td { padding: 16px 12px; vertical-align: middle; }
+.servicios-panel td:first-child { min-width: 180px; }
+.servicios-panel td:last-child { min-width: 180px; }
+.servicios-panel tbody tr:hover { background: #f8fbf8; }
+.servicio-animal { display: block; font-size: 1rem; line-height: 1.4; }
+.servicios-panel .table-secondary { margin-top: 4px; }
+.servicios-panel .status-badge { white-space: normal; }
+@media (max-width: 600px) {
+  .servicios-heading > button { width: 100%; justify-content: center; }
+}

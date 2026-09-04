@@ -5,6 +5,7 @@ import bo.com.ganadero.auditoria.domain.AuditoriaRepository;
 import bo.com.ganadero.animales.application.AnimalAuditEvent;
 import bo.com.ganadero.alertas.application.AlertasAuditEvent;
 import bo.com.ganadero.archivos.application.ArchivoAuditEvent;
+import bo.com.ganadero.configuracion.application.ConfiguracionAuditEvent;
 import bo.com.ganadero.lotes.application.LoteAuditEvent;
 import bo.com.ganadero.movimientos.application.MovimientoAuditEvent;
 import bo.com.ganadero.pesajes.application.PesajeAuditEvent;
@@ -12,7 +13,6 @@ import bo.com.ganadero.potreros.application.PotreroAuditEvent;
 import bo.com.ganadero.propiedades.application.CampoAuditEvent;
 import bo.com.ganadero.reproduccion.application.ReproduccionAuditEvent;
 import bo.com.ganadero.sanidad.application.SanidadAuditEvent;
-import bo.com.ganadero.seguridad.application.SeguridadAuditEvent;
 import bo.com.ganadero.shared.audit.EmpresaAuditEvent;
 import bo.com.ganadero.shared.audit.SyncAuditEvent;
 import bo.com.ganadero.shared.web.CorrelationIdFilter;
@@ -63,13 +63,13 @@ public class AuditEventListener {
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onPotrero(PotreroAuditEvent event) {
-        persist(event.empresaId(), event.usuarioId(), event.accion(), "POTREROS", event.entidad(), event.entidadId());
+    public void onConfiguracion(ConfiguracionAuditEvent event) {
+        persist(event.empresaId(), event.usuarioId(), "ACTUALIZAR", "CONFIGURACION", "CONFIGURACION", null);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onSeguridad(SeguridadAuditEvent event) {
-        persist(event.empresaId(), event.usuarioId(), event.accion(), "SEGURIDAD", event.entidadTipo(), event.entidadId());
+    public void onPotrero(PotreroAuditEvent event) {
+        persist(event.empresaId(), event.usuarioId(), event.accion(), "POTREROS", event.entidad(), event.entidadId());
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

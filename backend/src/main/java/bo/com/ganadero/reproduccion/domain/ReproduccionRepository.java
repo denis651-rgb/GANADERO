@@ -26,6 +26,7 @@ public interface ReproduccionRepository {
     List<Celo> celosDeAnimal(UUID animalId, UUID empresa);
 
     Celo createCelo(Celo celo, UUID actor);
+    void agregarObservacionCelo(UUID id, String texto, UUID actor);
 
     Celo annulCelo(UUID id, UUID empresa, String motivo, long version, UUID actor);
 

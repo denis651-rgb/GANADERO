@@ -2,4 +2,11 @@ package bo.com.ganadero.animales.application; import bo.com.ganadero.animales.do
 public record AnimalCommand(UUID id, String codigo,String nombre,SexoAnimal sexo,LocalDate fechaNacimiento,Boolean fechaNacimientoEstimada,
  UUID razaPrincipalId,UUID categoriaActualId,String color,PropositoAnimal proposito,OrigenAnimal origen,
  UUID propiedadActualId,UUID potreroActualId,UUID loteActualId,LocalDate fechaIngreso,BigDecimal precioAdquisicion,
- BigDecimal pesoNacimientoKg,BigDecimal condicionCorporalActual,String fotoPrincipalPath,String observaciones,Long version) {}
+ BigDecimal pesoNacimientoKg,BigDecimal condicionCorporalActual,String fotoPrincipalPath,String observaciones,Long version, BigDecimal pesoIngresoKg, Boolean pesoIngresoEstimado, Boolean quitarFechaNacimiento, Boolean corregirPesoCompra) {
+  public AnimalCommand(UUID id, String codigo,String nombre,SexoAnimal sexo,LocalDate fechaNacimiento,Boolean fechaNacimientoEstimada,
+ UUID razaPrincipalId,UUID categoriaActualId,String color,PropositoAnimal proposito,OrigenAnimal origen,
+ UUID propiedadActualId,UUID potreroActualId,UUID loteActualId,LocalDate fechaIngreso,BigDecimal precioAdquisicion,
+ BigDecimal pesoNacimientoKg,BigDecimal condicionCorporalActual,String fotoPrincipalPath,String observaciones,Long version) {
+    this(id,codigo,nombre,sexo,fechaNacimiento,fechaNacimientoEstimada,razaPrincipalId,categoriaActualId,color,proposito,origen,propiedadActualId,potreroActualId,loteActualId,fechaIngreso,precioAdquisicion,pesoNacimientoKg,condicionCorporalActual,fotoPrincipalPath,observaciones,version, null, null, false, false);
+  }
+}

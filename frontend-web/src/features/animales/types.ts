@@ -16,6 +16,8 @@ export interface AnimalSummary {
   loteActualId?: string
   fechaIngreso: string
   precioAdquisicion?: number
+  pesoIngresoKg?: number
+  pesoIngresoEstimado?: boolean
   pesoNacimientoKg?: number
   condicionCorporalActual?: number
   fotoPrincipalPath?: string
@@ -29,6 +31,10 @@ export interface Raza { id: string; codigo: string; nombre: string; especie: str
 export interface CategoriaAnimal { id: string; codigo: string; nombre: string; sexoAplicable: 'MACHO' | 'HEMBRA' | 'AMBOS' }
 
 export interface CreateAnimalInput {
+  fechaNacimientoEstimada?: boolean
+  fechaIngreso?: string
+  pesoIngresoKg?: number
+  pesoIngresoEstimado?: boolean
   codigo?: string
   nombre?: string
   sexo: 'MACHO' | 'HEMBRA'
@@ -42,7 +48,32 @@ export interface CreateAnimalInput {
   observaciones?: string
 }
 
+/** Alta masiva de compra (docs/backend/PLAN_SANITARIO_SANTA_CRUZ.md, sección 7): origen queda fijo en COMPRADO. */
+export interface AnimalLoteItemInput {
+  codigo?: string
+  nombre?: string
+  sexo: 'MACHO' | 'HEMBRA'
+  categoriaActualId: string
+  fechaNacimiento?: string
+  fechaNacimientoEstimada?: boolean
+  pesoIngresoKg?: number
+  pesoIngresoEstimado?: boolean
+  observaciones?: string
+}
+
+export interface CrearAnimalesLoteInput {
+  razaPrincipalId: string
+  proposito: 'CARNE' | 'LECHE' | 'REPRODUCCION' | 'DOBLE_PROPOSITO'
+  propiedadActualId: string
+  potreroActualId: string
+  fechaIngreso?: string
+  precioAdquisicion?: number
+  animales: AnimalLoteItemInput[]
+}
+
 export interface UpdateAnimalInput extends Omit<CreateAnimalInput, 'origen'> {
+  quitarFechaNacimiento?: boolean
+  corregirPesoCompra?: boolean
   fechaNacimientoEstimada?: boolean
   color?: string
   fechaIngreso?: string

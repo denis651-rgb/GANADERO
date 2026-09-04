@@ -135,21 +135,20 @@ export function TratamientosPanel({ tratamientos, isLoading, error, catalogs, re
 
     <Modal open={showForm} title="Nuevo tratamiento" onClose={() => setShowForm(false)} wide description="Registra el tratamiento con su protocolo de dosificaciÃ³n.">
       <form className="form-grid" onSubmit={(event) => { event.preventDefault(); crear.mutate(event.currentTarget) }}>
-        <Field label="Animal" required><select name="animalId" required><option value="">Seleccionaâ€¦</option>{catalogs?.animals.map((animal) => <option key={animal.id} value={animal.id}>{animal.nombre ? `${animal.codigo} Â· ${animal.nombre}` : animal.codigo}</option>)}</select></Field>
+        <Field label="Animal" required><select name="animalId" required><option value="">Seleccionar Animal</option>{catalogs?.animals.map((animal) => <option key={animal.id} value={animal.id}>{animal.nombre ? `${animal.codigo} Â· ${animal.nombre}` : animal.codigo}</option>)}</select></Field>
         <Field label="Fecha de inicio" required><input name="fechaInicio" type="date" required /></Field>
         <Field label="Fecha fin estimada" required><input name="fechaFinEstimada" type="date" required /></Field>
-        <Field label="Veterinario"><select name="veterinarioId"><option value="">Sin veterinario</option>{catalogs?.users.map((user) => <option key={user.id} value={user.usuarioId}>{user.nombres} {user.apellidos}</option>)}</select></Field>
-        <div className="form-full"><Field label="DiagnÃ³stico"><input name="diagnostico" maxLength={2000} autoComplete="off" /></Field></div>
+        <div className="form-full"><Field label="Diagnostico"><input name="diagnostico" maxLength={2000} autoComplete="off" /></Field></div>
         <div className="form-full"><Field label="Observaciones"><textarea name="observaciones" rows={2} maxLength={1000} /></Field></div>
-        <div className="form-full"><div className="form-section-title">Protocolo de dosificaciÃ³n</div></div>
+        <div className="form-full"><div className="form-section-title">Protocolo de dosificacion</div></div>
         {detalles.map((fila) => <div key={fila.key} className="form-grid form-full">
           <Field label="Dosis" required><input type="number" inputMode="decimal" min="0.001" step="0.001" required value={fila.dosis} onChange={(event) => actualizarDetalle(fila.key, 'dosis', event.target.value)} /></Field>
-          <Field label="Unidad de dosis" required><input maxLength={30} required placeholder="mL, ccâ€¦" value={fila.unidadDosis} onChange={(event) => actualizarDetalle(fila.key, 'unidadDosis', event.target.value)} /></Field>
+          <Field label="Unidad de dosis" required><input maxLength={30} required placeholder="mL, cc" value={fila.unidadDosis} onChange={(event) => actualizarDetalle(fila.key, 'unidadDosis', event.target.value)} /></Field>
           <Field label="Frecuencia (horas)" required><input type="number" inputMode="numeric" min="1" required value={fila.frecuenciaHoras} onChange={(event) => actualizarDetalle(fila.key, 'frecuenciaHoras', event.target.value)} /></Field>
-          <Field label="DuraciÃ³n (dÃ­as)" required><input type="number" inputMode="numeric" min="1" required value={fila.duracionDias} onChange={(event) => actualizarDetalle(fila.key, 'duracionDias', event.target.value)} /></Field>
-          <Field label="VÃ­a de administraciÃ³n"><input maxLength={60} placeholder="IM, SCâ€¦" value={fila.viaAdministracion} onChange={(event) => actualizarDetalle(fila.key, 'viaAdministracion', event.target.value)} /></Field>
-          <Field label="Retiro carne (dÃ­as)"><input type="number" inputMode="numeric" min="0" value={fila.retiroCarneDias} onChange={(event) => actualizarDetalle(fila.key, 'retiroCarneDias', event.target.value)} /></Field>
-          <Field label="Retiro leche (dÃ­as)"><input type="number" inputMode="numeric" min="0" value={fila.retiroLecheDias} onChange={(event) => actualizarDetalle(fila.key, 'retiroLecheDias', event.target.value)} /></Field>
+          <Field label="Duracion (dias)" required><input type="number" inputMode="numeric" min="1" required value={fila.duracionDias} onChange={(event) => actualizarDetalle(fila.key, 'duracionDias', event.target.value)} /></Field>
+          <Field label="Via de administracion"><input maxLength={60} placeholder="IM, M" value={fila.viaAdministracion} onChange={(event) => actualizarDetalle(fila.key, 'viaAdministracion', event.target.value)} /></Field>
+          <Field label="Retiro carne (dias)"><input type="number" inputMode="numeric" min="0" value={fila.retiroCarneDias} onChange={(event) => actualizarDetalle(fila.key, 'retiroCarneDias', event.target.value)} /></Field>
+          <Field label="Retiro leche (dias)"><input type="number" inputMode="numeric" min="0" value={fila.retiroLecheDias} onChange={(event) => actualizarDetalle(fila.key, 'retiroLecheDias', event.target.value)} /></Field>
           <div className="form-actions"><Button type="button" variant="ghost" onClick={() => setDetalles((prev) => prev.filter((item) => item.key !== fila.key))}>Quitar protocolo</Button></div>
         </div>)}
         <div className="form-actions">

@@ -1,7 +1,20 @@
 import { http } from '@/shared/api/http'
 import type { ApiResponse } from '@/shared/api/types'
 
-export type TipoActividad = 'VACUNACION' | 'DESPARASITACION' | 'VITAMINIZACION' | 'CONTROL' | 'PRUEBA_DIAGNOSTICA' | 'OTRO'
+export interface ConfiguracionSanitaria {
+  edadMinMachoMeses: number | null
+  edadMinHembraMeses: number | null
+  version: number
+}
+export async function getConfiguracionSanitaria() {
+  return (await http.get<ApiResponse<ConfiguracionSanitaria>>('/api/v1/sanidad/configuracion')).data.data
+}
+export async function guardarConfiguracionSanitaria(input: ConfiguracionSanitaria) {
+  return (await http.put<ApiResponse<ConfiguracionSanitaria>>('/api/v1/sanidad/configuracion', input)).data.data
+}
+
+export type TipoActividad = 'VACUNACION' | 'DESPARASITACION' | 'VITAMINIZACION' | 'CONTROL' | 'PRUEBA_DIAGNOSTICA' | 'OTRO' | 'VIGILANCIA_EPIDEMIOLOGICA'
+export type OrigenRegulatorio = 'OBLIGATORIO_SENASAG' | 'CAMPANA_RIESGO' | 'RECOMENDADO_VETERINARIO' | 'CONFIGURABLE_ESTABLECIMIENTO'
 export type EstadoPlan = 'BORRADOR' | 'ACTIVO' | 'FINALIZADO' | 'ANULADO'
 export type EstadoJornada = 'BORRADOR' | 'EN_PROCESO' | 'CONFIRMADA' | 'ANULADA'
 export type EstadoCaso = 'ABIERTO' | 'EN_OBSERVACION' | 'EN_TRATAMIENTO' | 'CERRADO' | 'ANULADO'
@@ -52,6 +65,8 @@ export interface PlanSanitarioItem {
   diasAlerta: number
   viaAdministracion?: string
   obligatorio: boolean
+  origenRegulatorio: OrigenRegulatorio
+  especieAplicable: string
   activo: boolean
   version: number
 }
@@ -147,6 +162,34 @@ export interface AplicacionSanitaria {
   version: number
 }
 
+/** Historial declarado al ingreso (docs/backend/PLAN_SANITARIO_SANTA_CRUZ.md, secciones 3.2 y 7). */
+export type OrigenRegistroAplicacion = 'APLICADA_FINCA' | 'DECLARADA_PROVEEDOR'
+
+export interface AplicacionDeclarada {
+  id: string
+  animalId: string
+  planItemId?: string
+  fechaAplicacion: string
+  proximaAplicacion?: string
+  dosis?: number
+  unidadDosis?: string
+  observaciones?: string
+  origenRegistro: OrigenRegistroAplicacion
+  estado: string
+  version: number
+}
+
+export interface RegistrarAplicacionDeclaradaInput {
+  animalId: string
+  tipoActividad: TipoActividad
+  planItemId?: string
+  fechaAplicacion: string
+  dosis?: number
+  unidadDosis?: string
+  productoTexto?: string
+  observaciones?: string
+}
+
 export interface ConfirmacionJornadaResult {
   jornada: JornadaSanitaria
   aplicaciones: AplicacionSanitaria[]
@@ -190,6 +233,8 @@ export interface CrearItemInput {
   diasAlerta: number
   viaAdministracion?: string
   obligatorio: boolean
+  origenRegulatorio: OrigenRegulatorio
+  especieAplicable?: string
 }
 
 export interface CrearJornadaInput {
@@ -240,6 +285,121 @@ export interface DetalleTratamientoInput {
   retiroLecheDias: number
 }
 
+/** Control neonatal (docs/backend/PLAN_SANITARIO_SANTA_CRUZ.md, sección 4.c): checklist de terneros recién nacidos, independiente del plan sanitario activo. */
+export type MomentoControlNeonatal = 'DIA_0' | 'PRIMERA_SEMANA'
+export type EstadoCalostrado = 'CORRECTO' | 'INSUFICIENTE' | 'DESCONOCIDO' | 'NO_APLICA'
+
+export interface ControlNeonatal {
+  id: string
+  empresaId: string
+  animalId: string
+  fechaControl: string
+  momento: MomentoControlNeonatal
+  calostrado: EstadoCalostrado
+  ombligoDesinfectado: boolean
+  ombligoEstado?: string
+  diarrea: boolean
+  estadoGeneral?: string
+  lactancia?: string
+  temperaturaC?: number
+  observaciones?: string
+  version: number
+}
+
+export interface CrearControlNeonatalInput {
+  animalId: string
+  fechaControl: string
+  momento: MomentoControlNeonatal
+  calostrado: EstadoCalostrado
+  ombligoDesinfectado: boolean
+  ombligoEstado?: string
+  diarrea: boolean
+  estadoGeneral?: string
+  lactancia?: string
+  temperaturaC?: number
+  observaciones?: string
+}
+
+/** Control ectoparasitario (docs/backend/PLAN_SANITARIO_SANTA_CRUZ.md, sección 4.d): puede registrarse contra un animal o un lote_ganadero completo, nunca ambos ni ninguno. */
+export type TipoEctoparasito = 'GARRAPATA' | 'MOSCA_CUERNOS' | 'TORSALO' | 'PIOJOS' | 'OTRO'
+export type NivelCargaParasitaria = 'BAJO' | 'MEDIO' | 'ALTO'
+
+export interface ControlEctoparasitario {
+  id: string
+  empresaId: string
+  animalId?: string
+  loteGanaderoId?: string
+  tipo: TipoEctoparasito
+  nivelCarga: NivelCargaParasitaria
+  tratado: boolean
+  producto?: string
+  principioActivo?: string
+  fecha: string
+  observaciones?: string
+  version: number
+}
+
+export interface CrearControlEctoparasitarioInput {
+  animalId?: string
+  loteGanaderoId?: string
+  tipo: TipoEctoparasito
+  nivelCarga: NivelCargaParasitaria
+  tratado: boolean
+  producto?: string
+  principioActivo?: string
+  fecha: string
+  observaciones?: string
+}
+
+/** Examen reproductivo (docs/backend/PLAN_SANITARIO_SANTA_CRUZ.md, sección 4.e): aptitud de toros y vaquillas antes del servicio. El sexo NO se duplica acá, se lee de `animal.sexo`. */
+export type ResultadoExamenReproductivo = 'APTO' | 'NO_APTO' | 'OBSERVACION'
+export type EnfermedadReproductiva = 'IBR' | 'BVD' | 'BRUCELOSIS' | 'LEPTOSPIROSIS' | 'TRICOMONIASIS' | 'CAMPYLOBACTERIOSIS'
+export type ResultadoPruebaReproductiva = 'NEGATIVO' | 'POSITIVO' | 'NO_REALIZADO'
+
+export interface PruebaReproductiva {
+  enfermedad: EnfermedadReproductiva
+  resultado: ResultadoPruebaReproductiva
+}
+
+export interface ExamenReproductivo {
+  id: string
+  empresaId: string
+  animalId: string
+  fecha: string
+  resultado: ResultadoExamenReproductivo
+  veterinarioId?: string
+  circunferenciaEscrotalCm?: number
+  motilidadEspermaticaPct?: number
+  morfologiaPct?: number
+  libido?: string
+  capacidadServicio?: string
+  pesoKg?: number
+  porcentajePesoAdulto?: number
+  condicionCorporal?: number
+  desarrolloReproductivo?: string
+  observaciones?: string
+  version: number
+  pruebas: PruebaReproductiva[]
+}
+
+export interface CrearExamenReproductivoInput {
+  animalId: string
+  fecha: string
+  resultado: ResultadoExamenReproductivo
+  veterinarioId?: string
+  circunferenciaEscrotalCm?: number
+  motilidadEspermaticaPct?: number
+  morfologiaPct?: number
+  libido?: string
+  capacidadServicio?: string
+  pesoKg?: number
+  porcentajePesoAdulto?: number
+  condicionCorporal?: number
+  desarrolloReproductivo?: string
+  observaciones?: string
+  pruebas: PruebaReproductiva[]
+}
+
 export interface CrearTratamientoInput {
   casoClinicoId?: string
   animalId: string
@@ -258,6 +418,27 @@ export const TIPO_ACTIVIDAD_LABELS: Record<TipoActividad, string> = {
   CONTROL: 'Control',
   PRUEBA_DIAGNOSTICA: 'Prueba diagnóstica',
   OTRO: 'Otro',
+  VIGILANCIA_EPIDEMIOLOGICA: 'Vigilancia epidemiológica',
+}
+
+/**
+ * Por qué existe la actividad en el plan (no reemplaza tipoActividad, que dice qué es).
+ * "Obligatorio SENASAG" no se puede desactivar sin justificar; el resto queda a criterio
+ * del productor/veterinario.
+ */
+export const ORIGEN_REGULATORIO_LABELS: Record<OrigenRegulatorio, string> = {
+  OBLIGATORIO_SENASAG: 'Obligatorio SENASAG',
+  CAMPANA_RIESGO: 'Según campaña/riesgo',
+  RECOMENDADO_VETERINARIO: 'Recomendado',
+  CONFIGURABLE_ESTABLECIMIENTO: 'Configurable',
+}
+
+/** Chip de clasificación regulatoria: obligatorio en rojo, campaña en ámbar, el resto neutro. */
+export const ORIGEN_REGULATORIO_BADGE_CLASS: Record<OrigenRegulatorio, string> = {
+  OBLIGATORIO_SENASAG: 'status-badge-danger',
+  CAMPANA_RIESGO: 'status-badge-warning',
+  RECOMENDADO_VETERINARIO: 'status-badge-pending',
+  CONFIGURABLE_ESTABLECIMIENTO: 'status-badge',
 }
 
 export const ESTADO_PLAN_LABELS: Record<EstadoPlan, string> = {
@@ -289,12 +470,81 @@ export const SEVERIDAD_LABELS: Record<SeveridadCaso, string> = {
   CRITICA: 'Crítica',
 }
 
+/** Jerarquía visual de severidad de un caso clínico: crítica en rojo, grave en ámbar, el resto neutro. */
+export const SEVERIDAD_BADGE_CLASS: Record<SeveridadCaso, string> = {
+  LEVE: 'status-badge-pending',
+  MODERADA: 'status-badge-pending',
+  GRAVE: 'status-badge-warning',
+  CRITICA: 'status-badge-danger',
+}
+
 export const ESTADO_TRATAMIENTO_LABELS: Record<EstadoTratamiento, string> = {
   BORRADOR: 'Borrador',
   ACTIVO: 'Activo',
   FINALIZADO: 'Finalizado',
   SUSPENDIDO: 'Suspendido',
   ANULADO: 'Anulado',
+}
+
+export const MOMENTO_CONTROL_NEONATAL_LABELS: Record<MomentoControlNeonatal, string> = {
+  DIA_0: 'Día 0',
+  PRIMERA_SEMANA: 'Primera semana',
+}
+
+export const ESTADO_CALOSTRADO_LABELS: Record<EstadoCalostrado, string> = {
+  CORRECTO: 'Correcto',
+  INSUFICIENTE: 'Insuficiente',
+  DESCONOCIDO: 'Desconocido',
+  NO_APLICA: 'No aplica',
+}
+
+export const TIPO_ECTOPARASITO_LABELS: Record<TipoEctoparasito, string> = {
+  GARRAPATA: 'Garrapata',
+  MOSCA_CUERNOS: 'Mosca de los cuernos',
+  TORSALO: 'Tórsalo',
+  PIOJOS: 'Piojos',
+  OTRO: 'Otro',
+}
+
+export const NIVEL_CARGA_PARASITARIA_LABELS: Record<NivelCargaParasitaria, string> = {
+  BAJO: 'Bajo',
+  MEDIO: 'Medio',
+  ALTO: 'Alto',
+}
+
+/** Jerarquía visual de carga parasitaria: alto en rojo, medio en ámbar, bajo neutro. */
+export const NIVEL_CARGA_PARASITARIA_BADGE_CLASS: Record<NivelCargaParasitaria, string> = {
+  BAJO: 'status-badge-pending',
+  MEDIO: 'status-badge-warning',
+  ALTO: 'status-badge-danger',
+}
+
+export const RESULTADO_EXAMEN_REPRODUCTIVO_LABELS: Record<ResultadoExamenReproductivo, string> = {
+  APTO: 'Apto',
+  NO_APTO: 'No apto',
+  OBSERVACION: 'En observación',
+}
+
+/** Jerarquía visual: no apto en rojo, observación en ámbar, apto neutro. */
+export const RESULTADO_EXAMEN_REPRODUCTIVO_BADGE_CLASS: Record<ResultadoExamenReproductivo, string> = {
+  APTO: 'status-badge-pending',
+  OBSERVACION: 'status-badge-warning',
+  NO_APTO: 'status-badge-danger',
+}
+
+export const ENFERMEDAD_REPRODUCTIVA_LABELS: Record<EnfermedadReproductiva, string> = {
+  IBR: 'IBR',
+  BVD: 'BVD',
+  BRUCELOSIS: 'Brucelosis',
+  LEPTOSPIROSIS: 'Leptospirosis',
+  TRICOMONIASIS: 'Tricomoniasis',
+  CAMPYLOBACTERIOSIS: 'Campylobacteriosis',
+}
+
+export const RESULTADO_PRUEBA_REPRODUCTIVA_LABELS: Record<ResultadoPruebaReproductiva, string> = {
+  NEGATIVO: 'Negativo',
+  POSITIVO: 'Positivo',
+  NO_REALIZADO: 'No realizado',
 }
 
 export const ESTADO_APLICACION_LABELS: Record<EstadoAplicacion, string> = {
@@ -343,6 +593,11 @@ export async function cambiarEstadoItem(planId: string, itemId: string, activo: 
 
 export async function calcularProxima(planId: string, itemId: string, fechaAplicacion: string) {
   return (await http.get<ApiResponse<ProximaActividad>>(`/api/v1/sanidad/planes/${planId}/items/${itemId}/proxima`, { params: { fechaAplicacion } })).data.data
+}
+
+/** Registra lo que el vendedor certifica sobre un animal comprado, sin pasar por una jornada. */
+export async function registrarAplicacionDeclarada(input: RegistrarAplicacionDeclaradaInput) {
+  return (await http.post<ApiResponse<AplicacionDeclarada>>('/api/v1/sanidad/aplicaciones/declaradas', input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
 }
 
 export async function listJornadas() {
@@ -413,4 +668,32 @@ export async function marcarAtrasadas() {
 
 export async function finalizarTratamiento(id: string) {
   return (await http.post<ApiResponse<Tratamiento>>(`/api/v1/sanidad/tratamientos/${id}/finalizar`, undefined, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
+}
+
+export async function crearControlNeonatal(input: CrearControlNeonatalInput) {
+  return (await http.post<ApiResponse<ControlNeonatal>>('/api/v1/sanidad/control-neonatal', input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
+}
+
+export async function listControlesNeonatales(animalId?: string) {
+  return (await http.get<ApiResponse<ControlNeonatal[]>>('/api/v1/sanidad/control-neonatal', { params: { animalId } })).data.data
+}
+
+export async function crearControlEctoparasitario(input: CrearControlEctoparasitarioInput) {
+  return (await http.post<ApiResponse<ControlEctoparasitario>>('/api/v1/sanidad/control-ectoparasitario', input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
+}
+
+export async function listControlesEctoparasitarios(params: { animalId?: string; loteGanaderoId?: string }) {
+  return (await http.get<ApiResponse<ControlEctoparasitario[]>>('/api/v1/sanidad/control-ectoparasitario', { params })).data.data
+}
+
+export async function getPrincipiosActivosRecientes(params: { animalId?: string; loteGanaderoId?: string }) {
+  return (await http.get<ApiResponse<string[]>>('/api/v1/sanidad/control-ectoparasitario/principios-recientes', { params })).data.data
+}
+
+export async function crearExamenReproductivo(input: CrearExamenReproductivoInput) {
+  return (await http.post<ApiResponse<ExamenReproductivo>>('/api/v1/sanidad/examenes-reproductivos', input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
+}
+
+export async function listExamenesReproductivos(animalId?: string) {
+  return (await http.get<ApiResponse<ExamenReproductivo[]>>('/api/v1/sanidad/examenes-reproductivos', { params: { animalId } })).data.data
 }

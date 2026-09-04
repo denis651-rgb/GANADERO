@@ -3,6 +3,7 @@ package bo.com.ganadero.lotes.api;
 import bo.com.ganadero.lotes.application.LoteCommand;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
@@ -13,9 +14,10 @@ public record CrearLoteRequest(
         @Size(max = 60) String codigo,
         @NotBlank @Size(max = 160) String nombre,
         @Size(max = 1000) String descripcion,
-        LocalDate fechaApertura) {
+        LocalDate fechaApertura,
+        @Positive Integer cantidadMaxima) {
 
     public LoteCommand command() {
-        return new LoteCommand(propiedadId, codigo, nombre, descripcion, fechaApertura);
+        return new LoteCommand(propiedadId, codigo, nombre, descripcion, fechaApertura, cantidadMaxima, null);
     }
 }

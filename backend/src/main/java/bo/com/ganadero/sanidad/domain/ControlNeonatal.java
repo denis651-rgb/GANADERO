@@ -1,0 +1,2 @@
+package bo.com.ganadero.sanidad.domain;import java.math.BigDecimal;import java.time.LocalDate;import java.util.UUID;
+public record ControlNeonatal(UUID id,UUID empresaId,UUID animalId,LocalDate fechaControl,MomentoControlNeonatal momento,EstadoCalostrado calostrado,boolean ombligoDesinfectado,String ombligoEstado,boolean diarrea,String estadoGeneral,String lactancia,BigDecimal temperaturaC,String observaciones,long version){}

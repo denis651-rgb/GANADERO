@@ -1,0 +1,3 @@
+# Runtime JRE generado con jlink (electron/scripts/build-runtime.js) y salida de electron-builder.
+runtime/
+release/

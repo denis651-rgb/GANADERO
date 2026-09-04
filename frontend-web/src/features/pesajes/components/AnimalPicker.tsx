@@ -1,29 +1,9 @@
-import { useDeferredValue, useEffect, useState } from 'react'
+import { useDeferredValue, useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Check, Search } from 'lucide-react'
 import { listAnimals } from '@/features/animales/api'
 import type { AnimalSummary } from '@/features/animales/types'
-import { searchLocalAnimals, type LocalAnimalResult } from '@/offline/catalogs'
 import { Field } from '@/shared/components/Field'
-
-function toSummary(local: LocalAnimalResult): AnimalSummary {
-  return {
-    id: local.id,
-    codigo: local.codigo,
-    nombre: local.nombre,
-    sexo: 'HEMBRA',
-    categoriaActualId: '',
-    fechaNacimientoEstimada: false,
-    razaPrincipalId: '',
-    proposito: 'CARNE',
-    origen: 'NACIDO',
-    estado: 'ACTIVO',
-    propiedadActualId: '',
-    potreroActualId: '',
-    fechaIngreso: new Date().toISOString().slice(0, 10),
-    version: 1,
-  } as AnimalSummary
-}
 
 interface AnimalPickerProps {
   value?: AnimalSummary | null
@@ -34,29 +14,15 @@ interface AnimalPickerProps {
 export function AnimalPicker({ value, onChange, error }: AnimalPickerProps) {
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
-  const [localResults, setLocalResults] = useState<AnimalSummary[]>([])
   const deferred = useDeferredValue(search.trim())
-  const offline = !navigator.onLine
   const query = useQuery({
     queryKey: ['pesaje-animal-search', deferred],
     queryFn: () => listAnimals({ search: deferred, estado: 'ACTIVO', page: 0, size: 8 }),
-    enabled: deferred.length >= 2 && !offline,
+    enabled: deferred.length >= 2,
     placeholderData: keepPreviousData,
   })
 
-  useEffect(() => {
-    if (deferred.length < 2 || !offline) return
-    let active = true
-    void searchLocalAnimals(deferred).then((rows) => {
-      if (!active) return
-      setLocalResults(rows.map(toSummary))
-    })
-    return () => {
-      active = false
-    }
-  }, [deferred, offline])
-
-  const results = offline ? localResults : query.data?.content
+  const results = query.data?.content
 
   return (
     <>

@@ -90,16 +90,17 @@ public class AnimalService {
     @Transactional
     public Animal create(AnimalCommand c) {
         CurrentUser u = context.requirePermission("ANIMAL_CREAR");
+        validateEntryWeight(c.pesoIngresoKg(), c.pesoIngresoEstimado());
         validateReferences(c.razaPrincipalId(), c.categoriaActualId(), c.sexo(), c.propiedadActualId(),
                 c.potreroActualId(), u);
         UUID id = c.id() != null ? c.id() : UUID.randomUUID();
         String codigo = codigos.paraCreacion(u, TipoCodigo.ANIMAL, null, null, c.codigo());
         Animal a = new Animal(id, u.empresaId(), codigo, c.nombre(), c.sexo(), c.fechaNacimiento(),
-                Boolean.TRUE.equals(c.fechaNacimientoEstimada()), c.razaPrincipalId(), c.categoriaActualId(),
+                c.fechaNacimiento() != null && Boolean.TRUE.equals(c.fechaNacimientoEstimada()), c.razaPrincipalId(), c.categoriaActualId(),
                 c.color(), c.proposito(), c.origen(), c.propiedadActualId(), c.potreroActualId(), null,
-                EstadoAnimal.ACTIVO, c.fechaIngreso() == null ? LocalDate.now() : c.fechaIngreso(),
+                EstadoAnimal.ACTIVO, c.fechaIngreso() == null ? LocalDate.now(java.time.ZoneId.of("America/La_Paz")) : c.fechaIngreso(),
                 c.precioAdquisicion(), c.pesoNacimientoKg(), c.condicionCorporalActual(), c.fotoPrincipalPath(),
-                c.observaciones(), 0);
+                c.observaciones(), 0, c.pesoIngresoKg(), c.pesoIngresoKg() == null ? null : c.pesoIngresoEstimado());
         Animal saved = animals.create(a, u.userId());
         TipoEventoAnimal tipo = switch (a.origen()) {
             case NACIDO -> TipoEventoAnimal.NACIMIENTO_REGISTRADO;
@@ -109,6 +110,7 @@ public class AnimalService {
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("codigo", saved.codigo());
         metadata.put("sexo", saved.sexo().name());
+        addEntryWeightMetadata(metadata, saved);
         if (saved.propiedadActualId() != null) metadata.put("propiedadId", saved.propiedadActualId().toString());
         timeline.publish(new RegistrarEventoTimeline(u.empresaId(), saved.id(), tipo, null, "Registro inicial",
                 null, saved.id(), metadata, u.userId(), Instant.now(), null));
@@ -116,11 +118,34 @@ public class AnimalService {
         return saved;
     }
 
+    /**
+     * Alta masiva (ingreso por lote de compra): reusa create() para cada comando dentro de
+     * la MISMA transaccion. Si un animal falla (ej. codigo duplicado), toda la transaccion
+     * hace rollback — mejor que el usuario corrija y reintente el lote completo a que
+     * queden animales sueltos sin el resto de sus companeros de compra.
+     */
+    @Transactional
+    public List<Animal> createBatch(List<AnimalCommand> comandos) {
+        return comandos.stream().map(this::create).toList();
+    }
+
     @Transactional
     public Animal update(UUID id, AnimalCommand c) {
         CurrentUser u = context.requirePermission("ANIMAL_EDITAR");
         Animal old = require(id, u.empresaId());
         context.requirePropertyAccess(u, old.propiedadActualId());
+        boolean corregirPeso = Boolean.TRUE.equals(c.corregirPesoCompra());
+        boolean quitarNacimiento = Boolean.TRUE.equals(c.quitarFechaNacimiento());
+        if (corregirPeso && (old.origen() != OrigenAnimal.COMPRADO || old.pesoNacimientoKg() == null
+                || old.pesoIngresoKg() != null)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Este animal no tiene un peso de compra pendiente de revisión.");
+        }
+        if (corregirPeso && (c.pesoIngresoKg() == null || c.pesoIngresoEstimado() == null)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Indica el peso al ingreso y si fue medido o estimado para confirmar la corrección.");
+        }
+        var pesoIngreso = c.pesoIngresoKg() == null ? old.pesoIngresoKg() : c.pesoIngresoKg();
+        Boolean pesoEstimado = c.pesoIngresoEstimado() == null ? old.pesoIngresoEstimado() : c.pesoIngresoEstimado();
+        validateEntryWeight(pesoIngreso, pesoEstimado);
         UUID property = c.propiedadActualId() == null ? old.propiedadActualId() : c.propiedadActualId();
         UUID paddock = c.potreroActualId() == null ? old.potreroActualId() : c.potreroActualId();
         boolean moves = !property.equals(old.propiedadActualId()) || !paddock.equals(old.potreroActualId());
@@ -131,18 +156,43 @@ public class AnimalService {
         validateReferences(breed, category, sex, property, paddock, u);
         String codigo = codigos.paraActualizacion(u, TipoCodigo.ANIMAL, null, null, old.codigo(), c.codigo());
         Animal value = new Animal(id, u.empresaId(), codigo, c.nombre(), sex, c.fechaNacimiento(),
-                c.fechaNacimientoEstimada() == null ? old.fechaNacimientoEstimada() : c.fechaNacimientoEstimada(),
+                !quitarNacimiento && (c.fechaNacimiento() != null || old.fechaNacimiento() != null)
+                        && (c.fechaNacimientoEstimada() == null ? old.fechaNacimientoEstimada() : c.fechaNacimientoEstimada()),
                 breed, category, c.color(), c.proposito() == null ? old.proposito() : c.proposito(), old.origen(),
                 property, paddock, old.loteActualId(), old.estado(), c.fechaIngreso(), c.precioAdquisicion(),
                 c.pesoNacimientoKg(), c.condicionCorporalActual(), c.fotoPrincipalPath(), c.observaciones(),
-                Objects.requireNonNull(c.version()));
-        Animal saved = animals.update(value, u.userId());
+                Objects.requireNonNull(c.version()), pesoIngreso, pesoIngreso == null ? null : pesoEstimado);
+        Animal saved = quitarNacimiento || corregirPeso
+                ? animals.update(value, u.userId(), quitarNacimiento, corregirPeso)
+                : animals.update(value, u.userId());
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("codigo", saved.codigo());
+        metadata.put("version", saved.version());
+        addEntryWeightMetadata(metadata, saved);
+        if (corregirPeso) {
+            metadata.put("correccionPesoCompraConfirmada", true);
+            metadata.put("pesoNacimientoAnteriorKg", old.pesoNacimientoKg());
+        }
+        if (quitarNacimiento) metadata.put("nacimientoDesconocido", true);
         timeline.publish(new RegistrarEventoTimeline(u.empresaId(), id, TipoEventoAnimal.ANIMAL_ACTUALIZADO,
-                null, "Datos del animal actualizados", null, id,
-                Map.of("codigo", saved.codigo(), "version", saved.version()),
+                null, corregirPeso ? "Peso de compra corregido: no corresponde al nacimiento" : "Datos del animal actualizados", null, id,
+                metadata,
                 u.userId(), Instant.now(), "ANIMAL_ACTUALIZADO|" + id + "|" + saved.version()));
         audit(u, "ACTUALIZAR", id);
         return saved;
+    }
+
+    private void validateEntryWeight(java.math.BigDecimal peso, Boolean estimado) {
+        if (peso != null && (peso.signum() <= 0 || estimado == null)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "El peso al ingreso debe ser positivo e indicar si fue medido o estimado.");
+        }
+    }
+
+    private void addEntryWeightMetadata(Map<String, Object> metadata, Animal animal) {
+        if (animal.pesoIngresoKg() == null) return;
+        metadata.put("pesoIngresoKg", animal.pesoIngresoKg());
+        metadata.put("pesoIngresoEstimado", Boolean.TRUE.equals(animal.pesoIngresoEstimado()));
+        if (animal.fechaIngreso() != null) metadata.put("fechaIngreso", animal.fechaIngreso().toString());
     }
 
     @Transactional

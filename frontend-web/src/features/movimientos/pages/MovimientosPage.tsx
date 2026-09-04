@@ -22,6 +22,8 @@ import { PageHeader } from '@/shared/components/PageHeader'
 import { MobileEntityCard } from '@/shared/components/MobileEntityCard'
 import { useToast } from '@/shared/toast/useToast'
 import { normalizeApiError } from '@/shared/api/errors'
+import { recuperarOrigen, ubicacionMovimiento } from '../ubicacion'
+import { formatDate } from '@/shared/utils/date'
 
 const tipos: TipoMovimiento[] = ['CAMBIO_POTRERO', 'CAMBIO_LOTE', 'TRANSFERENCIA_PROPIEDAD', 'INGRESO_COMPRA', 'SALIDA_VENTA', 'CUARENTENA', 'RETORNO_CUARENTENA']
 const estados: EstadoMovimiento[] = ['PENDIENTE', 'CONFIRMADO', 'ANULADO', 'REVERTIDO']
@@ -84,7 +86,19 @@ export function MovimientosPage() {
 
   const query = useQuery({
     queryKey: ['movimientos', { estado, tipo: tipoFiltro, page, size }],
-    queryFn: () => listMovimientos({ estado, tipo: tipoFiltro, page, size }),
+    queryFn: async () => {
+      const result = await listMovimientos({ estado, tipo: tipoFiltro, page, size })
+      const content = await Promise.all(result.content.map(async (movimiento) => {
+        if (movimiento.origenPropiedadId || movimiento.origenPotreroId || movimiento.origenLoteId || movimiento.tipo === 'INGRESO_COMPRA') return movimiento
+        try {
+          const snapshots = await client.fetchQuery({ queryKey: ['movimientos', movimiento.id, 'detalles'], queryFn: () => listDetalles(movimiento.id), staleTime: 60_000 })
+          return recuperarOrigen(movimiento, snapshots)
+        } catch {
+          return movimiento
+        }
+      }))
+      return { ...result, content }
+    },
     placeholderData: keepPreviousData,
   })
   const catalogs = useQuery({
@@ -138,7 +152,20 @@ export function MovimientosPage() {
   })
   const validar = useMutation({
     mutationFn: (id: string) => validarMovimiento(id),
-    onSuccess: (data) => setValidation(data),
+    onSuccess: (data) => {
+      const potrero = catalogs.data?.potreros.find((item) => item.id === selected?.destinoPotreroId)
+      if (!potrero?.capacidadUa) {
+        setValidation(data)
+        return
+      }
+      const ocupacionActualUa = catalogs.data?.animales.filter((animal) => animal.potreroActualId === potrero.id).length ?? 0
+      const idsMovimiento = new Set(detalles.data?.map((detalle) => detalle.animalId) ?? [])
+      const ingresoUa = idsMovimiento.size > 0
+        ? catalogs.data?.animales.filter((animal) => idsMovimiento.has(animal.id) && animal.potreroActualId !== potrero.id).length ?? data.total
+        : data.total
+      const ocupacionProyectadaUa = ocupacionActualUa + ingresoUa
+      setValidation({ ...data, capacidad: { potrero: potrero.nombre, recomendadaUa: potrero.capacidadUa, ocupacionActualUa, ingresoUa, ocupacionProyectadaUa, excedida: ocupacionProyectadaUa > potrero.capacidadUa } })
+    },
   })
   const confirm = useMutation({
     mutationFn: ({ id, version }: { id: string; version: number }) => confirmarMovimiento(id, version),
@@ -257,14 +284,14 @@ export function MovimientosPage() {
         <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Movimientos que coinciden con los filtros</caption><thead><tr><th scope="col">Tipo</th><th scope="col">Estado</th><th scope="col">Fecha</th><th scope="col">Origen</th><th scope="col">Destino</th><th scope="col">Acciones</th></tr></thead><tbody>{query.data.content.map((item) => {
           const origen = [item.origenPropiedadId ? catalogs.data?.propiedades.find((p) => p.id === item.origenPropiedadId)?.nombre : null, item.origenPotreroId ? catalogs.data?.potreros.find((p) => p.id === item.origenPotreroId)?.nombre : null, item.origenLoteId ? catalogs.data?.lotes.find((l) => l.id === item.origenLoteId)?.nombre : null].filter(Boolean).join(' / ')
           const destino = [item.destinoPropiedadId ? catalogs.data?.propiedades.find((p) => p.id === item.destinoPropiedadId)?.nombre : null, item.destinoPotreroId ? catalogs.data?.potreros.find((p) => p.id === item.destinoPotreroId)?.nombre : null, item.destinoLoteId ? catalogs.data?.lotes.find((l) => l.id === item.destinoLoteId)?.nombre : null].filter(Boolean).join(' / ')
-          return <tr key={item.id}><td><strong>{item.tipo.replaceAll('_', ' ')}</strong></td><td><MovimientoStatusBadge estado={item.estado} /></td><td>{new Date(item.fechaMovimiento).toLocaleDateString('es-BO')}</td><td className="table-secondary">{origen || '—'}</td><td className="table-secondary">{destino || '—'}</td>
+          return <tr key={item.id}><td><strong>{item.tipo.replaceAll('_', ' ')}</strong></td><td><MovimientoStatusBadge estado={item.estado} /></td><td>{formatDate(item.fechaMovimiento)}</td><td>{ubicacionMovimiento(item, 'origen', origen)}</td><td>{ubicacionMovimiento(item, 'destino', destino)}</td>
             <td><Button variant="ghost" aria-label={`Ver detalle del movimiento ${item.tipo.replaceAll('_', ' ')} del ${new Date(item.fechaMovimiento).toLocaleDateString('es-BO')}`} onClick={() => setSelected(item)}><Eye size={16} aria-hidden="true" />Detalle</Button></td>
           </tr>
         })}</tbody></table></div>
         <div className="mobile-only"><div className="mobile-entity-list">{query.data.content.map((item) => {
           const origin = [item.origenPropiedadId ? catalogs.data?.propiedades.find((p) => p.id === item.origenPropiedadId)?.nombre : null, item.origenPotreroId ? catalogs.data?.potreros.find((p) => p.id === item.origenPotreroId)?.nombre : null, item.origenLoteId ? catalogs.data?.lotes.find((l) => l.id === item.origenLoteId)?.nombre : null].filter(Boolean).join(' / ')
           const destination = [item.destinoPropiedadId ? catalogs.data?.propiedades.find((p) => p.id === item.destinoPropiedadId)?.nombre : null, item.destinoPotreroId ? catalogs.data?.potreros.find((p) => p.id === item.destinoPotreroId)?.nombre : null, item.destinoLoteId ? catalogs.data?.lotes.find((l) => l.id === item.destinoLoteId)?.nombre : null].filter(Boolean).join(' / ')
-          return <MobileEntityCard key={item.id} title={`Movimiento ${item.id.slice(0, 8)}`} status={<MovimientoStatusBadge estado={item.estado} />} subtitle={item.tipo.replaceAll('_', ' ')} metadata={<><span>{new Date(item.fechaMovimiento).toLocaleString('es-BO')}</span><span>{origin || 'Sin origen'} → {destination || 'Sin destino'}</span></>} action={<Button variant="ghost" onClick={() => setSelected(item)}>Ver detalle →</Button>} />
+          return <MobileEntityCard key={item.id} title={item.tipo.replaceAll('_', ' ')} status={<MovimientoStatusBadge estado={item.estado} />} metadata={<><span>{formatDate(item.fechaMovimiento)}</span><span>{ubicacionMovimiento(item, 'origen', origin)} → {ubicacionMovimiento(item, 'destino', destination)}</span></>} action={<Button variant="ghost" onClick={() => setSelected(item)}>Ver detalle →</Button>} />
         })}</div></div>
         <div className="pagination"><span>Página {query.data.page + 1} de {Math.max(query.data.totalPages, 1)}</span><div><Button variant="ghost" disabled={page === 0 || query.isFetching} onClick={() => setPage((value) => value - 1)}><ChevronLeft size={17} />Anterior</Button><Button variant="ghost" disabled={page + 1 >= query.data.totalPages || query.isFetching} onClick={() => setPage((value) => value + 1)}>Siguiente<ChevronRight size={17} /></Button></div></div>
       </>}

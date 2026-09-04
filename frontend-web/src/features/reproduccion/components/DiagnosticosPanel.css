@@ -1,0 +1,19 @@
+.diagnosticos-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.diagnosticos-heading h2 { margin: 0; }
+.diagnosticos-panel .table-wrapper table { min-width: 720px; }
+.diagnosticos-panel th { background: #f5f8f5; }
+.diagnosticos-panel th, .diagnosticos-panel td { padding: 16px 12px; vertical-align: middle; }
+.diagnosticos-panel td:first-child { min-width: 180px; }
+.diagnosticos-panel tbody tr:hover { background: #f8fbf8; }
+.diagnostico-animal { display: block; font-size: 1rem; line-height: 1.4; }
+.diagnosticos-panel .table-secondary { margin-top: 4px; }
+@media (max-width: 600px) {
+  .diagnosticos-heading > button { width: 100%; justify-content: center; }
+}

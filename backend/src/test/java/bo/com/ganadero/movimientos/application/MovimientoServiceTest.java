@@ -1,5 +1,8 @@
 package bo.com.ganadero.movimientos.application;
 
+import bo.com.ganadero.alertas.application.MotorAlertas;
+import bo.com.ganadero.alertas.application.ProgramarAlertaCommand;
+import bo.com.ganadero.alertas.application.TipoAlerta;
 import bo.com.ganadero.animales.domain.Animal;
 import bo.com.ganadero.animales.domain.AnimalRepository;
 import bo.com.ganadero.animales.domain.EstadoAnimal;
@@ -23,6 +26,9 @@ import bo.com.ganadero.timeline.application.RegistrarEventoTimeline;
 import bo.com.ganadero.timeline.domain.TipoEventoAnimal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -60,6 +66,8 @@ class MovimientoServiceTest {
     private UUID userId;
     private final List<Object> published = new ArrayList<>();
     private MovimientoService service;
+    @SuppressWarnings("unchecked")
+    private final ObjectProvider<EstadoSanitarioIngresoPort> estadoSanitario = mock(ObjectProvider.class);
 
     @BeforeEach
     void setup() {
@@ -83,7 +91,7 @@ class MovimientoServiceTest {
                         "MOVIMIENTO_ANULAR", "MOVIMIENTO_REVERTIR"),
                 Set.of(), true);
         service = new MovimientoService(movimientos, animales, lotes,
-                new UserContext(() -> user), published::add, published::add);
+                new UserContext(() -> user), published::add, published::add, estadoSanitario);
     }
 
     @Test
@@ -278,6 +286,104 @@ class MovimientoServiceTest {
     }
 
     @Test
+    void confirmRetornoCuarentenaSinPruebaDiagnosticaFalla() {
+        EstadoSanitarioIngresoPort puerto = mock(EstadoSanitarioIngresoPort.class);
+        when(estadoSanitario.getIfAvailable()).thenReturn(puerto);
+        when(puerto.tienePruebaDiagnosticaDesde(eq(company), eq(animalId), any(LocalDate.class))).thenReturn(false);
+        when(movimientos.findByIdForUpdate(movId, company))
+                .thenReturn(Optional.of(movimiento(EstadoMovimiento.PENDIENTE, TipoMovimiento.RETORNO_CUARENTENA,
+                        property, paddock, null, null, destinoPaddock, null, 0)));
+        when(movimientos.findDetalles(movId))
+                .thenReturn(List.of(detalle(animalId, 0, property, paddock, null, null, null, null)));
+        when(animales.findByIdForUpdate(animalId, company))
+                .thenReturn(Optional.of(animal(animalId, EstadoAnimal.ACTIVO, property, paddock, null, 0)));
+        when(animales.validLocation(company, property, destinoPaddock)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.confirm(movId, 0))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.code()).isEqualTo(ErrorCode.MOVEMENT_CUARENTENA_SIN_PRUEBA_DIAGNOSTICA));
+        verify(animales, never()).move(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void confirmRetornoCuarentenaConPruebaDiagnosticaPosteriorAlIngresoConfirma() {
+        EstadoSanitarioIngresoPort puerto = mock(EstadoSanitarioIngresoPort.class);
+        when(estadoSanitario.getIfAvailable()).thenReturn(puerto);
+        when(puerto.tienePruebaDiagnosticaDesde(eq(company), eq(animalId), any(LocalDate.class))).thenReturn(true);
+        when(movimientos.findByIdForUpdate(movId, company))
+                .thenReturn(Optional.of(movimiento(EstadoMovimiento.PENDIENTE, TipoMovimiento.RETORNO_CUARENTENA,
+                        property, paddock, null, null, destinoPaddock, null, 0)));
+        when(movimientos.findDetalles(movId))
+                .thenReturn(List.of(detalle(animalId, 0, property, paddock, null, null, null, null)));
+        when(animales.findByIdForUpdate(animalId, company))
+                .thenReturn(Optional.of(animal(animalId, EstadoAnimal.ACTIVO, property, paddock, null, 0)));
+        when(animales.validLocation(company, property, destinoPaddock)).thenReturn(true);
+        when(movimientos.confirm(eq(movId), eq(company), eq(0L), eq(userId)))
+                .thenReturn(movimiento(EstadoMovimiento.CONFIRMADO, TipoMovimiento.RETORNO_CUARENTENA,
+                        property, paddock, null, null, destinoPaddock, null, 1));
+
+        Movimiento confirmed = service.confirm(movId, 0);
+
+        assertThat(confirmed.estado()).isEqualTo(EstadoMovimiento.CONFIRMADO);
+        verify(animales).move(animalId, company, property, destinoPaddock, null, userId);
+    }
+
+    @Test
+    void confirmRetornoCuarentenaConPropertyDesactivadaConfirmaSinConsultarElPuerto() {
+        ReflectionTestUtils.setField(service, "cuarentenaRequierePrueba", false);
+        when(movimientos.findByIdForUpdate(movId, company))
+                .thenReturn(Optional.of(movimiento(EstadoMovimiento.PENDIENTE, TipoMovimiento.RETORNO_CUARENTENA,
+                        property, paddock, null, null, destinoPaddock, null, 0)));
+        when(movimientos.findDetalles(movId))
+                .thenReturn(List.of(detalle(animalId, 0, property, paddock, null, null, null, null)));
+        when(animales.findByIdForUpdate(animalId, company))
+                .thenReturn(Optional.of(animal(animalId, EstadoAnimal.ACTIVO, property, paddock, null, 0)));
+        when(animales.validLocation(company, property, destinoPaddock)).thenReturn(true);
+        when(movimientos.confirm(eq(movId), eq(company), eq(0L), eq(userId)))
+                .thenReturn(movimiento(EstadoMovimiento.CONFIRMADO, TipoMovimiento.RETORNO_CUARENTENA,
+                        property, paddock, null, null, destinoPaddock, null, 1));
+
+        Movimiento confirmed = service.confirm(movId, 0);
+
+        assertThat(confirmed.estado()).isEqualTo(EstadoMovimiento.CONFIRMADO);
+        verify(estadoSanitario, never()).getIfAvailable();
+    }
+
+    @Test
+    void confirmIngresoCompraProgramaRecordatorioDeCuarentena() {
+        MotorAlertas motor = mock(MotorAlertas.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<MotorAlertas> alertasProvider = mock(ObjectProvider.class);
+        when(alertasProvider.getIfAvailable()).thenReturn(motor);
+        CurrentUser user = new CurrentUser(userId, company, UUID.randomUUID(), Set.of(),
+                Set.of("MOVIMIENTO_VER", "MOVIMIENTO_CREAR", "MOVIMIENTO_CONFIRMAR",
+                        "MOVIMIENTO_ANULAR", "MOVIMIENTO_REVERTIR"),
+                Set.of(), true);
+        MovimientoService serviceConAlertas = new MovimientoService(movimientos, animales, lotes,
+                new UserContext(() -> user), published::add, published::add, estadoSanitario, alertasProvider);
+
+        when(movimientos.findByIdForUpdate(movId, company))
+                .thenReturn(Optional.of(movimiento(EstadoMovimiento.PENDIENTE, TipoMovimiento.INGRESO_COMPRA,
+                        null, null, null, property, destinoPaddock, null, 0)));
+        when(movimientos.findDetalles(movId))
+                .thenReturn(List.of(detalle(animalId, 0, property, paddock, null, null, null, null)));
+        when(animales.findByIdForUpdate(animalId, company))
+                .thenReturn(Optional.of(animal(animalId, EstadoAnimal.ACTIVO, property, paddock, null, 0)));
+        when(animales.validLocation(company, property, destinoPaddock)).thenReturn(true);
+        when(movimientos.confirm(eq(movId), eq(company), eq(0L), eq(userId)))
+                .thenReturn(movimiento(EstadoMovimiento.CONFIRMADO, TipoMovimiento.INGRESO_COMPRA,
+                        null, null, null, property, destinoPaddock, null, 1));
+
+        serviceConAlertas.confirm(movId, 0);
+
+        ArgumentCaptor<ProgramarAlertaCommand> captor = ArgumentCaptor.forClass(ProgramarAlertaCommand.class);
+        verify(motor).programar(captor.capture());
+        assertThat(captor.getValue().tipo()).isEqualTo(TipoAlerta.MOVIMIENTO_PENDIENTE);
+        assertThat(captor.getValue().origenTipo()).isEqualTo("INGRESO_COMPRA_CUARENTENA");
+        assertThat(captor.getValue().origenId()).isEqualTo(movId);
+    }
+
+    @Test
     void confirmRechazaAnimalMuerto() {
         when(movimientos.findByIdForUpdate(movId, company))
                 .thenReturn(Optional.of(movimiento(EstadoMovimiento.PENDIENTE, TipoMovimiento.CAMBIO_POTRERO,
@@ -330,7 +436,7 @@ class MovimientoServiceTest {
         CurrentUser limited = new CurrentUser(userId, company, UUID.randomUUID(), Set.of(),
                 Set.of("MOVIMIENTO_VER", "MOVIMIENTO_CONFIRMAR"), Set.of(property), false);
         MovimientoService limitedService = new MovimientoService(movimientos, animales, lotes,
-                new UserContext(() -> limited), published::add, published::add);
+                new UserContext(() -> limited), published::add, published::add, estadoSanitario);
         when(movimientos.findByIdForUpdate(movId, company))
                 .thenReturn(Optional.of(movimiento(EstadoMovimiento.PENDIENTE, TipoMovimiento.TRANSFERENCIA_PROPIEDAD,
                         property, paddock, null, otherProperty, null, null, 0)));
@@ -404,6 +510,25 @@ class MovimientoServiceTest {
         verify(animales).changeState(eq(animalId), eq(company), eq(EstadoAnimal.ACTIVO),
                 eq(EstadoAnimal.VENDIDO), anyString(), anyLong(), eq(userId));
         verify(animales).move(eq(animalId), eq(company), eq(otherProperty), eq(paddock), eq(null), eq(userId));
+    }
+
+    @Test
+    void ventaSinDestinoCierraMembresiaYGuardaDestinoSinLote() {
+        when(movimientos.findByIdForUpdate(movId, company)).thenReturn(Optional.of(
+                movimiento(EstadoMovimiento.PENDIENTE, TipoMovimiento.SALIDA_VENTA, null, null, null, null, null, null, 0)));
+        when(movimientos.findDetalles(movId)).thenReturn(List.of(detalle(animalId, 0, property, paddock, loteId, null, null, null)));
+        when(animales.findByIdForUpdate(animalId, company)).thenReturn(Optional.of(
+                animal(animalId, EstadoAnimal.ACTIVO, property, paddock, loteId, 0)));
+        when(lotes.findActiveLotOfAnimal(animalId, company)).thenReturn(Optional.of(lote(loteId, EstadoLote.ACTIVO)));
+        when(movimientos.confirm(any(), any(), anyLong(), any())).thenReturn(
+                movimiento(EstadoMovimiento.CONFIRMADO, TipoMovimiento.SALIDA_VENTA, null, null, null, null, null, null, 1));
+        service.confirm(movId, 0);
+        verify(lotes).closeMembership(eq(loteId), eq(null), eq(animalId), eq(company),
+                eq("Movimiento SALIDA_VENTA"), any(Instant.class), eq(userId));
+        verify(animales).move(animalId, company, property, paddock, null, userId);
+        verify(movimientos).saveDetalleUbicaciones(eq(movId), org.mockito.ArgumentMatchers.argThat(
+                detalles -> detalles.size() == 1 && detalles.get(0).loteDespues() == null
+                        && loteId.equals(detalles.get(0).loteAntes())));
     }
 
     @Test

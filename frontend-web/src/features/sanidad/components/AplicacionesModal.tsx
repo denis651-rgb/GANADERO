@@ -70,7 +70,7 @@ export function AplicacionesModal({ tratamiento, catalogs, onClose }: Aplicacion
         <div className="table-wrapper"><table><caption className="visually-hidden">Historial de aplicaciones</caption><thead><tr><th scope="col">Fecha</th><th scope="col">Dosis</th><th scope="col">Aplicado</th><th scope="col">Estado</th></tr></thead><tbody>{query.data.filter((aplicacion) => !ACTIVAS.includes(aplicacion.estado)).sort((a, b) => new Date(b.fechaProgramada).getTime() - new Date(a.fechaProgramada).getTime()).map((aplicacion) => <tr key={aplicacion.id}>
           <td>{new Date(aplicacion.fechaProgramada).toLocaleDateString('es-BO')}</td>
           <td>{aplicacion.dosisAplicada ?? aplicacion.dosisProgramada}</td>
-          <td className="table-secondary">{aplicacion.aplicadoPor ? catalogs.userLabel(aplicacion.aplicadoPor) : '—'}</td>
+          <td className="table-secondary">{aplicacion.aplicadoPor ? 'Usuario local' : '—'}</td>
           <td><span className="status-badge">{ESTADO_APLICACION_LABELS[aplicacion.estado]}</span></td>
         </tr>)}</tbody></table></div>
       </>}

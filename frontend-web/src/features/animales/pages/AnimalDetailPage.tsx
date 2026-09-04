@@ -1,14 +1,19 @@
 ﻿import { useRef, useState, type KeyboardEvent } from 'react'
 import { Link, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, CalendarClock, Edit3, MapPin, RefreshCw } from 'lucide-react'
+import { AlertCircle, AlertTriangle, ArrowLeft, Baby, Bug, CalendarClock, Edit3, MapPin, RefreshCw, Stethoscope, Syringe } from 'lucide-react'
 import { changeAnimalState, getAnimal, getAnimalTimeline, listCategorias, listRazas } from '@/features/animales/api'
+import { listAlerts, type AlertType } from '@/features/alertas/api'
 import { GenealogiaTab } from '@/features/animales/components/GenealogiaTab'
 import { IdentificadoresTab } from '@/features/animales/components/IdentificadoresTab'
 import { FotosTab } from '@/features/animales/components/FotosTab'
 import type { AnimalState } from '@/features/animales/types'
 import { listPropiedades } from '@/features/propiedades/api'
 import { listPotreros } from '@/features/potreros/api'
+import { ESTADO_CALOSTRADO_LABELS, listControlesNeonatales, MOMENTO_CONTROL_NEONATAL_LABELS } from '@/features/sanidad/api'
+import { ControlEctoparasitarioModal } from '@/features/sanidad/components/ControlEctoparasitarioModal'
+import { ControlNeonatalModal } from '@/features/sanidad/components/ControlNeonatalModal'
+import { ExamenReproductivoModal } from '@/features/sanidad/components/ExamenReproductivoModal'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
@@ -21,6 +26,7 @@ import { normalizeApiError } from '@/shared/api/errors'
 
 const states: AnimalState[] = ['ACTIVO', 'VENDIDO', 'MUERTO', 'PERDIDO', 'TRANSFERIDO', 'DESCARTADO']
 const criticalStates = new Set<AnimalState>(['VENDIDO', 'MUERTO', 'PERDIDO', 'TRANSFERIDO', 'DESCARTADO'])
+const TIPOS_CALENDARIO_SANITARIO = new Set<AlertType>(['VACUNA_PROXIMA', 'VACUNA_VENCIDA', 'REVISION_SANITARIA_INGRESO'])
 type Tab = 'timeline' | 'identificadores' | 'genealogia' | 'fotos'
 const animalTabs: Tab[] = ['timeline', 'identificadores', 'fotos', 'genealogia']
 
@@ -34,6 +40,9 @@ export function AnimalDetailPage() {
   const [hasta, setHasta] = useState('')
   const [page, setPage] = useState(0)
   const [pendingStateChange, setPendingStateChange] = useState<{ estado: AnimalState; motivo: string } | null>(null)
+  const [showControlNeonatal, setShowControlNeonatal] = useState(false)
+  const [showControlEcto, setShowControlEcto] = useState(false)
+  const [showExamenReproductivo, setShowExamenReproductivo] = useState(false)
   const timelineSize = 10
   const client = useQueryClient()
   const { showToast } = useToast()
@@ -48,6 +57,18 @@ export function AnimalDetailPage() {
       page,
       size: timelineSize,
     }),
+    enabled: Boolean(id),
+  })
+  const calendarioSanitario = useQuery({
+    queryKey: ['animal-alertas-sanitarias', id],
+    queryFn: () => listAlerts({ animalId: id }),
+    enabled: Boolean(id),
+  })
+  const alertasSanitarias = (calendarioSanitario.data ?? [])
+    .filter((alerta) => TIPOS_CALENDARIO_SANITARIO.has(alerta.tipo) && !['RESUELTA', 'CANCELADA'].includes(alerta.estado))
+  const controlesNeonatales = useQuery({
+    queryKey: ['sanidad-control-neonatal', id],
+    queryFn: () => listControlesNeonatales(id),
     enabled: Boolean(id),
   })
   const catalogs = useQuery({ queryKey: ['animal-detail-catalogs'], queryFn: async () => {
@@ -67,7 +88,7 @@ export function AnimalDetailPage() {
       ])
     },
   })
-  const error = animal.error ?? history.error ?? catalogs.error ?? stateMutation.error
+  const error = animal.error ?? history.error ?? catalogs.error ?? stateMutation.error ?? calendarioSanitario.error ?? controlesNeonatales.error
 
   if (animal.isPending) return <LoadingState message="Cargando animal…" />
   if (!animal.data) return <Alert tone="danger">No se encontró el animal solicitado.</Alert>
@@ -104,11 +125,49 @@ export function AnimalDetailPage() {
       <Card><div className="detail-heading"><h3>Datos principales</h3><span className={`status-badge status-${value.estado.toLowerCase()}`}>{value.estado}</span></div><dl className="detail-list">
         <div><dt>Sexo</dt><dd>{value.sexo}</dd></div><div><dt>Raza</dt><dd>{catalogs.data?.breeds.find((item) => item.id === value.razaPrincipalId)?.nombre ?? '—'}</dd></div>
         <div><dt>Categoría</dt><dd>{catalogs.data?.categories.find((item) => item.id === value.categoriaActualId)?.nombre ?? '—'}</dd></div><div><dt>Propósito</dt><dd>{value.proposito}</dd></div>
-        <div><dt>Nacimiento</dt><dd>{value.fechaNacimiento ?? '—'}{value.fechaNacimientoEstimada ? ' (estimada)' : ''}</dd></div><div><dt>Origen</dt><dd>{value.origen}</dd></div>
-        <div><dt>Peso al nacer</dt><dd>{value.pesoNacimientoKg ? `${value.pesoNacimientoKg} kg` : '—'}</dd></div><div><dt>Condición corporal</dt><dd>{value.condicionCorporalActual ?? '—'}</dd></div>
-      </dl></Card>
+        <div><dt>Nacimiento</dt><dd>{value.fechaNacimiento || 'Desconocido'}{value.fechaNacimiento && value.fechaNacimientoEstimada ? ' (estimada)' : ''}</dd></div><div><dt>Origen</dt><dd>{value.origen}</dd></div>
+        <div><dt>Fecha de ingreso</dt><dd>{value.fechaIngreso || 'Sin registro'}</dd></div>
+        <div><dt>Precio de compra</dt><dd>{value.precioAdquisicion != null ? `${value.precioAdquisicion.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs` : 'Sin registro'}</dd></div>
+        <div><dt>Peso al ingreso</dt><dd>{value.pesoIngresoKg != null ? `${value.pesoIngresoKg} kg (${value.pesoIngresoEstimado ? 'estimado' : 'medido'})` : 'Sin registro'}</dd></div>
+        <div><dt>Peso al nacer</dt><dd>{value.pesoNacimientoKg != null ? `${value.pesoNacimientoKg} kg` : 'Desconocido'}</dd></div><div><dt>Condición corporal</dt><dd>{value.condicionCorporalActual ?? '—'}</dd></div>
+      </dl>
+        {value.origen === 'COMPRADO' && value.pesoNacimientoKg != null && value.pesoIngresoKg == null && <p>Revisa el peso al nacer: si corresponde a la compra, puedes corregirlo desde Editar.</p>}
+      </Card>
       <Card><h3><MapPin size={19} /> Ubicación y observaciones</h3><p><strong>{location || 'Ubicación no disponible'}</strong></p><p className="muted">{value.observaciones || 'Sin observaciones registradas.'}</p></Card>
     </div>
+    <Card><h3><Syringe size={19} aria-hidden="true" /> Calendario sanitario</h3>
+      {calendarioSanitario.isPending && <LoadingState message="Cargando calendario sanitario…" />}
+      {!calendarioSanitario.isPending && alertasSanitarias.length === 0 && <p className="muted">Sin alertas sanitarias activas para este animal.</p>}
+      <p className="muted">La ausencia de alertas no confirma vacunas ni un historial sanitario completo. Los antecedentes no documentados se consideran desconocidos.</p>
+      {alertasSanitarias.length > 0 && <ul className="attention-list">{alertasSanitarias.map((alerta) => <li key={alerta.id} className={alerta.tipo === 'VACUNA_VENCIDA' ? 'attention-danger' : 'attention-warning'}>
+        <span className="attention-icon">{alerta.tipo === 'VACUNA_VENCIDA' ? <AlertCircle size={18} aria-hidden="true" /> : <AlertTriangle size={18} aria-hidden="true" />}</span>
+        <div><strong>{alerta.titulo}</strong><span>{alerta.mensaje}</span></div>
+      </li>)}</ul>}
+    </Card>
+    <Card><div className="inline-actions" style={{ justifyContent: 'space-between', width: '100%' }}>
+        <h3><Baby size={19} aria-hidden="true" /> Control neonatal</h3>
+        <Button variant="secondary" onClick={() => setShowControlNeonatal(true)}>Registrar control neonatal</Button>
+      </div>
+      {controlesNeonatales.isPending && <LoadingState message="Cargando controles neonatales…" />}
+      {!controlesNeonatales.isPending && (controlesNeonatales.data?.length ?? 0) === 0 && <p className="muted">Sin controles neonatales registrados para este animal.</p>}
+      {controlesNeonatales.data && controlesNeonatales.data.length > 0 && <ul className="attention-list">{controlesNeonatales.data.map((control) => <li key={control.id} className={control.calostrado === 'INSUFICIENTE' || control.diarrea ? 'attention-warning' : undefined}>
+        <div><strong>{MOMENTO_CONTROL_NEONATAL_LABELS[control.momento]} · {new Date(control.fechaControl).toLocaleDateString('es-BO')}</strong>
+        <span>Calostrado: {ESTADO_CALOSTRADO_LABELS[control.calostrado]}{control.diarrea ? ' · Con diarrea' : ''}</span></div>
+      </li>)}</ul>}
+    </Card>
+    {showControlNeonatal && <ControlNeonatalModal animalId={id} animalCodigo={value.codigo} onClose={() => setShowControlNeonatal(false)} onSaved={() => setShowControlNeonatal(false)} />}
+    <Card><div className="inline-actions" style={{ justifyContent: 'space-between', width: '100%' }}>
+        <h3><Bug size={19} aria-hidden="true" /> Control ectoparasitario</h3>
+        <Button variant="secondary" onClick={() => setShowControlEcto(true)}>Registrar control ectoparasitario</Button>
+      </div>
+    </Card>
+    {showControlEcto && <ControlEctoparasitarioModal animalId={id} destinoLabel={value.codigo} onClose={() => setShowControlEcto(false)} onSaved={() => setShowControlEcto(false)} />}
+    <Card><div className="inline-actions" style={{ justifyContent: 'space-between', width: '100%' }}>
+        <h3><Stethoscope size={19} aria-hidden="true" /> Examen reproductivo</h3>
+        <Button variant="secondary" onClick={() => setShowExamenReproductivo(true)}>Registrar examen reproductivo</Button>
+      </div>
+    </Card>
+    {showExamenReproductivo && <ExamenReproductivoModal animal={value} onClose={() => setShowExamenReproductivo(false)} onSaved={() => setShowExamenReproductivo(false)} />}
     <Card><h3><RefreshCw size={19} /> Cambiar estado</h3><form className="state-form" onSubmit={(event) => { event.preventDefault(); requestStateChange(event.currentTarget) }}><select name="estado" defaultValue="" required><option value="" disabled>Selecciona el nuevo estado…</option>{states.filter((state) => state !== value.estado).map((state) => <option key={state}>{state}</option>)}</select><input name="motivo" required maxLength={1000} placeholder="Motivo del cambio…" /><Button type="submit" loading={stateMutation.isPending}>Actualizar estado</Button></form></Card>
     <ConfirmDialog
       open={Boolean(pendingStateChange)}
@@ -158,10 +217,22 @@ export function AnimalDetailPage() {
           {event.origenSync && <span className="status-badge">Sincronizado</span>}
           <p>{event.descripcion ?? 'Sin detalle adicional.'}</p>
           {event.usuarioNombre && <span className="table-secondary">Registrado por: {event.usuarioNombre}</span>}
-          {metadata.map(([key, val]) => <span key={key} className="table-secondary">{key.replaceAll('_', ' ')}: {String(val)}</span>)}
+          {metadata.map(([key, val]) => <span key={key} className="table-secondary">{timelineMetadataLabel(key)}: {key === 'pesoIngresoEstimado' ? (val ? 'Estimado' : 'Medido') : typeof val === 'boolean' ? (val ? 'Sí' : 'No') : String(val)}</span>)}
         </div></li>
       })}</ol>}
       {history.data && history.data.content.length > 0 && <div className="pagination"><span>Página {history.data.page + 1} de {Math.max(history.data.totalPages, 1)}</span><div><Button variant="ghost" disabled={page === 0 || history.isFetching} onClick={() => setPage((value) => value - 1)}>Anterior</Button><Button variant="ghost" disabled={page + 1 >= history.data.totalPages || history.isFetching} onClick={() => setPage((value) => value + 1)}>Siguiente</Button></div></div>}
     </Card>}
   </div>
+}
+
+function timelineMetadataLabel(key: string) {
+  const labels: Record<string, string> = {
+    pesoIngresoKg: 'Peso al ingreso (kg)',
+    pesoIngresoEstimado: 'Tipo de peso al ingreso',
+    fechaIngreso: 'Fecha de ingreso',
+    correccionPesoCompraConfirmada: 'Corrección de peso de compra confirmada',
+    pesoNacimientoAnteriorKg: 'Peso registrado antes como nacimiento (kg)',
+    nacimientoDesconocido: 'Nacimiento desconocido',
+  }
+  return labels[key] ?? key.replaceAll('_', ' ')
 }

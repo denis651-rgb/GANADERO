@@ -29,16 +29,6 @@ class CodigoServiceTest {
     }
 
     @Test
-    void rejectsChangingAnExistingCodeWithoutAdministrativePermission() {
-        CurrentUser user = user(Set.of());
-
-        assertThatThrownBy(() -> service.paraActualizacion(user, TipoCodigo.ANIMAL, null, null,
-                "ANI-000001", "ANI-000099"))
-                .isInstanceOfSatisfying(BusinessException.class,
-                        error -> assertThat(error.code()).isEqualTo(ErrorCode.USER_NOT_AUTHORIZED));
-    }
-
-    @Test
     void keepsExistingCodeWhenRequestOmitsIt() {
         assertThat(service.paraActualizacion(user(Set.of()), TipoCodigo.ANIMAL, null, null,
                 "ANI-000001", null)).isEqualTo("ANI-000001");

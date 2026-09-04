@@ -17,7 +17,13 @@ public record RegistrarCeloCommand(
         UUID potreroId,
         UUID loteId,
         UUID clienteUuid,
-        String idempotencyKey) {
+        String idempotencyKey, boolean confirmarIntervaloCorto, String justificacion, UUID agregarObservacionCeloId) {
+    public RegistrarCeloCommand(UUID id, UUID animalId, Instant fechaDeteccion, TipoCelo tipoDeteccion,
+            IntensidadCelo intensidad, String observaciones, UUID propiedadId, UUID potreroId, UUID loteId,
+            UUID clienteUuid, String idempotencyKey) {
+        this(id, animalId, fechaDeteccion, tipoDeteccion, intensidad, observaciones, propiedadId, potreroId,
+                loteId, clienteUuid, idempotencyKey, false, null, null);
+    }
     public RegistrarCeloCommand(UUID id, UUID animalId, java.time.LocalDate fechaDeteccion,
                                 TipoCelo tipoDeteccion, String observaciones, UUID propiedadId,
                                 UUID potreroId, UUID loteId, UUID clienteUuid, String idempotencyKey) {

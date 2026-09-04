@@ -1,0 +1,3 @@
+package bo.com.ganadero.sanidad.api;
+import bo.com.ganadero.sanidad.application.CrearControlEctoparasitarioCommand;import bo.com.ganadero.sanidad.domain.NivelCargaParasitaria;import bo.com.ganadero.sanidad.domain.TipoEctoparasito;import jakarta.validation.constraints.*;import java.time.LocalDate;import java.util.UUID;
+public record CrearControlEctoparasitarioRequest(UUID animalId,UUID loteGanaderoId,@NotNull TipoEctoparasito tipo,@NotNull NivelCargaParasitaria nivelCarga,boolean tratado,String producto,String principioActivo,@NotNull LocalDate fecha,String observaciones){public CrearControlEctoparasitarioCommand command(){return new CrearControlEctoparasitarioCommand(animalId,loteGanaderoId,tipo,nivelCarga,tratado,producto,principioActivo,fecha,observaciones);}}

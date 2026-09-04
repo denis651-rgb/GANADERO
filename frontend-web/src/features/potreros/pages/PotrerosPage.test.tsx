@@ -5,7 +5,6 @@ import { PotrerosPage } from './PotrerosPage'
 
 const updatePotrero = vi.fn()
 vi.mock('@/auth/auth-context', () => ({ useAuth: () => ({ can: () => true }) }))
-vi.mock('@/shared/hooks/useOnlineStatus', () => ({ useOnlineStatus: () => true }))
 vi.mock('@/features/potreros/api', () => ({
   listPotreros: vi.fn().mockResolvedValue([{ id: 'pot-1', propiedadId: 'p-1', codigo: 'P-01', nombre: 'Norte', estado: 'DISPONIBLE', activo: true, tieneAgua: true, version: 1 }]),
   listTiposPasto: vi.fn().mockResolvedValue([]), createPotrero: vi.fn(),
@@ -14,6 +13,17 @@ vi.mock('@/features/potreros/api', () => ({
 vi.mock('@/features/propiedades/api', () => ({ listPropiedades: vi.fn().mockResolvedValue([{ id: 'p-1', nombre: 'La Esperanza', activo: true }]), listSectores: vi.fn().mockResolvedValue([]) }))
 
 describe('PotrerosPage operational protection', () => {
+  it('destaca el nombre y coloca el código debajo en escritorio y móvil', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={client}><PotrerosPage /></QueryClientProvider>)
+    const nombres = await screen.findAllByText('Norte', { selector: '.potrero-name' })
+    expect(nombres).toHaveLength(2)
+    nombres.forEach((nombre) => {
+      expect(nombre.nextElementSibling).toHaveClass('potrero-code')
+      expect(nombre.nextElementSibling).toHaveTextContent('P-01')
+    })
+  })
+
   it('pide confirmación antes de aplicar un estado operativo', async () => {
     updatePotrero.mockReset().mockResolvedValue({})
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })

@@ -19,10 +19,8 @@ public class JdbcAlertaConfiguracion implements AlertaConfiguracionPort {
         return jdbc.sql("""
                         select dias_alerta_preparto, dias_alerta_destete,
                                dias_diagnostico_post_servicio, dias_gestacion_estimada
-                        from core.configuraciones_empresa
-                        where empresa_id = :empresaId
+                        from configuracion
                         """)
-                .param("empresaId", empresaId)
                 .query((rs, rowNum) -> new AlertaConfiguracion(
                         rs.getInt("dias_alerta_preparto"),
                         rs.getInt("dias_alerta_destete"),

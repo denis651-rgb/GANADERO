@@ -1,1 +1,0 @@
-package bo.com.ganadero.alertas.domain;import java.time.Instant;import java.util.UUID;public record SuscripcionPush(UUID id,UUID empresaId,UUID usuarioId,String endpoint,String p256dh,String auth,String dispositivoNombre,String userAgent,boolean activa,Instant createdAt,Instant updatedAt,Instant ultimoUsoAt){}

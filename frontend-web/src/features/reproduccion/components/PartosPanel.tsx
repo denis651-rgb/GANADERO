@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { AnimalSearchSelect } from './AnimalSearchSelect'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { listRazas } from '@/features/animales/api'
 import { Plus } from 'lucide-react'
 import { useAuth } from '@/auth/auth-context'
 import {
@@ -22,6 +24,9 @@ import { Field } from '@/shared/components/Field'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { Modal } from '@/shared/components/Modal'
 import { normalizeApiError } from '@/shared/api/errors'
+import { formatDate } from '@/shared/utils/date'
+import './PartosPanel.css'
+import { GestacionSelect } from './GestacionSelect'
 
 interface PartosPanelProps {
   partos: PageResponse<Parto>
@@ -40,25 +45,29 @@ interface CriaRow {
   observaciones: string
   crearAnimal: boolean
   nombreAnimal: string
+  razaPrincipalId: string
   potreroInicialId: string
 }
 
 let criaKey = 0
 
 function nuevaCria(): CriaRow {
-  return { key: criaKey++, sexo: 'HEMBRA', pesoNacimientoKg: '', estadoNacimiento: 'VIVO', horaNacimiento: '', observaciones: '', crearAnimal: true, nombreAnimal: '', potreroInicialId: '' }
+  return { key: criaKey++, sexo: 'HEMBRA', pesoNacimientoKg: '', estadoNacimiento: 'VIVO', horaNacimiento: '', observaciones: '', crearAnimal: true, nombreAnimal: '', razaPrincipalId: '', potreroInicialId: '' }
 }
 
 export function PartosPanel({ partos, isLoading, error, catalogs, refresh }: PartosPanelProps) {
   const { can } = useAuth()
   const canRegistrar = can('REPRODUCCION_REGISTRAR')
   const [showForm, setShowForm] = useState(false)
+  const [madreId, setMadreId] = useState('')
   const [crias, setCrias] = useState<CriaRow[]>(() => [nuevaCria()])
+  const razas = useQuery({ queryKey: ['razas'], queryFn: listRazas, enabled: showForm, staleTime: 300_000 })
 
   const crear = useMutation({
     mutationFn: (form: HTMLFormElement) => {
       const data = new FormData(form)
       return registrarParto({
+        cicloGestacionId: String(data.get('cicloGestacionId') || ''),
         madreId: String(data.get('madreId')),
         fechaParto: String(data.get('fechaParto')),
         tipoParto: String(data.get('tipoParto')) as Parto['tipoParto'],
@@ -75,6 +84,7 @@ export function PartosPanel({ partos, isLoading, error, catalogs, refresh }: Par
           observaciones: fila.observaciones || undefined,
           crearAnimal: fila.crearAnimal,
           nombreAnimal: fila.crearAnimal ? fila.nombreAnimal || undefined : undefined,
+          razaPrincipalId: fila.crearAnimal ? fila.razaPrincipalId || undefined : undefined,
           potreroInicialId: fila.crearAnimal ? fila.potreroInicialId || undefined : undefined,
         })),
       })
@@ -88,36 +98,36 @@ export function PartosPanel({ partos, isLoading, error, catalogs, refresh }: Par
 
   const errorVisible = error ?? crear.error
 
-  return <div className="page-stack">
+  return <div className="page-stack partos-panel">
     {errorVisible && <Alert tone="danger">{normalizeApiError(errorVisible).message}</Alert>}
     <Card>
-      <div className="inline-actions" style={{ justifyContent: 'space-between', width: '100%' }}>
+      <div className="partos-heading">
         <h2>Partos y crías</h2>
         {canRegistrar && <Button onClick={() => setShowForm(true)} disabled={!catalogs}><Plus size={18} aria-hidden="true" />Registrar parto</Button>}
       </div>
       {isLoading && <LoadingState message="Cargando partos…" />}
       {!isLoading && partos.content.length === 0 && <EmptyState title="No hay partos registrados" description="Registra el primer parto para llevar el control de nacimientos." />}
       {partos.content.length > 0 && <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Partos</caption><thead><tr><th scope="col">Madre</th><th scope="col">Fecha</th><th scope="col">Tipo</th><th scope="col">Dificultad</th><th scope="col">Crías</th><th scope="col">Estado</th></tr></thead><tbody>{partos.content.map((parto) => <tr key={parto.id}>
-        <td><strong>{parto.codigoMadre}</strong>{parto.nombreMadre ? ` · ${parto.nombreMadre}` : ''}</td>
-        <td>{new Date(parto.fechaParto).toLocaleDateString('es-BO')}</td>
-        <td className="table-secondary">{TIPO_PARTO_LABELS[parto.tipoParto]}</td>
-        <td className="table-secondary">{DIFICULTAD_PARTO_LABELS[parto.dificultad]}</td>
+        <td><strong className="parto-madre">{parto.nombreMadre || parto.codigoMadre || 'Sin nombre'}</strong>{parto.nombreMadre && parto.codigoMadre && <span className="table-secondary">{parto.codigoMadre}</span>}</td>
+        <td>{formatDate(parto.fechaParto)}</td>
+        <td>{TIPO_PARTO_LABELS[parto.tipoParto]}</td>
+        <td>{DIFICULTAD_PARTO_LABELS[parto.dificultad]}</td>
         <td>{parto.numeroCrias}</td>
         <td><span className={`status-badge status-badge-${estadoRegistroBadge(parto.estado)}`}>{ESTADO_REGISTRO_LABELS[parto.estado]}</span></td>
       </tr>)}</tbody></table></div>}
       {partos.content.length > 0 && <div className="mobile-only">{partos.content.map((parto) => <div key={parto.id} className="mobile-entity-card">
-        <div><strong>{parto.codigoMadre}</strong><p className="muted">{new Date(parto.fechaParto).toLocaleDateString('es-BO')} · {TIPO_PARTO_LABELS[parto.tipoParto]}</p><p className="muted">{DIFICULTAD_PARTO_LABELS[parto.dificultad]} · {parto.numeroCrias} cría(s) · {ESTADO_REGISTRO_LABELS[parto.estado]}</p></div>
+        <div><strong className="parto-madre">{parto.nombreMadre || parto.codigoMadre || 'Sin nombre'}</strong>{parto.nombreMadre && parto.codigoMadre && <span className="table-secondary">{parto.codigoMadre}</span>}<p className="muted">{formatDate(parto.fechaParto)} · {TIPO_PARTO_LABELS[parto.tipoParto]}</p><p className="muted">{DIFICULTAD_PARTO_LABELS[parto.dificultad]} · {parto.numeroCrias} cría(s)</p><span className={`status-badge status-badge-${estadoRegistroBadge(parto.estado)}`}>{ESTADO_REGISTRO_LABELS[parto.estado]}</span></div>
       </div>)}</div>}
     </Card>
 
     <Modal open={showForm} title="Registrar parto" onClose={() => setShowForm(false)} wide description="Registra el parto y los datos de cada cría.">
       <form className="form-grid" onSubmit={(event) => { event.preventDefault(); crear.mutate(event.currentTarget) }}>
-        <Field label="Madre" required><select name="madreId" required><option value="">Selecciona…</option>{catalogs?.hembras.map((animal) => <option key={animal.id} value={animal.id}>{animal.nombre ? `${animal.codigo} · ${animal.nombre}` : animal.codigo}</option>)}</select></Field>
+        <AnimalSearchSelect label="Madre" name="madreId" sexo="HEMBRA" value={madreId} onChange={setMadreId} />
+        <GestacionSelect key={madreId} animalId={madreId} />
         <Field label="Fecha del parto" required><input name="fechaParto" type="date" required /></Field>
         <Field label="Tipo de parto" required><select name="tipoParto" required><option value="" disabled>Selecciona…</option>{Object.entries(TIPO_PARTO_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
         <Field label="Dificultad" required><select name="dificultad" required><option value="" disabled>Selecciona…</option>{Object.entries(DIFICULTAD_PARTO_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
         <label className="checkbox-line"><input type="checkbox" name="asistido" />Parto asistido</label>
-        <Field label="Responsable"><select name="responsableId"><option value="">Sin responsable</option>{catalogs?.users.map((user) => <option key={user.id} value={user.usuarioId}>{user.nombres} {user.apellidos}</option>)}</select></Field>
         <Field label="Resultado de la madre"><input name="resultadoMadre" maxLength={30} placeholder="Ej. Buena, en observación…" /></Field>
         <div className="form-full"><Field label="Observaciones"><textarea name="observaciones" rows={2} maxLength={1000} /></Field></div>
         <div className="form-full"><div className="form-section-title">Crías</div></div>
@@ -128,8 +138,13 @@ export function PartosPanel({ partos, isLoading, error, catalogs, refresh }: Par
           <Field label="Hora de nacimiento"><input type="time" value={fila.horaNacimiento} onChange={(event) => actualizarCria(fila.key, 'horaNacimiento', event.target.value)} /></Field>
           <div className="form-full"><label className="checkbox-line"><input type="checkbox" checked={fila.crearAnimal} onChange={(event) => actualizarCria(fila.key, 'crearAnimal', event.target.checked)} />Crear registro del animal en el inventario</label></div>
           {fila.crearAnimal && <>
-            <Field label="Código del animal" hint="Se asigna al guardar"><input value="Automático · ANI-######" readOnly /></Field>
-            <Field label="Nombre del animal"><input maxLength={160} value={fila.nombreAnimal} onChange={(event) => actualizarCria(fila.key, 'nombreAnimal', event.target.value)} autoComplete="off" /></Field>
+            <Field label="Raza de la cría" required hint={razas.isError ? 'No se pudieron cargar las razas. Cierra y vuelve a abrir el formulario para reintentar.' : 'Selecciona la raza de esta cría; no se hereda automáticamente de la madre.'}>
+              <select required value={fila.razaPrincipalId} onChange={(event) => actualizarCria(fila.key, 'razaPrincipalId', event.target.value)}>
+                <option value="">{razas.isLoading ? 'Cargando razas…' : 'Selecciona la raza…'}</option>
+                {razas.data?.map((raza) => <option key={raza.id} value={raza.id}>{raza.nombre}</option>)}
+              </select>
+            </Field>
+            <Field label="Nombre del animal" required><input required maxLength={160} value={fila.nombreAnimal} onChange={(event) => actualizarCria(fila.key, 'nombreAnimal', event.target.value)} autoComplete="off" /></Field>
             <Field label="Potrero inicial"><select value={fila.potreroInicialId} onChange={(event) => actualizarCria(fila.key, 'potreroInicialId', event.target.value)}><option value="">Sin potrero</option>{catalogs?.paddocks.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
           </>}
           <Field label="Observaciones de la cría"><input maxLength={1000} value={fila.observaciones} onChange={(event) => actualizarCria(fila.key, 'observaciones', event.target.value)} /></Field>

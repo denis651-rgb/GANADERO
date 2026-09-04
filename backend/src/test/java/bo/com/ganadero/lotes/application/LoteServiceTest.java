@@ -85,6 +85,29 @@ class LoteServiceTest {
     }
 
     @Test
+    void rechazaTodaSeleccionQueSuperaCuposInclusoEnModoParcial() {
+        Lote base = lote(EstadoLote.ACTIVO);
+        when(lotes.findById(loteId, company)).thenReturn(Optional.of(new Lote(base.id(), company, property,
+                base.codigo(), base.nombre(), null, base.estado(), base.fechaApertura(), null, base.version(), 30, 29)));
+        assertThatThrownBy(() -> service.addAnimals(loteId, ingreso(List.of(animalId, otherAnimalId), "PARCIAL")))
+                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.LOT_CAPACITY_EXCEEDED));
+        verify(animales, never()).updateLote(any(), any(), any(), any());
+        assertThat(published).isEmpty();
+    }
+
+    @Test
+    void rechazaMaximoMenorQueOcupacionYVersionDesactualizada() {
+        Lote base = lote(EstadoLote.ACTIVO);
+        when(lotes.findById(loteId, company)).thenReturn(Optional.of(new Lote(base.id(), company, property,
+                base.codigo(), base.nombre(), null, base.estado(), base.fechaApertura(), null, 3, 30, 24)));
+        assertThatThrownBy(() -> service.update(loteId, new LoteCommand(null, null, null, null, null, 20, 3L)))
+                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.VALIDATION_ERROR));
+        assertThatThrownBy(() -> service.update(loteId, new LoteCommand(null, null, null, null, null, 30, 2L)))
+                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.LOT_VERSION_CONFLICT));
+        verify(lotes, never()).update(any(), any());
+    }
+
+    @Test
     void updateLoteSuccess() {
         when(lotes.findById(loteId, company)).thenReturn(Optional.of(lote(EstadoLote.ACTIVO)));
         when(lotes.update(any(Lote.class), eq(userId))).thenReturn(lote(EstadoLote.ACTIVO));
