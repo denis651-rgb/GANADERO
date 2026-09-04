@@ -1,1 +1,1 @@
-package bo.com.ganadero.sanidad.domain; public enum TipoActividadSanitaria { VACUNACION, DESPARASITACION, VITAMINIZACION, CONTROL, PRUEBA_DIAGNOSTICA, OTRO }
+package bo.com.ganadero.sanidad.domain; public enum TipoActividadSanitaria { VACUNACION, DESPARASITACION, VITAMINIZACION, CONTROL, PRUEBA_DIAGNOSTICA, OTRO, VIGILANCIA_EPIDEMIOLOGICA }

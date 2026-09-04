@@ -90,7 +90,8 @@ class JornadaSanitariaServiceTest {
         PlanSanitario plan = new PlanSanitario(planId, empresa, "Plan", null, LocalDate.of(2026, 1, 1), null,
                 EstadoPlanSanitario.ACTIVO, null, null, 0);
         PlanSanitarioItem item = new PlanSanitarioItem(itemId, empresa, planId, tipoItem, null, "Producto",
-                categoriaNovillo, SexoAnimal.MACHO, 60, 360, null, null, 60, 5, null, true, true, 0);
+                categoriaNovillo, SexoAnimal.MACHO, 60, 360, null, null, 60, 5, null, true, true, 0,
+                OrigenRegulatorioActividad.CONFIGURABLE_ESTABLECIMIENTO, "BOVINO");
         when(jornadas.buscar(jornadaId, empresa)).thenReturn(Optional.of(jornada));
         when(planes.planes(empresa)).thenReturn(List.of(plan));
         when(planes.items(planId, empresa, false)).thenReturn(List.of(item));

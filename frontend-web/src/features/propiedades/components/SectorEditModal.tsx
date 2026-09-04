@@ -9,7 +9,6 @@ import { Modal } from '@/shared/components/Modal'
 
 interface SectorEditModalProps {
   sector: Sector | null
-  online: boolean
   loading: boolean
   error: unknown
   onClose: () => void
@@ -17,13 +16,13 @@ interface SectorEditModalProps {
   onReload: () => void
 }
 
-export function SectorEditModal({ sector, online, loading, error, onClose, onSubmit, onReload }: SectorEditModalProps) {
+export function SectorEditModal({ sector, loading, error, onClose, onSubmit, onReload }: SectorEditModalProps) {
   const normalized = error ? normalizeApiError(error) : null
   const conflict = normalized?.code === 'VERSION_CONFLICT'
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!sector || !online || loading) return
+    if (!sector || loading) return
     const data = new FormData(event.currentTarget)
     onSubmit({
       nombre: String(data.get('nombre') ?? '').trim(),
@@ -35,17 +34,16 @@ export function SectorEditModal({ sector, online, loading, error, onClose, onSub
 
   return <Modal open={Boolean(sector)} title="Editar sector" description="Modifica los datos del sector seleccionado." onClose={onClose}>
     {sector && <form className="page-stack" onSubmit={submit}>
-      {!online && <Alert tone="info">Necesitas conexión para editar este sector.</Alert>}
       {normalized && <Alert tone="danger" title={conflict ? 'El sector cambió mientras lo editabas' : undefined}>
         {conflict ? 'Recarga la información antes de volver a guardar.' : normalized.message}
       </Alert>}
       <Field label="Código" hint="Identificador interno permanente"><input value={sector.codigo} readOnly /></Field>
-      <Field label="Nombre" required disabled={!online}><input name="nombre" defaultValue={sector.nombre} required maxLength={160} disabled={!online} /></Field>
-      <Field label="Descripción" disabled={!online}><textarea name="descripcion" defaultValue={sector.descripcion ?? ''} rows={3} disabled={!online} /></Field>
+      <Field label="Nombre" required><input name="nombre" defaultValue={sector.nombre} required maxLength={160} /></Field>
+      <Field label="Descripción"><textarea name="descripcion" defaultValue={sector.descripcion ?? ''} rows={3} /></Field>
       <div className="form-actions">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
         {conflict && <Button type="button" variant="secondary" onClick={onReload}>Recargar datos</Button>}
-        <Button type="submit" loading={loading} disabled={!online || conflict}><Save size={17} aria-hidden="true" />Guardar sector</Button>
+        <Button type="submit" loading={loading} disabled={conflict}><Save size={17} aria-hidden="true" />Guardar sector</Button>
       </div>
     </form>}
   </Modal>

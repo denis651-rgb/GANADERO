@@ -38,13 +38,6 @@ management:
       enabled: false
 
 ganadero:
-  push:
-    enabled: ${GANADERO_PUSH_ENABLED:false}
-    vapid-public-key: ${GANADERO_PUSH_VAPID_PUBLIC_KEY:}
-    vapid-private-key: ${GANADERO_PUSH_VAPID_PRIVATE_KEY:}
-    subject: ${GANADERO_PUSH_SUBJECT:mailto:soporte@ganadero.bo}
-    max-attempts: ${GANADERO_PUSH_MAX_ATTEMPTS:5}
-    ttl-seconds: ${GANADERO_PUSH_TTL_SECONDS:604800}
   alertas:
     scheduler:
       enabled: ${GANADERO_ALERTAS_SCHEDULER_ENABLED:true}
@@ -59,9 +52,6 @@ app:
   internal-jobs:
     enabled: ${APP_INTERNAL_JOBS_ENABLED:false}
     secret: ${GANADERO_CRON_SECRET:}
-  invitations:
-    expiration-hours: ${APP_INVITATION_EXPIRATION_HOURS:72}
-    max-resend-attempts: ${APP_INVITATION_MAX_RESEND_ATTEMPTS:5}
   qr:
     signing-secret: ${APP_QR_SIGNING_SECRET:}
     payload-version: ${APP_QR_PAYLOAD_VERSION:1}

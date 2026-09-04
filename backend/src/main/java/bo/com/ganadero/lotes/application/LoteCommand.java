@@ -8,5 +8,10 @@ public record LoteCommand(
         String codigo,
         String nombre,
         String descripcion,
-        LocalDate fechaApertura) {
+        LocalDate fechaApertura,
+        Integer cantidadMaxima,
+        Long version) {
+    public LoteCommand(UUID propiedadId, String codigo, String nombre, String descripcion, LocalDate fechaApertura) {
+        this(propiedadId, codigo, nombre, descripcion, fechaApertura, null, null);
+    }
 }

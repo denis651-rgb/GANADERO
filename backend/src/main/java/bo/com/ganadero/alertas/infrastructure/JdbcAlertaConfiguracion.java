@@ -19,7 +19,7 @@ public class JdbcAlertaConfiguracion implements AlertaConfiguracionPort {
         return jdbc.sql("""
                         select dias_alerta_preparto, dias_alerta_destete,
                                dias_diagnostico_post_servicio, dias_gestacion_estimada
-                        from propiedad
+                        from configuracion
                         """)
                 .query((rs, rowNum) -> new AlertaConfiguracion(
                         rs.getInt("dias_alerta_preparto"),

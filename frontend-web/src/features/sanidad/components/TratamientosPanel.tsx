@@ -138,7 +138,6 @@ export function TratamientosPanel({ tratamientos, isLoading, error, catalogs, re
         <Field label="Animal" required><select name="animalId" required><option value="">Seleccionaâ€¦</option>{catalogs?.animals.map((animal) => <option key={animal.id} value={animal.id}>{animal.nombre ? `${animal.codigo} Â· ${animal.nombre}` : animal.codigo}</option>)}</select></Field>
         <Field label="Fecha de inicio" required><input name="fechaInicio" type="date" required /></Field>
         <Field label="Fecha fin estimada" required><input name="fechaFinEstimada" type="date" required /></Field>
-        <Field label="Veterinario"><select name="veterinarioId"><option value="">Sin veterinario</option>{catalogs?.users.map((user) => <option key={user.id} value={user.usuarioId}>{user.nombres} {user.apellidos}</option>)}</select></Field>
         <div className="form-full"><Field label="DiagnÃ³stico"><input name="diagnostico" maxLength={2000} autoComplete="off" /></Field></div>
         <div className="form-full"><Field label="Observaciones"><textarea name="observaciones" rows={2} maxLength={1000} /></Field></div>
         <div className="form-full"><div className="form-section-title">Protocolo de dosificaciÃ³n</div></div>

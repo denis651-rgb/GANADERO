@@ -4,7 +4,7 @@ import jsQR from 'jsqr'
 import { ScanLine, CameraOff } from 'lucide-react'
 import { Button } from '@/shared/components/Button'
 import { resolverQr } from '@/features/animales/qr/qr-api'
-import { parseQrPayload, resolveQrOffline } from '@/features/animales/qr/qr-offline'
+import { parseQrPayload } from '@/features/animales/qr/qr-offline'
 import { normalizeApiError } from '@/shared/api/errors'
 import type { QrResolveResult } from '@/features/animales/qr/qr-types'
 
@@ -42,14 +42,8 @@ export function QrScanner() {
     try {
       const online = await resolverQr(payload)
       setResult(online)
-      return
     } catch (reason) {
       const error = normalizeApiError(reason)
-      if (error.code === 'NETWORK_ERROR') {
-        const offline = await resolveQrOffline(payload)
-        setResult(offline)
-        return
-      }
       setResult({ valid: false, code: error.code ?? 'ERROR', message: error.message })
     }
   }, [stopCamera])
@@ -145,7 +139,7 @@ export function QrScanner() {
           </div>
           <div className="qr-scanner-caption" role={status === 'camera-error' ? 'alert' : 'status'} aria-live={status === 'camera-error' ? undefined : 'polite'} aria-atomic="true">
             <ScanLine size={16} aria-hidden="true" />
-            {status === 'scanning' ? 'Apuntando a un código QR de Ganadero…' : statusMessage || 'El escáner resuelve el QR verificando su firma en el servidor y usa los datos locales si estás sin conexión.'}
+            {status === 'scanning' ? 'Apuntando a un código QR de Ganadero…' : statusMessage || 'El escáner resuelve el QR verificando su firma con el servidor local.'}
           </div>
           {status !== 'scanning' && (
             <div>

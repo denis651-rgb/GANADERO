@@ -5,6 +5,7 @@ import bo.com.ganadero.auditoria.domain.AuditoriaRepository;
 import bo.com.ganadero.animales.application.AnimalAuditEvent;
 import bo.com.ganadero.alertas.application.AlertasAuditEvent;
 import bo.com.ganadero.archivos.application.ArchivoAuditEvent;
+import bo.com.ganadero.configuracion.application.ConfiguracionAuditEvent;
 import bo.com.ganadero.lotes.application.LoteAuditEvent;
 import bo.com.ganadero.movimientos.application.MovimientoAuditEvent;
 import bo.com.ganadero.pesajes.application.PesajeAuditEvent;
@@ -59,6 +60,11 @@ public class AuditEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onCampo(CampoAuditEvent event) {
         persist(event.empresaId(), event.usuarioId(), event.accion(), "PROPIEDADES", event.entidad(), event.entidadId());
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onConfiguracion(ConfiguracionAuditEvent event) {
+        persist(event.empresaId(), event.usuarioId(), "ACTUALIZAR", "CONFIGURACION", "CONFIGURACION", null);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

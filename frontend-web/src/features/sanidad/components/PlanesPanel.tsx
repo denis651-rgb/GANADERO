@@ -8,10 +8,13 @@ import {
   crearPlan,
   crearPlanItem,
   listPlanItems,
+  ORIGEN_REGULATORIO_BADGE_CLASS,
+  ORIGEN_REGULATORIO_LABELS,
   TIPO_ACTIVIDAD_LABELS,
   type CrearItemInput,
   type CrearPlanInput,
   type EstadoPlan,
+  type OrigenRegulatorio,
   type PlanSanitario,
 } from '@/features/sanidad/api'
 import type { SanidadCatalogs } from '@/features/sanidad/catalogs'
@@ -89,6 +92,7 @@ export function PlanesPanel({ planes, isLoading, error, catalogs, refresh }: Pla
         diasAlerta: Number(data.get('diasAlerta')) || 0,
         viaAdministracion: String(data.get('viaAdministracion') || '') || undefined,
         obligatorio: data.get('obligatorio') === 'on',
+        origenRegulatorio: String(data.get('origenRegulatorio')) as CrearItemInput['origenRegulatorio'],
       }
       return crearPlanItem(expanded!, input)
     },
@@ -164,7 +168,7 @@ export function PlanesPanel({ planes, isLoading, error, catalogs, refresh }: Pla
       {items.error && <Alert tone="danger">{normalizeApiError(items.error).message}</Alert>}
       {items.data?.length === 0 && <p className="muted">Este plan todavía no tiene actividades.</p>}
       {items.data && items.data.length > 0 && <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Actividades del plan</caption><thead><tr><th scope="col">Actividad</th><th scope="col">Producto</th><th scope="col">Aplicable a</th><th scope="col">Dosis</th><th scope="col">Frecuencia</th><th scope="col">Alerta</th><th scope="col">Obligatorio</th><th scope="col">Estado</th>{canAdmin && <th scope="col">Acciones</th>}</tr></thead><tbody>{items.data.map((item) => <tr key={item.id}>
-        <td><strong>{TIPO_ACTIVIDAD_LABELS[item.tipoActividad]}</strong><span className="table-secondary">{item.viaAdministracion ?? '—'}</span></td>
+        <td><strong>{TIPO_ACTIVIDAD_LABELS[item.tipoActividad]}</strong> <span className={`status-badge ${ORIGEN_REGULATORIO_BADGE_CLASS[item.origenRegulatorio]}`}>{ORIGEN_REGULATORIO_LABELS[item.origenRegulatorio]}</span><span className="table-secondary">{item.viaAdministracion ?? '—'}</span></td>
         <td>{item.productoRecomendadoTexto ?? (item.productoId ? item.productoId.slice(0, 8) : '—')}</td>
         <td>{[item.sexoAplicable, catalogs?.categories.find((cat) => cat.id === item.categoriaAnimalId)?.nombre, item.edadMinDias !== undefined || item.edadMaxDias !== undefined ? `${item.edadMinDias ?? 0}–${item.edadMaxDias ?? '∞'} días` : null].filter(Boolean).join(' · ') || 'Todos'}</td>
         <td>{item.dosis !== undefined ? `${item.dosis} ${item.unidadDosis ?? ''}` : '—'}</td>
@@ -174,7 +178,7 @@ export function PlanesPanel({ planes, isLoading, error, catalogs, refresh }: Pla
         <td><span className="status-badge">{item.activo ? 'ACTIVO' : 'INACTIVO'}</span></td>
         {canAdmin && <td><Button variant="ghost" onClick={() => setItemTarget({ plan: planes.find((plan) => plan.id === expanded)!, item: { id: item.id, activo: item.activo, version: item.version, nombre: TIPO_ACTIVIDAD_LABELS[item.tipoActividad] } })}><Power size={16} aria-hidden="true" />{item.activo ? 'Desactivar' : 'Activar'}</Button></td>}
       </tr>)}</tbody></table></div>}
-      {items.data && items.data.length > 0 && <div className="mobile-only">{items.data.map((item) => <div key={item.id} className="mobile-entity-card"><div><strong>{TIPO_ACTIVIDAD_LABELS[item.tipoActividad]}</strong><p className="muted">{item.productoRecomendadoTexto ?? 'Producto sin especificar'}</p><p className="muted">{item.dosis !== undefined ? `${item.dosis} ${item.unidadDosis ?? ''}` : '—'} · {item.frecuenciaDias ? `cada ${item.frecuenciaDias} días` : '—'}</p></div>{canAdmin && <Button variant="ghost" onClick={() => setItemTarget({ plan: planes.find((plan) => plan.id === expanded)!, item: { id: item.id, activo: item.activo, version: item.version, nombre: TIPO_ACTIVIDAD_LABELS[item.tipoActividad] } })}><Power size={16} aria-hidden="true" />{item.activo ? 'Desactivar' : 'Activar'}</Button>}</div>)}</div>}
+      {items.data && items.data.length > 0 && <div className="mobile-only">{items.data.map((item) => <div key={item.id} className="mobile-entity-card"><div><strong>{TIPO_ACTIVIDAD_LABELS[item.tipoActividad]}</strong> <span className={`status-badge ${ORIGEN_REGULATORIO_BADGE_CLASS[item.origenRegulatorio]}`}>{ORIGEN_REGULATORIO_LABELS[item.origenRegulatorio]}</span><p className="muted">{item.productoRecomendadoTexto ?? 'Producto sin especificar'}</p><p className="muted">{item.dosis !== undefined ? `${item.dosis} ${item.unidadDosis ?? ''}` : '—'} · {item.frecuenciaDias ? `cada ${item.frecuenciaDias} días` : '—'}</p></div>{canAdmin && <Button variant="ghost" onClick={() => setItemTarget({ plan: planes.find((plan) => plan.id === expanded)!, item: { id: item.id, activo: item.activo, version: item.version, nombre: TIPO_ACTIVIDAD_LABELS[item.tipoActividad] } })}><Power size={16} aria-hidden="true" />{item.activo ? 'Desactivar' : 'Activar'}</Button>}</div>)}</div>}
     </Card>}
 
     <Modal open={showPlanForm} title="Nuevo plan sanitario" onClose={() => setShowPlanForm(false)} description="Registra un plan sanitario de la empresa.">
@@ -190,6 +194,7 @@ export function PlanesPanel({ planes, isLoading, error, catalogs, refresh }: Pla
     <Modal open={showItemForm} title="Agregar actividad al plan" onClose={cerrarFormularioItem} wide description="Define una actividad programada dentro del plan sanitario.">
       <form className="form-grid" onSubmit={(event) => { event.preventDefault(); if (!edadError) crearItemMut.mutate(event.currentTarget) }}>
         <Field label="Tipo de actividad" required><select name="tipoActividad" required defaultValue="VACUNACION">{(Object.keys(TIPO_ACTIVIDAD_LABELS) as Array<keyof typeof TIPO_ACTIVIDAD_LABELS>).map((tipo) => <option key={tipo} value={tipo}>{TIPO_ACTIVIDAD_LABELS[tipo]}</option>)}</select></Field>
+        <Field label="Clasificación regulatoria" required hint="Por qué existe esta actividad en el plan"><select name="origenRegulatorio" required defaultValue=""><option value="" disabled>Selecciona…</option>{(Object.keys(ORIGEN_REGULATORIO_LABELS) as OrigenRegulatorio[]).map((origen) => <option key={origen} value={origen}>{ORIGEN_REGULATORIO_LABELS[origen]}</option>)}</select></Field>
         <Field label="Producto recomendado"><input name="productoRecomendadoTexto" maxLength={300} placeholder="Ej. BOVISAN 2 mL…" autoComplete="off" /></Field>
         <Field label="Categoría"><select name="categoriaAnimalId"><option value="">Todas</option>{catalogs?.categories.map((categoria) => <option key={categoria.id} value={categoria.id}>{categoria.nombre}</option>)}</select></Field>
         <Field label="Sexo aplicable"><select name="sexoAplicable"><option value="">Ambos</option><option value="MACHO">Macho</option><option value="HEMBRA">Hembra</option></select></Field>

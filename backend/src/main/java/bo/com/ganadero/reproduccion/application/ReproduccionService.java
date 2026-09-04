@@ -116,13 +116,35 @@ public class ReproduccionService {
         Instant fecha = validarFecha(command.fechaDeteccion());
         Animal animal = requireHembraActiva(user, command.animalId());
 
+        var cercanos = registros.celosDeAnimal(animal.id(), user.empresaId()).stream()
+                .filter(c -> c.estado() != EstadoRegistroReproduccion.ANULADO)
+                .filter(c -> java.time.Duration.between(c.fechaDeteccion(), fecha).abs().compareTo(java.time.Duration.ofDays(18)) < 0)
+                .toList();
+        if (command.agregarObservacionCeloId() != null) {
+            Celo existente = cercanos.stream().filter(c -> c.id().equals(command.agregarObservacionCeloId()))
+                    .filter(c -> java.time.Duration.between(c.fechaDeteccion(), fecha).abs().compareTo(java.time.Duration.ofHours(24)) < 0)
+                    .findFirst().orElseThrow(() -> new BusinessException(ErrorCode.REPRODUCCION_NOT_FOUND));
+            if (command.observaciones() == null || command.observaciones().isBlank())
+                throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Escribe la observación que deseas agregar al celo existente.");
+            registros.agregarObservacionCelo(existente.id(), "\nObservación adicional (" + fecha + "): " + command.observaciones().trim(), user.userId());
+            audit(user, "AGREGAR_OBSERVACION_CELO", existente.id());
+            return registros.findCeloById(existente.id(), user.empresaId()).orElseThrow();
+        }
+        if (!cercanos.isEmpty() && !command.confirmarIntervaloCorto())
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Ya existe un celo a menos de 18 días de esta detección. Revisa y confirma el intervalo corto.");
+        boolean posibleDuplicado = cercanos.stream().anyMatch(c -> java.time.Duration.between(c.fechaDeteccion(), fecha).abs().compareTo(java.time.Duration.ofHours(24)) < 0);
+        if (posibleDuplicado && (command.justificacion() == null || command.justificacion().isBlank()))
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Posible duplicado dentro de 24 horas. Justifica por qué es un celo separado o agrega una observación al existente.");
+        String observaciones = command.observaciones();
+        if (!cercanos.isEmpty()) observaciones = (observaciones == null ? "" : observaciones) + "\nIntervalo corto confirmado. " + (command.justificacion() == null ? "" : command.justificacion().trim());
+
         UUID property = comandoPropiedad(command.propiedadId(), animal);
         context.requirePropertyAccess(user, property);
 
         UUID id = command.id() != null ? command.id() : UUID.randomUUID();
         UUID clienteUuid = command.clienteUuid() != null ? command.clienteUuid() : id;
         Celo value = new Celo(id, user.empresaId(), command.animalId(), fecha,
-                command.tipoDeteccion(), command.intensidad(), user.userId(), command.observaciones(), property,
+                command.tipoDeteccion(), command.intensidad(), user.userId(), observaciones, property,
                 command.potreroId() != null ? command.potreroId() : animal.potreroActualId(),
                 command.loteId() != null ? command.loteId() : animal.loteActualId(),
                 clienteUuid, command.idempotencyKey(), EstadoRegistroReproduccion.ACTIVO, null, null, null,

@@ -5,6 +5,8 @@ export type EstadoLote = 'ACTIVO' | 'CERRADO'
 export type ModoIngreso = 'ATOMICO' | 'PARCIAL'
 
 export interface Lote {
+  cantidadMaxima?: number | null
+  cantidadActual: number
   id: string
   propiedadId: string
   codigo: string
@@ -18,6 +20,8 @@ export interface Lote {
 }
 
 export interface Membresia {
+  animalCodigo?: string
+  animalNombre?: string
   id: string
   loteId: string
   animalId: string
@@ -53,6 +57,7 @@ export interface RetiroMasivoResultado {
 }
 
 export interface CreateLoteInput {
+  cantidadMaxima?: number
   propiedadId: string
   codigo?: string
   nombre: string

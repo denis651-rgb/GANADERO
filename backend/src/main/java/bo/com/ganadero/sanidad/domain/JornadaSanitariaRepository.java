@@ -5,6 +5,7 @@ public interface JornadaSanitariaRepository {
  void reemplazarSeleccion(UUID jornada,UUID empresa,Collection<UUID> animales); List<UUID> seleccion(UUID jornada,UUID empresa);
  JornadaSanitaria iniciarConfirmacion(UUID id,UUID empresa,long version,UUID operationId,UUID actor);
  JornadaSanitaria confirmar(UUID id,UUID empresa,UUID actor); AplicacionSanitaria crearAplicacion(AplicacionSanitaria a,UUID actor);
+ Optional<AplicacionSanitaria> aplicacion(UUID id,UUID empresa);
  List<AplicacionSanitaria> aplicaciones(UUID jornada,UUID empresa);
  List<UUID> aplicacionesPrevias(UUID empresa,UUID animal,UUID planItem,UUID excluirAplicacion);
 }

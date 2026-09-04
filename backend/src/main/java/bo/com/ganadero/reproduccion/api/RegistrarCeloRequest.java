@@ -20,10 +20,11 @@ public record RegistrarCeloRequest(
         UUID potreroId,
         UUID loteId,
         UUID clienteUuid,
-        @Size(max = 200) String idempotencyKey) {
+        @Size(max = 200) String idempotencyKey,
+        boolean confirmarIntervaloCorto, @Size(max = 500) String justificacion, UUID agregarObservacionCeloId) {
 
     RegistrarCeloCommand command() {
         return new RegistrarCeloCommand(id, animalId, fechaDeteccion, tipoDeteccion, intensidad, observaciones,
-                propiedadId, potreroId, loteId, clienteUuid, idempotencyKey);
+                propiedadId, potreroId, loteId, clienteUuid, idempotencyKey, confirmarIntervaloCorto, justificacion, agregarObservacionCeloId);
     }
 }

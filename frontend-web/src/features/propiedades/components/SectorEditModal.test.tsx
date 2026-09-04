@@ -8,7 +8,7 @@ const sector = { id: 's-1', propiedadId: 'p-1', codigo: 'NORTE', nombre: 'Norte'
 describe('SectorEditModal', () => {
   it('envía los datos editados con la versión vigente', () => {
     const onSubmit = vi.fn()
-    render(<SectorEditModal sector={sector} online loading={false} error={null} onClose={vi.fn()} onSubmit={onSubmit} onReload={vi.fn()} />)
+    render(<SectorEditModal sector={sector} loading={false} error={null} onClose={vi.fn()} onSubmit={onSubmit} onReload={vi.fn()} />)
 
     fireEvent.change(screen.getByLabelText(/^Nombre/), { target: { value: 'Sector norte' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar sector' }))
@@ -20,7 +20,7 @@ describe('SectorEditModal', () => {
 
   it('bloquea el guardado y permite recargar ante un conflicto de versión', () => {
     const onReload = vi.fn()
-    render(<SectorEditModal sector={sector} online loading={false} error={new AppError('Conflicto', { code: 'VERSION_CONFLICT' })} onClose={vi.fn()} onSubmit={vi.fn()} onReload={onReload} />)
+    render(<SectorEditModal sector={sector} loading={false} error={new AppError('Conflicto', { code: 'VERSION_CONFLICT' })} onClose={vi.fn()} onSubmit={vi.fn()} onReload={onReload} />)
 
     expect(screen.getByRole('button', { name: 'Guardar sector' })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Recargar datos' }))

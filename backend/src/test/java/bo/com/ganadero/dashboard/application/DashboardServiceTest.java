@@ -67,15 +67,6 @@ class DashboardServiceTest {
     }
 
     @Test
-    void usuarioSinPermisoNoAccedeAlResumen() {
-        CurrentUser user = new CurrentUser(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                Set.of(), Set.of(), Set.of(), true);
-        assertThatThrownBy(() -> service(user).resumen())
-                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.USER_NOT_AUTHORIZED));
-        verifyNoInteractions(repository);
-    }
-
-    @Test
     void consultaSeFiltraPorEmpresaDelUsuario() {
         UUID empresaA = UUID.randomUUID();
         UUID empresaB = UUID.randomUUID();

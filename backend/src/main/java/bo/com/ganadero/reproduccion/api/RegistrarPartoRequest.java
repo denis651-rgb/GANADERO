@@ -6,8 +6,8 @@ public record RegistrarPartoRequest(@NotNull UUID madreId,UUID diagnosticoGestac
  @Size(max=1000) String observaciones,@NotEmpty List<@Valid CriaRequest> crias){
  public record CriaRequest(@NotNull SexoAnimal sexo,@Positive BigDecimal pesoNacimientoKg,@NotNull EstadoNacimiento estadoNacimiento,
   LocalTime horaNacimiento,@Size(max=1000) String observaciones,boolean crearAnimal,@Size(max=60) String codigoAnimal,
-  @Size(max=160) String nombreAnimal,UUID potreroInicialId){}
+  @Size(max=160) String nombreAnimal,UUID potreroInicialId,UUID razaPrincipalId){}
  RegistrarPartoCommand command(){return new RegistrarPartoCommand(madreId,diagnosticoGestacionId,servicioId,fechaParto,tipoParto,dificultad,
   asistido,responsableId,resultadoMadre,observaciones,crias.stream().map(c->new RegistrarPartoCommand.CriaCommand(c.sexo,c.pesoNacimientoKg,
-  c.estadoNacimiento,c.horaNacimiento,c.observaciones,c.crearAnimal,c.codigoAnimal,c.nombreAnimal,c.potreroInicialId)).toList());}
+  c.estadoNacimiento,c.horaNacimiento,c.observaciones,c.crearAnimal,c.codigoAnimal,c.nombreAnimal,c.potreroInicialId,c.razaPrincipalId)).toList());}
 }

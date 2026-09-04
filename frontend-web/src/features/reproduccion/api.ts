@@ -134,6 +134,7 @@ export interface CriaParto {
   clienteUuid?: string
   idempotencyKey?: string
   codigoAnimal?: string
+  razaPrincipalId?: string
   nombreAnimal?: string
   version: number
 }
@@ -242,6 +243,9 @@ export interface RegistrarDesteteInput {
 }
 
 export interface RegistrarCeloInput {
+  confirmarIntervaloCorto?: boolean
+  justificacion?: string
+  agregarObservacionCeloId?: string
   animalId: string
   fechaDeteccion: string
   tipoDeteccion: TipoCelo

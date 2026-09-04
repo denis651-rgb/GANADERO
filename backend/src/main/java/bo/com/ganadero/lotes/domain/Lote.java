@@ -13,5 +13,11 @@ public record Lote(
         EstadoLote estado,
         LocalDate fechaApertura,
         LocalDate fechaCierre,
-        long version) {
+        long version,
+        Integer cantidadMaxima,
+        long cantidadActual) {
+    public Lote(UUID id, UUID empresaId, UUID propiedadId, String codigo, String nombre,
+                String descripcion, EstadoLote estado, LocalDate fechaApertura, LocalDate fechaCierre, long version) {
+        this(id, empresaId, propiedadId, codigo, nombre, descripcion, estado, fechaApertura, fechaCierre, version, null, 0);
+    }
 }

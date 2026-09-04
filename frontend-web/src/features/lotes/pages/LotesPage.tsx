@@ -37,6 +37,7 @@ export function LotesPage() {
       return createLote({
         propiedadId: String(data.get('propiedadId')),
         nombre: String(data.get('nombre')),
+        cantidadMaxima: data.get('cantidadMaxima') ? Number(data.get('cantidadMaxima')) : undefined,
         descripcion: String(data.get('descripcion') ?? '') || undefined,
         fechaApertura: String(data.get('fechaApertura') ?? '') || undefined,
       })
@@ -50,10 +51,10 @@ export function LotesPage() {
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
     {showForm && <Card><form className="form-grid compact-form" onSubmit={(event) => { event.preventDefault(); create.mutate(event.currentTarget) }}>
       <Field label="Propiedad"><select name="propiedadId" required><option value="">Selecciona una propiedad…</option>{propiedades.data?.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
-      <Field label="Código" hint="Se asigna al guardar"><input value="Automático · LOT-AAAA-####" readOnly aria-label="Código automático de lote" /></Field>
       <Field label="Nombre"><input name="nombre" required maxLength={160} placeholder="Ej. Lote de engorde A" /></Field>
       <Field label="Descripción"><input name="descripcion" maxLength={1000} /></Field>
       <Field label="Fecha de apertura"><input name="fechaApertura" type="date" /></Field>
+      <Field label="Cantidad máxima de animales" hint="Opcional. Vacío significa sin límite; si lo configuras, no se podrá superar."><input name="cantidadMaxima" type="number" min="1" max="2147483647" step="1" /></Field>
       <div className="form-actions"><Button type="submit" loading={create.isPending}>Crear lote</Button></div>
     </form></Card>}
     <Card>
@@ -62,11 +63,12 @@ export function LotesPage() {
       {query.isPending && <TableSkeleton rows={7} columns={6} />}
       {query.data?.content.length === 0 && <EmptyState title="No hay lotes" description="Crea el primer lote para agrupar animales." />}
       {query.data && query.data.content.length > 0 && <>
-        <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Lotes que coinciden con los filtros</caption><thead><tr><th scope="col">Código</th><th scope="col">Nombre</th><th scope="col">Propiedad</th><th scope="col">Estado</th><th scope="col">Apertura</th><th scope="col">Cierre</th><th scope="col">Acciones</th></tr></thead><tbody>{query.data.content.map((lote) => <tr key={lote.id}>
+        <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Lotes que coinciden con los filtros</caption><thead><tr><th scope="col">Código</th><th scope="col">Nombre</th><th scope="col">Propiedad</th><th scope="col">Ocupación</th><th scope="col">Estado</th><th scope="col">Apertura</th><th scope="col">Cierre</th><th scope="col">Acciones</th></tr></thead><tbody>{query.data.content.map((lote) => <tr key={lote.id}>
           <td><strong>{lote.codigo}</strong></td><td>{lote.nombre}</td><td>{propiedades.data?.find((item) => item.id === lote.propiedadId)?.nombre ?? '—'}</td>
+          <td>{lote.cantidadActual ?? 0} / {lote.cantidadMaxima ?? 'Sin límite'} animales{lote.cantidadMaxima != null && <span className="table-secondary">{Math.max(0, lote.cantidadMaxima - lote.cantidadActual)} cupos disponibles</span>}</td>
           <td><span className="status-badge">{lote.estado}</span></td><td>{new Date(lote.fechaApertura).toLocaleDateString('es-BO')}</td><td>{lote.fechaCierre ? new Date(lote.fechaCierre).toLocaleDateString('es-BO') : '—'}</td>
           <td><Link className="button button-ghost" to={`/lotes/${lote.id}`} aria-label={`Ver lote ${lote.codigo}, ${lote.nombre}`}><Eye size={16} aria-hidden="true" />Ver</Link></td>
-        </tr>)}</tbody></table></div><div className="mobile-only"><div className="mobile-entity-list">{query.data.content.map((lote) => <MobileEntityCard key={lote.id} title={`${lote.codigo} · ${lote.nombre}`} status={<span className="status-badge">{lote.estado}</span>} subtitle={propiedades.data?.find((item) => item.id === lote.propiedadId)?.nombre ?? 'Propiedad no disponible'} metadata={<><span>Apertura: {new Date(lote.fechaApertura).toLocaleDateString('es-BO')}</span>{lote.fechaCierre && <span>Cierre: {new Date(lote.fechaCierre).toLocaleDateString('es-BO')}</span>}</>} action={<Link className="button button-ghost" to={`/lotes/${lote.id}`}>Ver lote →</Link>} />)}</div></div>
+        </tr>)}</tbody></table></div><div className="mobile-only"><div className="mobile-entity-list">{query.data.content.map((lote) => <MobileEntityCard key={lote.id} title={`${lote.codigo} · ${lote.nombre}`} status={<span className="status-badge">{lote.estado}</span>} subtitle={propiedades.data?.find((item) => item.id === lote.propiedadId)?.nombre ?? 'Propiedad no disponible'} metadata={<><span>{lote.cantidadActual ?? 0} / {lote.cantidadMaxima ?? 'Sin límite'} animales{lote.cantidadMaxima != null ? ` · ${Math.max(0, lote.cantidadMaxima - lote.cantidadActual)} cupos disponibles` : ''}</span><span>Apertura: {new Date(lote.fechaApertura).toLocaleDateString('es-BO')}</span>{lote.fechaCierre && <span>Cierre: {new Date(lote.fechaCierre).toLocaleDateString('es-BO')}</span>}</>} action={<Link className="button button-ghost" to={`/lotes/${lote.id}`}>Ver lote →</Link>} />)}</div></div>
         <div className="pagination"><span>Página {query.data.page + 1} de {Math.max(query.data.totalPages, 1)}</span><div><Button variant="ghost" disabled={page === 0 || query.isFetching} onClick={() => setPage((value) => value - 1)}><ChevronLeft size={17} />Anterior</Button><Button variant="ghost" disabled={page + 1 >= query.data.totalPages || query.isFetching} onClick={() => setPage((value) => value + 1)}>Siguiente<ChevronRight size={17} /></Button></div></div>
       </>}
     </Card>

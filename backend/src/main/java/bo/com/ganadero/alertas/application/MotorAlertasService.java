@@ -93,6 +93,10 @@ public class MotorAlertasService implements MotorAlertas {
                     animal + " tiene una vacunación prevista para el " + fechaTexto, severidadVacuna(metadata));
             case VACUNA_VENCIDA -> new Plantilla("Vacuna vencida",
                     "La vacunación de " + animal + " está vencida.", severidadVacuna(metadata));
+            case REVISION_SANITARIA_INGRESO -> new Plantilla(
+                    tituloRevisionIngreso(metadata),
+                    mensajeRevisionIngreso(metadata, animal),
+                    severidadRevisionIngreso(metadata));
             case TRATAMIENTO_PROXIMO -> new Plantilla("Tratamiento próximo",
                     "Existe una aplicación programada para " + fechaTexto, SeveridadAlerta.URGENTE);
             case TRATAMIENTO_ATRASADO -> new Plantilla("Tratamiento atrasado",
@@ -112,8 +116,10 @@ public class MotorAlertasService implements MotorAlertas {
                     severidad(metadata));
             case CUARENTENA_POR_FINALIZAR -> new Plantilla("Cuarentena por finalizar",
                     "La cuarentena finaliza el " + fechaTexto, SeveridadAlerta.WARNING);
-            case MOVIMIENTO_PENDIENTE -> new Plantilla("Movimiento pendiente",
-                    "Existe un movimiento ganadero que requiere seguimiento.", SeveridadAlerta.WARNING);
+            case MOVIMIENTO_PENDIENTE -> new Plantilla(
+                    String.valueOf(metadata.getOrDefault("tituloPersonalizado", "Movimiento pendiente")),
+                    String.valueOf(metadata.getOrDefault("mensajePersonalizado", "Existe un movimiento ganadero que requiere seguimiento.")),
+                    SeveridadAlerta.WARNING);
             case INVENTARIO_BAJO -> new Plantilla("Inventario bajo",
                     "Un insumo alcanzó el nivel mínimo configurado.", SeveridadAlerta.WARNING);
             case SISTEMA_REQUIERE_ATENCION -> new Plantilla("Sistema requiere atención",
@@ -134,6 +140,31 @@ public class MotorAlertasService implements MotorAlertas {
         return SeveridadAlerta.INFO;
     }
 
+    /**
+     * REVISION_SANITARIA_INGRESO (docs/backend/PLAN_SANITARIO_SANTA_CRUZ.md, sección 3.3b):
+     * un animal comprado sin historial declarado no es lo mismo si su edad estimada cae
+     * dentro de la ventana de la actividad (tarea sanitaria normal, con incertidumbre sobre
+     * si ya se hizo) que si ya la superó (tarea de trazabilidad/compliance de la compra).
+     */
+    private boolean dentroDeVentana(Map<String, Object> metadata) {
+        return Boolean.parseBoolean(String.valueOf(metadata.getOrDefault("dentroDeVentana", true)));
+    }
+
+    private String tituloRevisionIngreso(Map<String, Object> metadata) {
+        return dentroDeVentana(metadata) ? "Revisar/aplicar actividad sanitaria" : "Verificar estatus sanitario al ingreso";
+    }
+
+    private String mensajeRevisionIngreso(Map<String, Object> metadata, String animal) {
+        String actividad = String.valueOf(metadata.getOrDefault("actividad", "la actividad"));
+        return dentroDeVentana(metadata)
+                ? animal + " fue comprado sin historial declarado de " + actividad + " — dentro de la ventana de aplicación."
+                : animal + " superó la ventana de " + actividad + " sin historial verificable — confirmar antes de incorporar al hato.";
+    }
+
+    private SeveridadAlerta severidadRevisionIngreso(Map<String, Object> metadata) {
+        return dentroDeVentana(metadata) ? SeveridadAlerta.WARNING : SeveridadAlerta.URGENTE;
+    }
+
     private SeveridadAlerta severidad(Map<String, Object> metadata) {
         try { return SeveridadAlerta.valueOf(String.valueOf(metadata.getOrDefault("severidad", "WARNING"))); }
         catch (IllegalArgumentException ignored) { return SeveridadAlerta.WARNING; }
@@ -151,7 +182,7 @@ public class MotorAlertasService implements MotorAlertas {
         Object referencia = metadata.get("eventoReferencia");
         String evento = referencia == null || referencia.toString().isBlank()
                 ? command.origenId().toString() : referencia.toString().trim().toUpperCase();
-        return String.join("|", command.empresaId().toString(), command.tipo().name(),
+        return String.join("|", String.valueOf(command.empresaId()), command.tipo().name(),
                 command.origenTipo().trim().toUpperCase(), command.origenId().toString(), evento);
     }
 

@@ -1,42 +1,11 @@
-# Módulos preparados
+# Módulos del frontend
 
-## Fase 1
+Cada carpeta en `frontend-web/src/features/` corresponde a un módulo del backend:
 
-- Empresa y configuración.
-- Usuarios.
-- Roles y permisos.
-- Propiedades.
-- Potreros.
-- Animales.
-- Lotes ganaderos.
-- Movimientos.
-- Auditoría.
+- `propiedades` (configuración de la finca), `potreros`, `animales`, `lotes`, `movimientos`,
+  `auditoria`, `pesajes`, `reproduccion`, `sanidad`, `alertas`, `ventas`, `reportes`.
+- `alimentacion`: en desarrollo.
+- `dashboard`: panel principal.
 
-## Fase 2
-
-- Pesajes.
-- PWA de campo.
-- QR.
-- IndexedDB.
-- Sincronización y conflictos.
-
-## Fase 3
-
-- Reproducción.
-- Sanidad.
-- Alertas.
-
-## Fase 4
-
-- Inventario.
-- Alimentación.
-
-## Fase 5
-
-- Compras y ventas.
-- Finanzas.
-
-## Fase 6
-
-- Reportes avanzados.
-- React Native, RFID y básculas.
+No hay módulos de `usuarios`, `roles`, `invitaciones`, `empresa` ni `inventario`: no
+aplican a una app de escritorio de un solo usuario local.

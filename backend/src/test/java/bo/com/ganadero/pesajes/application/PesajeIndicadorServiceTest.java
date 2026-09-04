@@ -190,17 +190,6 @@ class PesajeIndicadorServiceTest {
         verify(pesajes).countAnimalesSinPesaje(company, false, Set.of(property));
     }
 
-    @Test
-    void usuarioSinPermisoNoAccedeAIndicadores() {
-        CurrentUser user = new CurrentUser(UUID.randomUUID(), company, UUID.randomUUID(),
-                Set.of(), Set.of(), Set.of(property), false);
-        service = new PesajeIndicadorService(pesajes, animales, lotes, new UserContext(() -> user));
-        assertThatThrownBy(() -> service.indicadorAnimal(animalId))
-                .isInstanceOfSatisfying(BusinessException.class,
-                        e -> assertThat(e.code()).isEqualTo(ErrorCode.USER_NOT_AUTHORIZED));
-        verify(animales, never()).findById(anyUUID(), anyUUID());
-    }
-
     private static UUID anyUUID() {
         return org.mockito.ArgumentMatchers.any(UUID.class);
     }

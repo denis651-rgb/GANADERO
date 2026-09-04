@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AnimalSearchSelect } from './AnimalSearchSelect'
 import { useMutation } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useAuth } from '@/auth/auth-context'
@@ -19,6 +20,8 @@ import { Field } from '@/shared/components/Field'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { Modal } from '@/shared/components/Modal'
 import { normalizeApiError } from '@/shared/api/errors'
+import { formatDate } from '@/shared/utils/date'
+import './PartosPanel.css'
 
 interface DestetesPanelProps {
   destetes: PageResponse<Destete>
@@ -52,37 +55,36 @@ export function DestetesPanel({ destetes, isLoading, error, catalogs, refresh }:
 
   const errorVisible = error ?? crear.error
 
-  return <div className="page-stack">
+  return <div className="page-stack ciclo-panel">
     {errorVisible && <Alert tone="danger">{normalizeApiError(errorVisible).message}</Alert>}
     <Card>
-      <div className="inline-actions" style={{ justifyContent: 'space-between', width: '100%' }}>
+      <div className="partos-heading">
         <h2>Destetes</h2>
         {canRegistrar && <Button onClick={() => setShowForm(true)} disabled={!catalogs}><Plus size={18} aria-hidden="true" />Registrar destete</Button>}
       </div>
       {isLoading && <LoadingState message="Cargando destetes…" />}
       {!isLoading && destetes.content.length === 0 && <EmptyState title="No hay destetes registrados" description="Registra el primer destete para controlar el peso de las crías." />}
       {destetes.content.length > 0 && <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Destetes</caption><thead><tr><th scope="col">Cría</th><th scope="col">Madre</th><th scope="col">Fecha</th><th scope="col">Peso (kg)</th><th scope="col">Tipo</th><th scope="col">Estado</th></tr></thead><tbody>{destetes.content.map((destete) => <tr key={destete.id}>
-        <td><strong>{destete.codigoAnimal}</strong>{destete.nombreAnimal ? ` · ${destete.nombreAnimal}` : ''}</td>
-        <td className="table-secondary">{catalogs?.animalLabel(destete.madreId)}</td>
-        <td>{new Date(destete.fechaDestete).toLocaleDateString('es-BO')}</td>
-        <td className="table-secondary">{destete.pesoDesteteKg}</td>
-        <td className="table-secondary">{TIPO_DESTETE_LABELS[destete.tipoDestete]}</td>
+        <td><strong className="parto-madre">{destete.nombreAnimal || destete.codigoAnimal || 'Sin nombre'}</strong>{destete.nombreAnimal && destete.codigoAnimal && <span className="table-secondary">{destete.codigoAnimal}</span>}</td>
+        <td><strong className="parto-madre">{catalogs?.animales.find((animal) => animal.id === destete.madreId)?.nombre || 'Madre sin nombre disponible'}</strong><span className="table-secondary">{catalogs?.animales.find((animal) => animal.id === destete.madreId)?.codigo}</span></td>
+        <td>{formatDate(destete.fechaDestete)}</td>
+        <td>{destete.pesoDesteteKg ?? 'Sin registro'}</td>
+        <td>{TIPO_DESTETE_LABELS[destete.tipoDestete]}</td>
         <td><span className={`status-badge status-badge-${estadoRegistroBadge(destete.estado)}`}>{ESTADO_REGISTRO_LABELS[destete.estado]}</span></td>
       </tr>)}</tbody></table></div>}
       {destetes.content.length > 0 && <div className="mobile-only">{destetes.content.map((destete) => <div key={destete.id} className="mobile-entity-card">
-        <div><strong>{destete.codigoAnimal}</strong><p className="muted">{new Date(destete.fechaDestete).toLocaleDateString('es-BO')} · {TIPO_DESTETE_LABELS[destete.tipoDestete]}</p><p className="muted">{destete.pesoDesteteKg} kg · {ESTADO_REGISTRO_LABELS[destete.estado]}</p></div>
+        <div><strong className="parto-madre">{destete.nombreAnimal || destete.codigoAnimal || 'Sin nombre'}</strong>{destete.nombreAnimal && destete.codigoAnimal && <span className="table-secondary">{destete.codigoAnimal}</span>}<p className="muted">Madre: {catalogs?.animales.find((animal) => animal.id === destete.madreId)?.nombre || catalogs?.animales.find((animal) => animal.id === destete.madreId)?.codigo || 'Sin información'}</p><p className="muted">{formatDate(destete.fechaDestete)} · {TIPO_DESTETE_LABELS[destete.tipoDestete]}</p><p className="muted">{destete.pesoDesteteKg != null ? `${destete.pesoDesteteKg} kg` : 'Peso sin registro'}</p><span className={`status-badge status-badge-${estadoRegistroBadge(destete.estado)}`}>{ESTADO_REGISTRO_LABELS[destete.estado]}</span></div>
       </div>)}</div>}
     </Card>
 
     <Modal open={showForm} title="Registrar destete" onClose={() => setShowForm(false)} description="Registra el destete de una cría.">
       <form className="form-grid" onSubmit={(event) => { event.preventDefault(); crear.mutate(event.currentTarget) }}>
-        <Field label="Cría" required><select name="animalCriaId" required><option value="">Selecciona…</option>{catalogs?.animales.map((animal) => <option key={animal.id} value={animal.id}>{animal.nombre ? `${animal.codigo} · ${animal.nombre}` : animal.codigo}</option>)}</select></Field>
-        <Field label="Madre" required><select name="madreId" required><option value="">Selecciona…</option>{catalogs?.hembras.map((animal) => <option key={animal.id} value={animal.id}>{animal.nombre ? `${animal.codigo} · ${animal.nombre}` : animal.codigo}</option>)}</select></Field>
+        <AnimalSearchSelect label="Cría" name="animalCriaId" />
+        <AnimalSearchSelect label="Madre" name="madreId" sexo="HEMBRA" />
         <Field label="Fecha del destete" required><input name="fechaDestete" type="date" required /></Field>
         <Field label="Peso al destete (kg)" required><input name="pesoDesteteKg" type="number" inputMode="decimal" min="0.01" step="0.01" required /></Field>
         <Field label="Tipo de destete" required><select name="tipoDestete" required><option value="" disabled>Selecciona…</option>{Object.entries(TIPO_DESTETE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
         <Field label="Motivo"><input name="motivo" maxLength={500} /></Field>
-        <Field label="Responsable"><select name="responsableId"><option value="">Sin responsable</option>{catalogs?.users.map((user) => <option key={user.id} value={user.usuarioId}>{user.nombres} {user.apellidos}</option>)}</select></Field>
         <div className="form-full"><Field label="Observaciones"><textarea name="observaciones" rows={2} maxLength={1000} /></Field></div>
         <div className="form-actions"><Button type="submit" loading={crear.isPending}>Registrar destete</Button></div>
       </form>

@@ -2,7 +2,6 @@ import { Outlet } from 'react-router'
 import { Sidebar } from '@/app/layout/Sidebar'
 import { Header } from '@/app/layout/Header'
 import { MobileNav } from '@/app/layout/MobileNav'
-import { OfflinePreparationNotice } from '@/offline/components/OfflinePreparationNotice'
 
 export function AppShell() {
   return (
@@ -12,7 +11,6 @@ export function AppShell() {
       <div className="app-main">
         <Header />
         <main id="main-content" className="page-container" tabIndex={-1}>
-          <OfflinePreparationNotice />
           <Outlet />
         </main>
       </div>

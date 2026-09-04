@@ -7,6 +7,7 @@ import {
   crearCaso,
   ESTADO_CASO_LABELS,
   listEnfermedades,
+  SEVERIDAD_BADGE_CLASS,
   SEVERIDAD_LABELS,
   type CasoClinico,
   type CrearCasoInput,
@@ -79,7 +80,7 @@ export function CasosPanel({ casos, isLoading, error, catalogs, refresh }: Casos
         <td>{new Date(caso.fechaInicio).toLocaleDateString('es-BO')}</td>
         <td className="table-secondary">{caso.sintomas}</td>
         <td>{enfermedades.data?.find((item) => item.id === caso.enfermedadId)?.nombre ?? '—'}</td>
-        <td><span className={`status-badge status-badge-${caso.severidad === 'CRITICA' ? 'danger' : caso.severidad === 'GRAVE' ? 'warning' : 'pending'}`}>{SEVERIDAD_LABELS[caso.severidad]}</span></td>
+        <td><span className={`status-badge ${SEVERIDAD_BADGE_CLASS[caso.severidad]}`}>{SEVERIDAD_LABELS[caso.severidad]}</span></td>
         <td><span className="status-badge">{ESTADO_CASO_LABELS[caso.estado]}</span></td>
         <td>{!['CERRADO', 'ANULADO'].includes(caso.estado) && <Button variant="ghost" onClick={() => setCerrando(caso)}>Cerrar caso</Button>}</td>
       </tr>)}</tbody></table></div>}
@@ -95,7 +96,6 @@ export function CasosPanel({ casos, isLoading, error, catalogs, refresh }: Casos
         <Field label="Fecha de inicio" required><input name="fechaInicio" type="date" required /></Field>
         <Field label="Enfermedad"><select name="enfermedadId"><option value="">Sin identificar</option>{enfermedades.data?.map((enfermedad) => <option key={enfermedad.id} value={enfermedad.id}>{enfermedad.nombre}</option>)}</select></Field>
         <Field label="Severidad" required><select name="severidad" required defaultValue="LEVE">{(Object.keys(SEVERIDAD_LABELS) as SeveridadCaso[]).map((severidad) => <option key={severidad} value={severidad}>{SEVERIDAD_LABELS[severidad]}</option>)}</select></Field>
-        <Field label="Veterinario"><select name="veterinarioId"><option value="">Sin veterinario</option>{catalogs?.users.map((user) => <option key={user.id} value={user.usuarioId}>{user.nombres} {user.apellidos}</option>)}</select></Field>
         <div className="form-full"><Field label="Síntomas" required><textarea name="sintomas" required rows={3} maxLength={2000} placeholder="Describe los síntomas observados…" /></Field></div>
         <div className="form-full"><Field label="Diagnóstico"><textarea name="diagnosticoTexto" rows={3} maxLength={2000} /></Field></div>
         <div className="form-full"><Field label="Observaciones"><textarea name="observaciones" rows={3} maxLength={1000} /></Field></div>

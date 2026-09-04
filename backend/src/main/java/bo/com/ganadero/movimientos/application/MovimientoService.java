@@ -17,6 +17,7 @@ import bo.com.ganadero.shared.security.UserContext;
 import bo.com.ganadero.timeline.application.RegistrarEventoTimeline;
 import bo.com.ganadero.timeline.application.TimelineEventPublisher;
 import bo.com.ganadero.timeline.domain.TipoEventoAnimal;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,23 +45,30 @@ public class MovimientoService {
     private final UserContext context;
     private final ApplicationEventPublisher events;
     private final TimelineEventPublisher timeline;
+    private final ObjectProvider<EstadoSanitarioIngresoPort> estadoSanitario;
     private ObjectProvider<MotorAlertas> alertas;
 
+    @Value("${ganadero.sanidad.cuarentena-requiere-prueba:true}")
+    private boolean cuarentenaRequierePrueba = true;
+
     public MovimientoService(MovimientoRepository movimientos, AnimalRepository animales, LoteRepository lotes,
-                             UserContext context, ApplicationEventPublisher events, TimelineEventPublisher timeline) {
+                             UserContext context, ApplicationEventPublisher events, TimelineEventPublisher timeline,
+                             ObjectProvider<EstadoSanitarioIngresoPort> estadoSanitario) {
         this.movimientos = movimientos;
         this.animales = animales;
         this.lotes = lotes;
         this.context = context;
         this.events = events;
         this.timeline = timeline;
+        this.estadoSanitario = estadoSanitario;
     }
 
     @Autowired
     public MovimientoService(MovimientoRepository movimientos, AnimalRepository animales, LoteRepository lotes,
                              UserContext context, ApplicationEventPublisher events, TimelineEventPublisher timeline,
+                             ObjectProvider<EstadoSanitarioIngresoPort> estadoSanitario,
                              ObjectProvider<MotorAlertas> alertas) {
-        this(movimientos, animales, lotes, context, events, timeline);
+        this(movimientos, animales, lotes, context, events, timeline, estadoSanitario);
         this.alertas = alertas;
     }
 
@@ -168,6 +176,7 @@ public class MovimientoService {
         movimientos.saveDetalleUbicaciones(id, snapshots);
         Movimiento saved = movimientos.confirm(id, user.empresaId(), version, user.userId());
         resolverAlertasMovimiento(user, detalles);
+        if (saved.tipo() == TipoMovimiento.INGRESO_COMPRA) recordarCuarentena(user, saved);
         audit(user, "CONFIRMAR", saved.id());
         return saved;
     }
@@ -264,6 +273,16 @@ public class MovimientoService {
                 throw new BusinessException(ErrorCode.INVALID_MOVEMENT_DESTINATION,
                         "El potrero de destino debe ser distinto del origen.");
             }
+            if (movimiento.tipo() == TipoMovimiento.RETORNO_CUARENTENA && cuarentenaRequierePrueba) {
+                // Fail-closed a propósito (docs/backend/PLAN_SANITARIO_SANTA_CRUZ.md, sección 7):
+                // si el puerto no está disponible, no se asume que está todo bien — se bloquea
+                // igual que si la prueba no existiera, porque es un control de trazabilidad de
+                // la compra, no un enriquecimiento opcional.
+                EstadoSanitarioIngresoPort puerto = estadoSanitario == null ? null : estadoSanitario.getIfAvailable();
+                boolean tienePrueba = puerto != null
+                        && puerto.tienePruebaDiagnosticaDesde(user.empresaId(), animal.id(), animal.fechaIngreso());
+                if (!tienePrueba) throw new BusinessException(ErrorCode.MOVEMENT_CUARENTENA_SIN_PRUEBA_DIAGNOSTICA);
+            }
             return ValidacionAnimalResult.valid(animal);
         } catch (BusinessException ex) {
             return ValidacionAnimalResult.invalid(detalle.animalId(), ex.code(), ex.getMessage());
@@ -355,6 +374,9 @@ public class MovimientoService {
     private Ubicacion destinoEfectivo(CurrentUser user, Animal animal, Movimiento movimiento) {
         UUID property = movimiento.destinoPropiedadId() != null ? movimiento.destinoPropiedadId() : animal.propiedadActualId();
         UUID paddock = movimiento.destinoPotreroId() != null ? movimiento.destinoPotreroId() : animal.potreroActualId();
+        if (movimiento.tipo() == TipoMovimiento.SALIDA_VENTA) {
+            return new Ubicacion(property, paddock, null);
+        }
         boolean cambiaPropiedad = !Objects.equals(property, animal.propiedadActualId());
         UUID lote = cambiaPropiedad ? null : animal.loteActualId();
         if (movimiento.destinoPotreroId() != null
@@ -379,7 +401,7 @@ public class MovimientoService {
     private void applyMovimiento(CurrentUser user, Animal animal, Movimiento movimiento) {
         Ubicacion destino = destinoEfectivo(user, animal, movimiento);
         boolean cambiaLote = !Objects.equals(destino.lote(), animal.loteActualId());
-        if (cambiaLote) {
+        if (cambiaLote || movimiento.tipo() == TipoMovimiento.SALIDA_VENTA) {
             lotes.findActiveLotOfAnimal(animal.id(), user.empresaId()).ifPresent(oldLote -> {
                 if (!oldLote.id().equals(destino.lote())) {
                     lotes.closeMembership(oldLote.id(), null, animal.id(), user.empresaId(),
@@ -454,6 +476,25 @@ public class MovimientoService {
             motor.programar(new ProgramarAlertaCommand(user.empresaId(), animal.id(),
                     TipoAlerta.MOVIMIENTO_PENDIENTE, fecha, "MOVIMIENTO_DETALLE", detalle.id(), metadata));
         }
+    }
+
+    /**
+     * Recordatorio, no automatismo (docs/backend/PLAN_SANITARIO_SANTA_CRUZ.md, sección 7):
+     * al confirmar una compra, sugiere enviar el lote a cuarentena y registrar la prueba
+     * diagnóstica — no crea el movimiento de CUARENTENA solo, porque no queremos reubicar
+     * animales sin que el usuario lo confirme explícitamente. Usa origenTipo propio (no
+     * "MOVIMIENTO_DETALLE") para no pisar el recordatorio genérico de pendientes que ya
+     * resolvió resolverAlertasMovimiento() unas líneas arriba.
+     */
+    private void recordarCuarentena(CurrentUser user, Movimiento movimiento) {
+        MotorAlertas motor = alertas == null ? null : alertas.getIfAvailable();
+        if (motor == null) return;
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("tituloPersonalizado", "Sugerencia: enviar el lote a cuarentena");
+        metadata.put("mensajePersonalizado", "El lote recién ingresado por compra puede enviarse a cuarentena y, "
+                + "si corresponde, registrar una prueba diagnóstica antes de incorporarlo al hato.");
+        motor.programar(new ProgramarAlertaCommand(user.empresaId(), null, TipoAlerta.MOVIMIENTO_PENDIENTE,
+                Instant.now(), "INGRESO_COMPRA_CUARENTENA", movimiento.id(), metadata));
     }
 
     private void resolverAlertasMovimiento(CurrentUser user, List<MovimientoDetalle> detalles) {

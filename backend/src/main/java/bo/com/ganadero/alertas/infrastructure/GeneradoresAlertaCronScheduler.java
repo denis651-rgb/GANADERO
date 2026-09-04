@@ -3,6 +3,7 @@ package bo.com.ganadero.alertas.infrastructure;
 import bo.com.ganadero.pesajes.application.ProcesarPesajesAtrasadosService;
 import bo.com.ganadero.sanidad.application.ProcesarAlertasVacunacionService;
 import bo.com.ganadero.sanidad.application.ProcesarTratamientosVencidosService;
+import bo.com.ganadero.sanidad.application.ProyectarCalendarioSanitarioService;
 import bo.com.ganadero.alertas.application.RecordatorioService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -17,18 +18,24 @@ public class GeneradoresAlertaCronScheduler {
     private final ProcesarTratamientosVencidosService tratamientos;
     private final ProcesarPesajesAtrasadosService pesajes;
     private final RecordatorioService recordatorios;
+    private final ProyectarCalendarioSanitarioService calendario;
 
     public GeneradoresAlertaCronScheduler(ProcesarAlertasVacunacionService vacunacion,
                                           ProcesarTratamientosVencidosService tratamientos,
-                                          ProcesarPesajesAtrasadosService pesajes, RecordatorioService recordatorios) {
+                                          ProcesarPesajesAtrasadosService pesajes, RecordatorioService recordatorios,
+                                          ProyectarCalendarioSanitarioService calendario) {
         this.vacunacion = vacunacion;
         this.tratamientos = tratamientos;
         this.pesajes = pesajes;
         this.recordatorios = recordatorios;
+        this.calendario = calendario;
     }
 
     @Scheduled(cron = "${ganadero.sanidad.cron-alertas-vacunacion:0 5 0 * * *}")
     public int generarVacunacion() { return vacunacion.procesar(); }
+
+    @Scheduled(cron = "${ganadero.sanidad.cron-calendario-proyectado:0 10 0 * * *}")
+    public int generarCalendarioProyectado() { return calendario.procesar(); }
 
     @Scheduled(cron = "${ganadero.sanidad.cron-tratamientos-vencidos:0 */15 * * * *}")
     public int generarTratamientosVencidos() { return tratamientos.procesar(); }

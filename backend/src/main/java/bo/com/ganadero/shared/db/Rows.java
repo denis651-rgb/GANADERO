@@ -20,6 +20,11 @@ public final class Rows {
         return raw == null ? null : UUID.fromString(raw);
     }
 
+    public static Integer intOrNull(ResultSet rs, String column) throws SQLException {
+        int value = rs.getInt(column);
+        return rs.wasNull() ? null : value;
+    }
+
     public static LocalDate localDate(ResultSet rs, String column) throws SQLException {
         String raw = rs.getString(column);
         return raw == null ? null : LocalDate.parse(raw);

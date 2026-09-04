@@ -1,0 +1,19 @@
+.partos-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.partos-heading h2 { margin: 0; }
+:is(.partos-panel, .ciclo-panel) .table-wrapper table { min-width: 720px; }
+:is(.partos-panel, .ciclo-panel) th { background: #f5f8f5; }
+:is(.partos-panel, .ciclo-panel) :is(th, td) { padding: 16px 12px; vertical-align: middle; overflow-wrap: anywhere; }
+:is(.partos-panel, .ciclo-panel) td:first-child { min-width: 180px; }
+:is(.partos-panel, .ciclo-panel) tbody tr:hover { background: #f8fbf8; }
+.parto-madre { display: block; font-size: 1rem; line-height: 1.4; }
+:is(.partos-panel, .ciclo-panel) .table-secondary { margin-top: 4px; }
+@media (max-width: 600px) {
+  .partos-heading > button { width: 100%; justify-content: center; }
+}

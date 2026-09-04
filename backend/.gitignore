@@ -17,6 +17,9 @@ target/
 .env
 *.local
 
+### Datos locales de escritorio (SQLite + media) ###
+/data/
+
 ### OS ###
 .DS_Store
 Thumbs.db

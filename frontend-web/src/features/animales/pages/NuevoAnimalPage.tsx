@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { todayInBolivia } from '@/shared/utils/date'
 import { useNavigate } from 'react-router'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useWatch } from 'react-hook-form'
@@ -10,9 +11,6 @@ import { listPropiedades } from '@/features/propiedades/api'
 import { listPotreros } from '@/features/potreros/api'
 import type { AnimalSummary, CreateAnimalInput } from '@/features/animales/types'
 import type { Page } from '@/shared/api/types'
-import { queueSyncOperation } from '@/offline/operationQueue'
-import { offlineFormCatalogs } from '@/offline/catalogs'
-import { createUuid } from '@/shared/utils/uuid'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
 import { Field } from '@/shared/components/Field'
@@ -26,19 +24,21 @@ export function NuevoAnimalPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [message, setMessage] = useState<{ tone: 'success' | 'info' | 'danger'; text: string } | null>(null)
-  const { register, handleSubmit, control, reset, formState: { errors, isSubmitting, isDirty } } = useForm<CreateAnimalInput>({
+  const { register, handleSubmit, control, formState: { errors, isSubmitting, isDirty } } = useForm<CreateAnimalInput>({
     resolver: zodResolver(createAnimalSchema),
     shouldFocusError: true,
     defaultValues: {
       sexo: 'HEMBRA',
       proposito: 'CARNE',
       origen: 'NACIDO',
+      fechaIngreso: todayInBolivia(),
+      pesoIngresoEstimado: true,
     },
   })
-  const unsaved = useUnsavedChanges(isDirty)
+  const [tipoNacimiento, setTipoNacimiento] = useState('DESCONOCIDA')
+  const unsaved = useUnsavedChanges(isDirty || tipoNacimiento !== 'DESCONOCIDA')
   const propertyId = useWatch({ control, name: 'propiedadActualId' })
   const catalogs = useQuery({ queryKey: ['animal-form-catalogs'], queryFn: async () => {
-    if (!navigator.onLine) return offlineFormCatalogs()
     const [breeds, categories, properties, paddocks] = await Promise.all([listRazas(), listCategorias(), listPropiedades(), listPotreros()])
     return { breeds, categories, properties, paddocks }
   } })
@@ -46,19 +46,15 @@ export function NuevoAnimalPage() {
   async function submit(values: CreateAnimalInput) {
     setMessage(null)
     try {
-      if (!navigator.onLine) {
-        const id = createUuid()
-        await queueSyncOperation({
-          tipo: 'ANIMAL_CREAR',
-          entidad: 'ANIMAL',
-          idempotencyKey: id,
-          datos: { ...values, id },
-        })
-        setMessage({ tone: 'info', text: 'Animal guardado en el dispositivo. Quedó pendiente de sincronización.' })
-        reset()
+      if (tipoNacimiento !== 'DESCONOCIDA' && !values.fechaNacimiento) {
+        setMessage({ tone: 'danger', text: 'Indica la fecha de nacimiento o selecciona Desconocido.' })
         return
       }
-      const created = await createAnimal(values)
+      const created = await createAnimal({ ...values,
+        fechaNacimiento: tipoNacimiento === 'DESCONOCIDA' ? undefined : values.fechaNacimiento,
+        fechaNacimientoEstimada: tipoNacimiento === 'ESTIMADA',
+        pesoIngresoEstimado: values.pesoIngresoKg != null ? values.pesoIngresoEstimado : undefined,
+      })
       queryClient.setQueriesData<Page<AnimalSummary>>({ queryKey: ['animals'] }, (current) => current ? {
         ...current,
         content: [created, ...current.content.filter((animal) => animal.id !== created.id)].slice(0, current.size),
@@ -89,21 +85,16 @@ export function NuevoAnimalPage() {
       <Card>
         <form className="form-grid" onSubmit={handleSubmit(submit)} noValidate>
           {message && <div className="form-full"><Alert tone={message.tone}>{message.text}</Alert></div>}
-          {!navigator.onLine && catalogs.data && (!catalogs.data.breeds.length || !catalogs.data.categories.length || !catalogs.data.properties.length) && (
-            <div className="form-full"><Alert tone="info" title="Faltan datos para registrar animales sin conexión">Este dispositivo no descargó los catálogos necesarios. Conéctalo a internet y utiliza “Preparar datos offline” en Sincronización.</Alert></div>
-          )}
           <div className="form-section-title form-full"><h2>Información básica</h2></div>
-          <Field label="Código interno" hint="Se asigna al guardar">
-            <input value="Automático · ANI-######" readOnly aria-label="Código interno automático" />
-          </Field>
           <Field label="Nombre opcional" error={errors.nombre?.message}>
             <input {...register('nombre')} placeholder="Lucera" />
           </Field>
           <Field label="Sexo" error={errors.sexo?.message}>
             <select {...register('sexo')}><option value="HEMBRA">Hembra</option><option value="MACHO">Macho</option></select>
           </Field>
+          <Field label="Nacimiento"><select value={tipoNacimiento} onChange={(event) => setTipoNacimiento(event.target.value)}><option value="DESCONOCIDA">Desconocido</option><option value="ESTIMADA">Fecha estimada</option><option value="CONOCIDA">Fecha conocida</option></select></Field>
           <Field label="Fecha de nacimiento" error={errors.fechaNacimiento?.message}>
-            <input type="date" {...register('fechaNacimiento')} />
+            <input type="date" max={todayInBolivia()} disabled={tipoNacimiento === 'DESCONOCIDA'} {...register('fechaNacimiento')} />
           </Field>
           <div className="form-section-title form-full"><h2>Clasificación</h2></div>
           <Field label="Propósito" error={errors.proposito?.message}>
@@ -128,6 +119,9 @@ export function NuevoAnimalPage() {
             <select {...register('potreroActualId')}><option value="">Selecciona…</option>{catalogs.data?.paddocks.filter((item) => item.activo && item.propiedadId === propertyId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
           </Field>
           <div className="form-section-title form-full"><h2>Información adicional</h2></div>
+          <Field label="Fecha de ingreso"><input type="date" max={todayInBolivia()} {...register('fechaIngreso')} /></Field>
+          <Field label="Peso al ingreso (kg)" hint="No corresponde al peso al nacer." error={errors.pesoIngresoKg?.message}><input type="number" min="0.001" step="0.001" {...register('pesoIngresoKg', { setValueAs: (value) => value === '' ? undefined : Number(value) })} /></Field>
+          <Field label="Tipo de peso al ingreso"><select {...register('pesoIngresoEstimado', { setValueAs: (value) => value === true || value === 'true' })}><option value="true">Estimado</option><option value="false">Medido</option></select></Field>
           <div className="form-full">
             <Field label="Observaciones" error={errors.observaciones?.message}>
               <textarea rows={4} {...register('observaciones')} />

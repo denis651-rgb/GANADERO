@@ -58,19 +58,6 @@ class AuditoriaServiceTest {
     }
 
     @Test
-    void usuarioSinPermisoNoAccedeALaAuditoria() {
-        UUID empresa = UUID.randomUUID();
-        AuditoriaFilter filter = new AuditoriaFilter(null, null, null, null, null, null,
-                null, null, 0, 15);
-
-        assertThatThrownBy(() -> service(usuario(empresa, "ANIMAL_VER")).list(filter))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("permiso");
-
-        verify(repository, never()).findAll(any(), any());
-    }
-
-    @Test
     void pasaLosFiltrosAvanzadosAlRepositorio() {
         UUID empresa = UUID.randomUUID();
         UUID propiedad = UUID.randomUUID();

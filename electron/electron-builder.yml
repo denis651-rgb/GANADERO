@@ -1,0 +1,32 @@
+appId: bo.com.ganadero.desktop
+productName: Ganadero
+copyright: Copyright © Ganadero
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - package.json
+
+extraResources:
+  - from: ../frontend-web/dist
+    to: frontend
+  - from: ../backend/target/ganadero-backend-0.0.1-SNAPSHOT.jar
+    to: backend/ganadero-backend.jar
+  - from: runtime
+    to: jre
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

@@ -26,11 +26,13 @@ public class ReproduccionCicloService {
  private final PesajeRepository pesajes; private final UserContext context; private final TimelineEventPublisher timeline;
  private final ApplicationEventPublisher events; private final ObjectProvider<MotorAlertas> alertas;
  private final CodigoService codigos;
+ private final RazaRepository razas;
+ private final CategoriaAnimalRepository categorias;
  private int diasHastaDestete=210; private int diasAlertaDestete=7;
  public ReproduccionCicloService(ReproduccionRepository repo,AnimalRepository animales,ParentescoRepository parentescos,
   PesajeRepository pesajes,UserContext context,TimelineEventPublisher timeline,ApplicationEventPublisher events,
-  ObjectProvider<MotorAlertas> alertas,CodigoService codigos){this.repo=repo;this.animales=animales;this.parentescos=parentescos;this.pesajes=pesajes;
-  this.context=context;this.timeline=timeline;this.events=events;this.alertas=alertas;this.codigos=codigos;}
+  ObjectProvider<MotorAlertas> alertas,CodigoService codigos,RazaRepository razas,CategoriaAnimalRepository categorias){this.repo=repo;this.animales=animales;this.parentescos=parentescos;this.pesajes=pesajes;
+  this.context=context;this.timeline=timeline;this.events=events;this.alertas=alertas;this.codigos=codigos;this.razas=razas;this.categorias=categorias;}
  @Value("${ganadero.reproduccion.dias-hasta-destete:210}") void setDiasHastaDestete(int dias){if(dias<1)throw new IllegalArgumentException();this.diasHastaDestete=dias;}
  @Value("${ganadero.reproduccion.dias-alerta-destete:7}") void setDiasAlertaDestete(int dias){if(dias<0)throw new IllegalArgumentException();this.diasAlertaDestete=dias;}
 
@@ -64,12 +66,18 @@ public class ReproduccionCicloService {
 
  private CriaParto crearCria(CurrentUser u,Animal madre,Servicio servicio,Parto parto,RegistrarPartoCommand.CriaCommand c){
   UUID animalId=null; if(c.crearAnimal()){
-   if(c.estadoNacimiento()!=EstadoNacimiento.VIVO||c.nombreAnimal()==null||c.nombreAnimal().isBlank())
+   if(c.estadoNacimiento()!=EstadoNacimiento.VIVO||c.nombreAnimal()==null||c.nombreAnimal().isBlank()||c.razaPrincipalId()==null)
     throw new BusinessException(ErrorCode.CRIA_ANIMAL_DATOS_REQUERIDOS);
+   if(razas.findById(c.razaPrincipalId(),u.empresaId()).filter(Raza::activo).isEmpty())
+    throw new BusinessException(ErrorCode.BREED_NOT_FOUND);
+   String categoriaCodigo=c.sexo()==SexoAnimal.HEMBRA?"TERNERA":"TERNERO";
+   UUID categoriaId=categorias.findActive(u.empresaId()).stream()
+    .filter(cat->categoriaCodigo.equals(cat.codigo())&&cat.appliesTo(c.sexo()))
+    .map(CategoriaAnimal::id).findFirst().orElseThrow(()->new BusinessException(ErrorCode.ANIMAL_CATEGORY_NOT_FOUND));
    animalId=UUID.randomUUID(); UUID potrero=c.potreroInicialId()==null?madre.potreroActualId():c.potreroInicialId();
    if(potrero!=null&&!animales.validLocation(u.empresaId(),madre.propiedadActualId(),potrero)) throw new BusinessException(ErrorCode.INVALID_ANIMAL_LOCATION);
    String codigo=codigos.paraCreacion(u,TipoCodigo.ANIMAL,null,null,c.codigoAnimal());
-   Animal animal=new Animal(animalId,u.empresaId(),codigo,c.nombreAnimal(),c.sexo(),parto.fechaParto(),false,null,null,null,
+   Animal animal=new Animal(animalId,u.empresaId(),codigo,c.nombreAnimal(),c.sexo(),parto.fechaParto(),false,c.razaPrincipalId(),categoriaId,null,
     madre.proposito(),OrigenAnimal.NACIDO,madre.propiedadActualId(),potrero,null,EstadoAnimal.ACTIVO,parto.fechaParto(),null,
     c.pesoNacimientoKg(),null,null,c.observaciones(),0); animales.create(animal,u.userId());
    parentescos.create(new Parentesco(UUID.randomUUID(),u.empresaId(),animalId,TipoParentesco.MADRE,madre.id(),null,null,null,Instant.now(),u.userId()),u.userId());

@@ -78,11 +78,12 @@ public class LoteService {
     public Lote create(LoteCommand command) {
         CurrentUser user = context.requirePermission("LOTE_CREAR");
         context.requirePropertyAccess(user, command.propiedadId());
+        validarMaximo(command.cantidadMaxima(), 0);
         LocalDate apertura = command.fechaApertura() == null ? LocalDate.now() : command.fechaApertura();
         String codigo = codigos.paraCreacion(user, TipoCodigo.LOTE, null, apertura.getYear(), command.codigo());
         Lote value = new Lote(UUID.randomUUID(), user.empresaId(), command.propiedadId(), codigo,
                 command.nombre(), command.descripcion(), EstadoLote.ACTIVO,
-                apertura, null, 0);
+                apertura, null, 0, command.cantidadMaxima(), 0);
         Lote saved = lotes.create(value, user.userId());
         audit(user, "CREAR_LOTE", saved.id());
         return saved;
@@ -92,6 +93,11 @@ public class LoteService {
     public Lote update(UUID id, LoteCommand command) {
         CurrentUser user = context.requirePermission("LOTE_EDITAR");
         Lote old = require(id, user.empresaId());
+        if (command.version() != null && command.version() != old.version()) {
+            throw new BusinessException(ErrorCode.LOT_VERSION_CONFLICT);
+        }
+        Integer maximo = command.cantidadMaxima() == null ? old.cantidadMaxima() : command.cantidadMaxima();
+        validarMaximo(maximo, old.cantidadActual());
         if (old.estado() == EstadoLote.CERRADO) throw new BusinessException(ErrorCode.LOT_ALREADY_CLOSED);
         UUID property = command.propiedadId() == null ? old.propiedadId() : command.propiedadId();
         context.requirePropertyAccess(user, property);
@@ -101,7 +107,7 @@ public class LoteService {
                 codigo,
                 command.nombre() == null ? old.nombre() : command.nombre(),
                 command.descripcion() == null ? old.descripcion() : command.descripcion(),
-                old.estado(), old.fechaApertura(), old.fechaCierre(), old.version());
+                old.estado(), old.fechaApertura(), old.fechaCierre(), old.version(), maximo, old.cantidadActual());
         Lote saved = lotes.update(value, user.userId());
         audit(user, "ACTUALIZAR_LOTE", saved.id());
         return saved;
@@ -127,6 +133,11 @@ public class LoteService {
         context.requirePropertyAccess(user, lote.propiedadId());
         if (lote.estado() != EstadoLote.ACTIVO) throw new BusinessException(ErrorCode.LOT_CLOSED);
         List<UUID> ids = requireUnique(command.animalIds());
+        if (lote.cantidadMaxima() != null && lote.cantidadActual() + ids.size() > lote.cantidadMaxima()) {
+            throw new BusinessException(ErrorCode.LOT_CAPACITY_EXCEEDED,
+                    "Solo quedan " + Math.max(0, lote.cantidadMaxima() - lote.cantidadActual())
+                    + " cupos en este lote. Seleccionaste " + ids.size() + " animales. No se incorporó ninguno.");
+        }
         ModoIngreso modo = command.modo() == null ? ModoIngreso.PARCIAL : parseModo(command.modo());
         Instant fechaIngreso = command.fechaIngreso() == null ? Instant.now() : command.fechaIngreso();
         if (fechaIngreso.isAfter(Instant.now())) throw new BusinessException(ErrorCode.INVALID_MEMBERSHIP_DATE);
@@ -139,7 +150,7 @@ public class LoteService {
                 resultados.add(resultado);
                 if ("OK".equals(resultado.estado())) ingresados++;
             } catch (BusinessException ex) {
-                if (modo == ModoIngreso.ATOMICO) throw ex;
+                if (modo == ModoIngreso.ATOMICO || ex.code() == ErrorCode.LOT_CAPACITY_EXCEEDED) throw ex;
                 resultados.add(new ResultadoAccion(animalId, "ERROR", ex.getMessage()));
             }
         }
@@ -240,6 +251,13 @@ public class LoteService {
         List<UUID> unique = new ArrayList<>(new LinkedHashSet<>(animalIds));
         if (unique.size() != animalIds.size()) throw new BusinessException(ErrorCode.DUPLICATE_ANIMAL_IN_REQUEST);
         return unique;
+    }
+
+    private void validarMaximo(Integer maximo, long actual) {
+        if (maximo != null && (maximo < 1 || maximo < actual)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "La cantidad máxima debe ser positiva y no puede ser menor que los " + actual + " animales del lote.");
+        }
     }
 
     private ModoIngreso parseModo(String modo) {

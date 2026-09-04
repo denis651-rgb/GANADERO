@@ -7,7 +7,7 @@ class PlanSanitarioServiceTest {
   CurrentUser u=new CurrentUser(UUID.randomUUID(),empresa,UUID.randomUUID(),Set.of(),Set.of("SANIDAD_VER","SANIDAD_PLAN_ADMINISTRAR"),Set.of(),true);
   service=new PlanSanitarioService(repo,new UserContext(()->u),mock(ObjectProvider.class),mock(ApplicationEventPublisher.class));}
  @Test void calculaProximaAplicacionYAlertaEnSpring(){when(repo.plan(plan,empresa)).thenReturn(Optional.of(new PlanSanitario(plan,empresa,"Plan",null,LocalDate.now(),null,EstadoPlanSanitario.ACTIVO,null,null,0)));
-  when(repo.items(plan,empresa,false)).thenReturn(List.of(new PlanSanitarioItem(item,empresa,plan,TipoActividadSanitaria.VACUNACION,null,"Vacuna",null,null,null,null,null,null,180,7,null,true,true,0)));
+  when(repo.items(plan,empresa,false)).thenReturn(List.of(new PlanSanitarioItem(item,empresa,plan,TipoActividadSanitaria.VACUNACION,null,"Vacuna",null,null,null,null,null,null,180,7,null,true,true,0,OrigenRegulatorioActividad.CONFIGURABLE_ESTABLECIMIENTO,"BOVINO")));
   ProximaActividadSanitaria r=service.calcularProxima(plan,item,LocalDate.of(2026,8,13));
   assertThat(r.proximaAplicacion()).isEqualTo(LocalDate.of(2027,2,9));assertThat(r.fechaAlerta()).isEqualTo(LocalDate.of(2027,2,2));}
  @Test void nuevoPlanSiempreNaceEnBorrador(){when(repo.crearPlan(any(),any())).thenAnswer(i->i.getArgument(0));

@@ -9,6 +9,7 @@ import {
   type ConfirmacionJornadaResult,
   type CrearJornadaInput,
   type JornadaSanitaria,
+  type TipoActividad,
 } from '@/features/sanidad/api'
 import type { SanidadCatalogs } from '@/features/sanidad/catalogs'
 import { JornadaConfirmarModal } from '@/features/sanidad/components/JornadaConfirmarModal'
@@ -28,13 +29,15 @@ interface JornadasPanelProps {
   error: unknown
   catalogs?: SanidadCatalogs
   refresh: () => void
+  /** Atajo desde "Registrar prueba diagnóstica" en el diálogo de validación de movimientos. */
+  tipoJornadaSugerida?: TipoActividad
 }
 
-export function JornadasPanel({ jornadas, isLoading, error, catalogs, refresh }: JornadasPanelProps) {
-  const { can } = useAuth()
+export function JornadasPanel({ jornadas, isLoading, error, catalogs, refresh, tipoJornadaSugerida }: JornadasPanelProps) {
+  const { can, user } = useAuth()
   const canCrear = can('SANIDAD_JORNADA_CREAR')
   const canConfirmar = can('SANIDAD_JORNADA_CONFIRMAR')
-  const [showForm, setShowForm] = useState(false)
+  const [showForm, setShowForm] = useState(Boolean(tipoJornadaSugerida))
   const [propertyId, setPropertyId] = useState('')
   const [preparando, setPreparando] = useState<JornadaSanitaria | null>(null)
   const [confirmando, setConfirmando] = useState<({ jornada: JornadaSanitaria } & PreparacionJornada) | null>(null)
@@ -49,8 +52,7 @@ export function JornadasPanel({ jornadas, isLoading, error, catalogs, refresh }:
         propiedadId: String(data.get('propiedadId')),
         potreroId: String(data.get('potreroId') || '') || undefined,
         loteGanaderoId: String(data.get('loteGanaderoId') || '') || undefined,
-        responsableId: String(data.get('responsableId')),
-        veterinarioId: String(data.get('veterinarioId') || '') || undefined,
+        responsableId: user.id,
         observaciones: String(data.get('observaciones') || '') || undefined,
       }
       return crearJornada(input)
@@ -73,11 +75,10 @@ export function JornadasPanel({ jornadas, isLoading, error, catalogs, refresh }:
       </div>
       {isLoading && <LoadingState message="Cargando jornadas…" />}
       {!isLoading && jornadas.length === 0 && <EmptyState title="No hay jornadas" description="Registra la primera jornada de vacunación o tratamiento de tu hato." />}
-      {jornadas.length > 0 && <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Jornadas sanitarias</caption><thead><tr><th scope="col">Fecha</th><th scope="col">Tipo</th><th scope="col">Propiedad</th><th scope="col">Responsable</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead><tbody>{jornadas.map((jornada) => <tr key={jornada.id}>
+      {jornadas.length > 0 && <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Jornadas sanitarias</caption><thead><tr><th scope="col">Fecha</th><th scope="col">Tipo</th><th scope="col">Propiedad</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead><tbody>{jornadas.map((jornada) => <tr key={jornada.id}>
         <td>{new Date(jornada.fechaInicio).toLocaleDateString('es-BO')}</td>
         <td><strong>{TIPO_ACTIVIDAD_LABELS[jornada.tipoJornada]}</strong></td>
         <td>{catalogs?.properties.find((item) => item.id === jornada.propiedadId)?.nombre ?? jornada.propiedadId.slice(0, 8)}</td>
-        <td>{catalogs?.userLabel(jornada.responsableId)}</td>
         <td><span className={`status-badge status-badge-${jornada.estado === 'CONFIRMADA' ? 'confirmed' : jornada.estado === 'ANULADA' ? 'annulled' : 'pending'}`}>{ESTADO_JORNADA_LABELS[jornada.estado]}</span></td>
         <td>{(canConfirmar && ['BORRADOR', 'EN_PROCESO'].includes(jornada.estado)) && <Button variant="secondary" onClick={() => setPreparando(jornada)}>Preparar y confirmar</Button>}</td>
       </tr>)}</tbody></table></div>}
@@ -91,13 +92,11 @@ export function JornadasPanel({ jornadas, isLoading, error, catalogs, refresh }:
 
     <Modal open={showForm} title="Nueva jornada sanitaria" onClose={() => setShowForm(false)} wide description="Registra una jornada de aplicación a un grupo de animales.">
       <form className="form-grid" onSubmit={(event) => { event.preventDefault(); crear.mutate(event.currentTarget) }}>
-        <Field label="Tipo de jornada" required><select name="tipoJornada" required defaultValue="VACUNACION">{(Object.keys(TIPO_ACTIVIDAD_LABELS) as Array<keyof typeof TIPO_ACTIVIDAD_LABELS>).map((tipo) => <option key={tipo} value={tipo}>{TIPO_ACTIVIDAD_LABELS[tipo]}</option>)}</select></Field>
+        <Field label="Tipo de jornada" required><select name="tipoJornada" required defaultValue={tipoJornadaSugerida ?? 'VACUNACION'}>{(Object.keys(TIPO_ACTIVIDAD_LABELS) as Array<keyof typeof TIPO_ACTIVIDAD_LABELS>).map((tipo) => <option key={tipo} value={tipo}>{TIPO_ACTIVIDAD_LABELS[tipo]}</option>)}</select></Field>
         <Field label="Fecha de inicio" required><input name="fechaInicio" type="date" required /></Field>
         <Field label="Propiedad" required><select name="propiedadId" required value={propertyId} onChange={(event) => setPropertyId(event.target.value)}><option value="">Selecciona…</option>{catalogs?.properties.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
         <Field label="Potrero"><select name="potreroId"><option value="">Toda la propiedad</option>{catalogs?.paddocks.filter((item) => item.activo && item.propiedadId === propertyId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
         <Field label="Lote"><select name="loteGanaderoId"><option value="">Sin lote</option>{catalogs?.lots.filter((item) => item.propiedadId === propertyId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
-        <Field label="Responsable" required><select name="responsableId" required><option value="">Selecciona…</option>{catalogs?.users.map((user) => <option key={user.id} value={user.usuarioId}>{user.nombres} {user.apellidos}</option>)}</select></Field>
-        <Field label="Veterinario"><select name="veterinarioId"><option value="">Sin veterinario</option>{catalogs?.users.map((user) => <option key={user.id} value={user.usuarioId}>{user.nombres} {user.apellidos}</option>)}</select></Field>
         <div className="form-full"><Field label="Observaciones"><textarea name="observaciones" rows={3} maxLength={1000} /></Field></div>
         <div className="form-actions"><Button type="submit" loading={crear.isPending}>Crear jornada</Button></div>
       </form>

@@ -5,5 +5,5 @@ public record RegistrarPartoCommand(UUID madreId,UUID diagnosticoGestacionId,UUI
  TipoParto tipoParto,DificultadParto dificultad,boolean asistido,UUID responsableId,String resultadoMadre,
  String observaciones,List<CriaCommand> crias) {
  public record CriaCommand(SexoAnimal sexo,BigDecimal pesoNacimientoKg,EstadoNacimiento estadoNacimiento,
-  LocalTime horaNacimiento,String observaciones,boolean crearAnimal,String codigoAnimal,String nombreAnimal,UUID potreroInicialId) {}
+  LocalTime horaNacimiento,String observaciones,boolean crearAnimal,String codigoAnimal,String nombreAnimal,UUID potreroInicialId,UUID razaPrincipalId) {}
 }

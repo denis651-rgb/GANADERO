@@ -55,7 +55,8 @@ export interface MovimientoDetalle {
 export interface ValidacionAnimal {
   animalId: string
   estado: 'VALIDO' | 'INVALIDO'
-  codigo?: string
+  /** Nombre del ErrorCode del backend (ej. "MOVEMENT_CUARENTENA_SIN_PRUEBA_DIAGNOSTICA"), no el código del animal. */
+  error?: string
   mensaje?: string
 }
 
@@ -65,6 +66,14 @@ export interface ValidacionMovimiento {
   validos: number
   invalidos: number
   resultados: ValidacionAnimal[]
+  capacidad?: {
+    potrero: string
+    recomendadaUa: number
+    ocupacionActualUa: number
+    ingresoUa: number
+    ocupacionProyectadaUa: number
+    excedida: boolean
+  }
 }
 
 export interface CreateMovimientoInput {

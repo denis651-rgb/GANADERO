@@ -1,0 +1,19 @@
+.celos-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.celos-heading h2 { margin: 0; }
+.celos-panel .table-wrapper table { min-width: 760px; }
+.celos-panel th { background: #f5f8f5; }
+.celos-panel th, .celos-panel td { padding: 16px 12px; vertical-align: middle; }
+.celos-panel td:first-child { min-width: 180px; }
+.celos-panel tbody tr:hover { background: #f8fbf8; }
+.celo-animal { display: block; font-size: 1rem; line-height: 1.4; }
+.celos-panel .table-secondary { margin-top: 4px; }
+@media (max-width: 600px) {
+  .celos-heading > button { width: 100%; justify-content: center; }
+}

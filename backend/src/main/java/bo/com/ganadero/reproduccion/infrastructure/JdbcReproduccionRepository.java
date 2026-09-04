@@ -25,6 +25,12 @@ import java.util.UUID;
 public class JdbcReproduccionRepository implements ReproduccionRepository {
     private final JdbcClient jdbc;
 
+    public void agregarObservacionCelo(UUID id, String texto, UUID actor) {
+        int updated = jdbc.sql("update celo set observaciones=coalesce(observaciones,'') || :texto, version=version+1, updated_by=:actor, updated_at=current_timestamp where id=:id and estado='ACTIVO'")
+                .param("texto", texto).param("actor", actor.toString()).param("id", id.toString()).update();
+        if (updated != 1) throw new BusinessException(ErrorCode.REPRODUCCION_NOT_FOUND);
+    }
+
     public JdbcReproduccionRepository(JdbcClient jdbc) {
         this.jdbc = jdbc;
     }
@@ -161,10 +167,11 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
 
     @Override
     public Celo annulCelo(UUID id, UUID empresa, String motivo, long version, UUID actor) {
-        int updated = jdbc.sql("update celo set estado='ANULADO', anulado_at=now(), " +
-                        "anulado_by=:actor, motivo_anulacion=:motivo, updated_at=now(), updated_by=:actor, " +
+        int updated = jdbc.sql("update celo set estado='ANULADO', anulado_at=:fecha, " +
+                        "anulado_by=:actor, motivo_anulacion=:motivo, updated_at=:fecha, updated_by=:actor, " +
                         "version=version+1 where id=:id and estado='ACTIVO' and version=:version")
-                .param("actor", actor).param("motivo", motivo).param("id", id).param("empresa", empresa)
+                .param("actor", actor.toString()).param("motivo", motivo).param("id", id.toString())
+                .param("fecha", Instant.now().toString())
                 .param("version", version).update();
         if (updated == 0) throw new BusinessException(ErrorCode.VERSION_CONFLICT);
         return findCeloById(id, empresa).orElseThrow();
@@ -255,9 +262,10 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
 
     @Override
     public void updateServicioEstado(UUID id, UUID empresa, EstadoServicio estado, UUID actor) {
-        jdbc.sql("update servicio set estado=:estado, updated_at=now(), updated_by=:actor, " +
+        jdbc.sql("update servicio set estado=:estado, updated_at=:fecha, updated_by=:actor, " +
                         "version=version+1 where id=:id and estado <> 'ANULADO'")
-                .param("estado", estado.name()).param("actor", actor).param("id", id).param("empresa", empresa)
+                .param("estado", estado.name()).param("actor", actor.toString()).param("id", id.toString())
+                .param("fecha", Instant.now().toString())
                 .update();
     }
 
@@ -864,7 +872,7 @@ public class JdbcReproduccionRepository implements ReproduccionRepository {
                 instant(r, "fecha_diagnostico"),
                 resultado == null ? null : ResultadoGestacion.valueOf(resultado),
                 metodo == null ? null : MetodoDiagnostico.valueOf(metodo),
-                r.getObject("dias_gestacion_estimados", Integer.class),
+                Rows.intOrNull(r, "dias_gestacion_estimados"),
                 Rows.localDate(r, "fecha_probable_parto"),
                 Rows.uuid(r, "veterinario_id"), r.getString("observaciones"),
                 null, Rows.uuid(r, "potrero_id"),

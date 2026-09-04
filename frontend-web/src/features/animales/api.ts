@@ -1,6 +1,6 @@
 import { http } from '@/shared/api/http'
 import type { ApiResponse, Page } from '@/shared/api/types'
-import type { AnimalEvent, AnimalFilters, AnimalState, AnimalSummary, ActualizarIdentificadorInput, AsignarIdentificadorInput, CategoriaAnimal, CreateAnimalInput, CrearParentescoInput, Identificador, Parentesco, Raza, TimelineEvent, UpdateAnimalInput } from '@/features/animales/types'
+import type { AnimalEvent, AnimalFilters, AnimalState, AnimalSummary, ActualizarIdentificadorInput, AsignarIdentificadorInput, CategoriaAnimal, CrearAnimalesLoteInput, CreateAnimalInput, CrearParentescoInput, Identificador, Parentesco, Raza, TimelineEvent, UpdateAnimalInput } from '@/features/animales/types'
 
 export async function listAnimals(filters: AnimalFilters) {
   const response = await http.get<ApiResponse<Page<AnimalSummary>>>('/api/v1/animales', {
@@ -25,6 +25,12 @@ export async function changeAnimalState(id: string, estado: AnimalState, motivo:
 
 export async function createAnimal(input: CreateAnimalInput) {
   const response = await http.post<ApiResponse<AnimalSummary>>('/api/v1/animales', input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })
+  return response.data.data
+}
+
+/** Alta masiva de compra: crea todos los animales en una sola transacción de backend (todo o nada). */
+export async function createAnimalesLote(input: CrearAnimalesLoteInput) {
+  const response = await http.post<ApiResponse<AnimalSummary[]>>('/api/v1/animales/lote', input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })
   return response.data.data
 }
 
