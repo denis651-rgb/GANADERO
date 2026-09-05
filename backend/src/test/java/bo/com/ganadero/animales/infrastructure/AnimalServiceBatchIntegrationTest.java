@@ -58,6 +58,23 @@ class AnimalServiceBatchIntegrationTest {
     }
 
     @Test
+    void unAnimalNacidoIngresaAlHatoEnSuFechaDeNacimiento(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        LocalDate nacimiento = LocalDate.of(2026, 8, 20);
+        AnimalCommand comando = new AnimalCommand(null, "NACIDO-001", "Cria", SexoAnimal.HEMBRA,
+                nacimiento, false, f.razaId(), f.categoriaId(), null, PropositoAnimal.CARNE,
+                OrigenAnimal.NACIDO, PROPIEDAD_ID, f.potreroId(), null, LocalDate.now(),
+                null, null, null, null, null, 0L);
+
+        Animal creado = f.tx().execute(status -> f.service().create(comando));
+
+        assertThat(creado.fechaIngreso()).isEqualTo(nacimiento);
+        assertThat(f.jdbc().sql("select fecha_ingreso from animal where id=:id")
+                .param("id", creado.id().toString()).query(String.class).single())
+                .isEqualTo(nacimiento.toString());
+    }
+
+    @Test
     void unCodigoDuplicadoEnElLoteRevierteTodaLaTransaccion(@TempDir Path tempDir) {
         Fixture f = fixture(tempDir);
         List<AnimalCommand> comandos = List.of(
@@ -140,8 +157,10 @@ class AnimalServiceBatchIntegrationTest {
         jdbc.sql("insert into raza(id,codigo,nombre) values(:id,:c,'Brahman')")
                 .param("id", razaId.toString()).param("c", "RAZA-" + razaId).update();
 
+        // clasificacion_automatica=0: sin rango de edad, esta categoría de prueba se asigna manualmente
+        // (si fuera automática, competiría en cualquier edad con las categorías reales sembradas en V1).
         UUID categoriaId = UUID.randomUUID();
-        jdbc.sql("insert into categoria_animal(id,codigo,nombre,sexo_aplicable) values(:id,:c,'Vaquillona','AMBOS')")
+        jdbc.sql("insert into categoria_animal(id,codigo,nombre,sexo_aplicable,clasificacion_automatica) values(:id,:c,'Vaquillona','AMBOS',0)")
                 .param("id", categoriaId.toString()).param("c", "CAT-" + categoriaId).update();
 
         UUID potreroId = UUID.randomUUID();
@@ -153,8 +172,8 @@ class AnimalServiceBatchIntegrationTest {
         UserContext context = new UserContext(() -> currentUser);
         List<RegistrarEventoTimeline> timeline = new ArrayList<>();
         AnimalService service = new AnimalService(new JdbcAnimalRepository(jdbc), new JdbcRazaRepository(jdbc),
-                new JdbcCategoriaAnimalRepository(jdbc), context, mock(ApplicationEventPublisher.class),
-                timeline::add, mock(TimelineService.class), new CodigoService(jdbc));
+                new JdbcCategoriaAnimalRepository(jdbc), new JdbcHistorialCategoriaAnimalRepository(jdbc), context,
+                mock(ApplicationEventPublisher.class), timeline::add, mock(TimelineService.class), new CodigoService(jdbc));
 
         TransactionTemplate tx = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
         return new Fixture(jdbc, service, tx, razaId, categoriaId, potreroId, timeline);

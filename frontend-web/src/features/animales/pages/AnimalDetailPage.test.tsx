@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 import { AnimalDetailPage } from './AnimalDetailPage'
@@ -10,18 +10,23 @@ vi.mock('@/features/animales/api', () => ({
   changeAnimalState: (...args: unknown[]) => changeAnimalState(...args),
   getAnimal: vi.fn().mockResolvedValue({ id: 'a-1', codigo: 'A-001', nombre: 'Luna', estado: 'ACTIVO', sexo: 'HEMBRA', version: 3 }),
   getAnimalTimeline: vi.fn().mockResolvedValue({ content: [], page: 0, totalPages: 0 }),
+  getHistorialCategorias: vi.fn().mockResolvedValue([]),
   listCategorias: vi.fn().mockResolvedValue([]), listRazas: vi.fn().mockResolvedValue([]),
 }))
 const listAlerts = vi.fn().mockResolvedValue([])
 vi.mock('@/features/alertas/api', () => ({ listAlerts: (...args: unknown[]) => listAlerts(...args) }))
 const listControlesNeonatales = vi.fn().mockResolvedValue([])
-const crearControlNeonatal = vi.fn()
+const listControlesEctoparasitarios = vi.fn().mockResolvedValue([])
+const listExamenesReproductivos = vi.fn().mockResolvedValue([])
+const listTratamientos = vi.fn().mockResolvedValue([])
 vi.mock('@/features/sanidad/api', async () => {
   const actual = await vi.importActual<typeof import('@/features/sanidad/api')>('@/features/sanidad/api')
   return {
     ...actual,
     listControlesNeonatales: (...args: unknown[]) => listControlesNeonatales(...args),
-    crearControlNeonatal: (...args: unknown[]) => crearControlNeonatal(...args),
+    listControlesEctoparasitarios: (...args: unknown[]) => listControlesEctoparasitarios(...args),
+    listExamenesReproductivos: (...args: unknown[]) => listExamenesReproductivos(...args),
+    listTratamientos: (...args: unknown[]) => listTratamientos(...args),
   }
 })
 vi.mock('@/features/propiedades/api', () => ({ listPropiedades: vi.fn().mockResolvedValue([]) }))
@@ -56,7 +61,7 @@ describe('AnimalDetailPage state protection', () => {
     renderPage()
     expect(await screen.findByText('150 kg (estimado)')).toBeInTheDocument()
     expect(screen.getByText('Peso al nacer').nextElementSibling).toHaveTextContent('Desconocido')
-    expect(screen.getByText('Nacimiento').nextElementSibling).toHaveTextContent('Desconocido')
+    expect(screen.getByText('Nacimiento').nextElementSibling).toHaveTextContent('Edad desconocida')
     expect(screen.getByText(/La ausencia de alertas no confirma vacunas/)).toBeInTheDocument()
   })
 
@@ -91,23 +96,14 @@ describe('AnimalDetailPage state protection', () => {
     await waitFor(() => expect(changeAnimalState).toHaveBeenCalledOnce())
   })
 
-  it('registra un control neonatal con calostrado insuficiente', async () => {
+  it('deja la ficha en modo consulta y enlaza a los controles sanitarios del animal', async () => {
     listAlerts.mockReset().mockResolvedValue([])
     listControlesNeonatales.mockReset().mockResolvedValue([])
-    crearControlNeonatal.mockReset().mockResolvedValue({ id: 'cn-1' })
     renderPage()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Registrar control neonatal' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Registrar control neonatal' })
-    fireEvent.change(within(dialog).getByRole('combobox', { name: /Calostrado/ }), { target: { value: 'INSUFICIENTE' } })
-    fireEvent.change(within(dialog).getByLabelText(/Fecha del control/), { target: { value: '2026-01-01' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar control' }))
-
-    await waitFor(() => expect(crearControlNeonatal).toHaveBeenCalledWith(expect.objectContaining({
-      animalId: 'a-1',
-      calostrado: 'INSUFICIENTE',
-      fechaControl: '2026-01-01',
-    })))
+    const link = await screen.findByRole('link', { name: 'Ver historial sanitario' })
+    expect(link).toHaveAttribute('href', '/sanidad?seccion=controles&animalId=a-1')
+    expect(screen.queryByRole('button', { name: 'Registrar control neonatal' })).not.toBeInTheDocument()
   })
 
   it('implementa roving tabindex y navegación completa por teclado en tabs', async () => {

@@ -7,6 +7,7 @@ import { SectorAddModal } from '@/features/propiedades/components/SectorAddModal
 import { SectorEditModal } from '@/features/propiedades/components/SectorEditModal'
 import { createPropiedad, createSector, listPropiedades, listSectores, updatePropiedad, updateSector, type Propiedad, type Sector } from '@/features/propiedades/api'
 import { getConfiguracion, updateConfiguracion } from '@/features/configuracion/api'
+import { CategoriasEdadPanel } from '@/features/configuracion/components/CategoriasEdadPanel'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
@@ -137,6 +138,8 @@ export function PropiedadesPage() {
           {canEditConfig && <div className="form-actions form-full"><Button type="submit" loading={saveConfig.isPending}><Save size={17} aria-hidden="true" />Guardar configuración</Button></div>}
         </form>
       </Card>}
+
+      <CategoriasEdadPanel />
 
       {canEditConfig && config.data && <Card>
         <h3><KeyRound size={17} aria-hidden="true" /> Bloqueo con PIN</h3>

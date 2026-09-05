@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, CheckCircle2, ClipboardPlus, Plus, Save, Trash2 } from 'lucide-react'
 import { createAnimalesLote, getAnimal, listCategorias, listRazas } from '@/features/animales/api'
-import type { AnimalSummary } from '@/features/animales/types'
+import { calcularNacimientoEstimado, categoriaSugerida } from '@/features/animales/edad'
+import type { AnimalSummary, CategoriaAnimal, UnidadEdadDeclarada } from '@/features/animales/types'
 import { DeclararHistorialModal } from '@/features/animales/components/DeclararHistorialModal'
 import { listPropiedades } from '@/features/propiedades/api'
 import { listPotreros } from '@/features/potreros/api'
@@ -24,13 +25,25 @@ interface AnimalRow {
   categoriaActualId: string
   pesoIngresoKg: string
   tipoPeso: string
-  tipoNacimiento: string
+  tipoNacimiento: 'DESCONOCIDA' | 'EDAD_APROXIMADA' | 'CONOCIDA'
   fechaNacimiento: string
+  edadDeclaradaValor: string
+  edadDeclaradaUnidad: UnidadEdadDeclarada
   observaciones: string
+  categoriaManualMotivo: string
 }
 
 let rowKey = 0
-const filaVacia = (): AnimalRow => ({ key: rowKey++, nombre: '', sexo: 'HEMBRA', categoriaActualId: '', pesoIngresoKg: '', tipoPeso: 'ESTIMADO', tipoNacimiento: 'DESCONOCIDA', fechaNacimiento: '', observaciones: '' })
+const filaVacia = (): AnimalRow => ({ key: rowKey++, nombre: '', sexo: 'HEMBRA', categoriaActualId: '', pesoIngresoKg: '', tipoPeso: 'ESTIMADO', tipoNacimiento: 'DESCONOCIDA', fechaNacimiento: '', edadDeclaradaValor: '', edadDeclaradaUnidad: 'MESES', observaciones: '', categoriaManualMotivo: '' })
+
+function categoriaDeFila(fila: AnimalRow, categorias: CategoriaAnimal[] | undefined, fechaIngreso: string) {
+  const nacimiento = fila.tipoNacimiento === 'CONOCIDA'
+    ? fila.fechaNacimiento
+    : fila.tipoNacimiento === 'EDAD_APROXIMADA'
+      ? calcularNacimientoEstimado(fechaIngreso, fila.edadDeclaradaValor, fila.edadDeclaradaUnidad)
+      : undefined
+  return categoriaSugerida(categorias, fila.sexo, nacimiento, fechaIngreso)
+}
 
 export function IngresoLotePage() {
   const navigate = useNavigate()
@@ -76,11 +89,17 @@ export function IngresoLotePage() {
         animales: filas.map((fila) => ({
           nombre: fila.nombre || undefined,
           sexo: fila.sexo,
-          categoriaActualId: fila.categoriaActualId,
+          categoriaActualId: categoriaDeFila(fila, catalogs.data?.categories, fechaIngreso)?.id ?? fila.categoriaActualId,
           pesoIngresoKg: fila.pesoIngresoKg ? Number(fila.pesoIngresoKg) : undefined,
           pesoIngresoEstimado: fila.pesoIngresoKg ? fila.tipoPeso === 'ESTIMADO' : undefined,
-          fechaNacimiento: fila.tipoNacimiento === 'DESCONOCIDA' ? undefined : fila.fechaNacimiento || undefined,
-          fechaNacimientoEstimada: fila.tipoNacimiento === 'ESTIMADA' && Boolean(fila.fechaNacimiento),
+          fechaNacimiento: fila.tipoNacimiento === 'CONOCIDA' ? fila.fechaNacimiento || undefined : undefined,
+          fechaNacimientoEstimada: false,
+          edadDeclaradaValor: fila.tipoNacimiento === 'EDAD_APROXIMADA' && fila.edadDeclaradaValor ? Number(fila.edadDeclaradaValor) : undefined,
+          edadDeclaradaUnidad: fila.tipoNacimiento === 'EDAD_APROXIMADA' ? fila.edadDeclaradaUnidad : undefined,
+          fechaReferenciaEdad: fila.tipoNacimiento === 'EDAD_APROXIMADA' ? fechaIngreso : undefined,
+          fuenteEdad: fila.tipoNacimiento === 'EDAD_APROXIMADA' ? 'PROVEEDOR' : undefined,
+          observacionEstimacion: fila.tipoNacimiento === 'EDAD_APROXIMADA' && proveedor ? `Informada por ${proveedor}` : undefined,
+          categoriaManualMotivo: categoriaDeFila(fila, catalogs.data?.categories, fechaIngreso) ? undefined : (fila.categoriaManualMotivo || undefined),
           observaciones: [proveedor ? `Proveedor: ${proveedor}` : null, fila.observaciones || null].filter(Boolean).join(' — ') || undefined,
         })),
       })
@@ -131,25 +150,32 @@ export function IngresoLotePage() {
           <div className="form-full"><div className="section-heading"><h3>Animales del lote ({filas.length})</h3><Button type="button" variant="secondary" onClick={() => setFilas((prev) => [...prev, filaVacia()])}><Plus size={16} aria-hidden="true" />Agregar fila</Button></div></div>
 
           <div className="form-full ingreso-lote-editor">
-            <p className="muted">El código se asigna automáticamente al registrar. El peso corresponde al ingreso, no al nacimiento. Si desconoces el nacimiento, no inventes una fecha.</p>
+            <p className="muted">Si el proveedor informa una edad aproximada, regístrala como tal. El sistema calculará una fecha estimada usando la fecha de recepción y conservará el dato declarado.</p>
             <div className="table-wrapper ingreso-lote-table-wrapper" role="region" aria-label="Tabla editable de animales" tabIndex={0}>
               <table className="ingreso-lote-table">
                 <caption className="visually-hidden">Animales del lote</caption>
                 <thead><tr>
                   <th scope="col">#</th><th scope="col">Nombre</th>
                   <th scope="col">Sexo *</th><th scope="col">Categoría *</th><th scope="col">Peso al ingreso (kg)</th>
-                  <th scope="col">Fecha de nacimiento</th><th scope="col">Observaciones</th><th scope="col">Acciones</th>
+                  <th scope="col">Nacimiento o edad</th><th scope="col">Observaciones</th><th scope="col">Acciones</th>
                 </tr></thead>
-                <tbody>{filas.map((fila, index) => <tr key={fila.key}>
+                <tbody>{filas.map((fila, index) => {
+                  const categoriaAutomatica = categoriaDeFila(fila, catalogs.data?.categories, fechaIngreso)
+                  return <tr key={fila.key}>
                   <th scope="row">{index + 1}</th>
                   <td><input aria-label={`Nombre del animal ${index + 1}`} value={fila.nombre} onChange={(event) => actualizarFila(fila.key, 'nombre', event.target.value)} maxLength={160} /></td>
                   <td><select aria-label={`Sexo del animal ${index + 1}`} required value={fila.sexo} onChange={(event) => actualizarFila(fila.key, 'sexo', event.target.value)}><option value="HEMBRA">Hembra</option><option value="MACHO">Macho</option></select></td>
-                  <td><select aria-label={`Categoría del animal ${index + 1}`} required value={fila.categoriaActualId} onChange={(event) => actualizarFila(fila.key, 'categoriaActualId', event.target.value)}><option value="">Selecciona…</option>{catalogs.data?.categories.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></td>
+                  <td>{categoriaAutomatica
+                    ? <><input aria-label={`Categoría del animal ${index + 1}`} value={categoriaAutomatica.nombre} readOnly /><small>Automática por sexo y edad</small></>
+                    : <><select aria-label={`Categoría del animal ${index + 1}`} required value={fila.categoriaActualId} onChange={(event) => actualizarFila(fila.key, 'categoriaActualId', event.target.value)}><option value="">Selecciona…</option>{catalogs.data?.categories.filter((item) => item.activo && (item.sexoAplicable === 'AMBOS' || item.sexoAplicable === fila.sexo)).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select><input aria-label={`Motivo de la categoría manual del animal ${index + 1}`} placeholder="Motivo de la categoría manual" value={fila.categoriaManualMotivo} onChange={(event) => actualizarFila(fila.key, 'categoriaManualMotivo', event.target.value)} /></>}</td>
                   <td><input aria-label={`Peso al ingreso (kg) del animal ${index + 1}`} type="number" inputMode="decimal" min="0.1" step="0.1" value={fila.pesoIngresoKg} onChange={(event) => actualizarFila(fila.key, 'pesoIngresoKg', event.target.value)} /><select aria-label={`Tipo de peso del animal ${index + 1}`} value={fila.tipoPeso} onChange={(event) => actualizarFila(fila.key, 'tipoPeso', event.target.value)}><option value="ESTIMADO">Estimado</option><option value="MEDIDO">Medido</option></select></td>
-                  <td><select aria-label={`Nacimiento del animal ${index + 1}`} value={fila.tipoNacimiento} onChange={(event) => actualizarFila(fila.key, 'tipoNacimiento', event.target.value)}><option value="DESCONOCIDA">Desconocido</option><option value="ESTIMADA">Fecha estimada</option><option value="CONOCIDA">Fecha conocida</option></select><input disabled={fila.tipoNacimiento === 'DESCONOCIDA'} required={fila.tipoNacimiento !== 'DESCONOCIDA'} aria-label={`Fecha de nacimiento del animal ${index + 1}`} type="date" max={hoy} value={fila.fechaNacimiento} onChange={(event) => actualizarFila(fila.key, 'fechaNacimiento', event.target.value)} /></td>
+                  <td><select aria-label={`Nacimiento del animal ${index + 1}`} value={fila.tipoNacimiento} onChange={(event) => actualizarFila(fila.key, 'tipoNacimiento', event.target.value)}><option value="DESCONOCIDA">Totalmente desconocido</option><option value="EDAD_APROXIMADA">Edad aproximada</option><option value="CONOCIDA">Fecha conocida</option></select>
+                    {fila.tipoNacimiento === 'CONOCIDA' && <input required aria-label={`Fecha de nacimiento del animal ${index + 1}`} type="date" max={fechaIngreso || hoy} value={fila.fechaNacimiento} onChange={(event) => actualizarFila(fila.key, 'fechaNacimiento', event.target.value)} />}
+                    {fila.tipoNacimiento === 'EDAD_APROXIMADA' && <><input required aria-label={`Edad aproximada del animal ${index + 1}`} type="number" min="1" step="1" placeholder="Ej. 18" value={fila.edadDeclaradaValor} onChange={(event) => actualizarFila(fila.key, 'edadDeclaradaValor', event.target.value)} /><select aria-label={`Unidad de edad del animal ${index + 1}`} value={fila.edadDeclaradaUnidad} onChange={(event) => actualizarFila(fila.key, 'edadDeclaradaUnidad', event.target.value)}><option value="DIAS">Días</option><option value="MESES">Meses</option><option value="ANIOS">Años</option></select><small>Nacimiento estimado: {calcularNacimientoEstimado(fechaIngreso, fila.edadDeclaradaValor, fila.edadDeclaradaUnidad) ?? '—'}</small></>}
+                  </td>
                   <td><input aria-label={`Observaciones del animal ${index + 1}`} value={fila.observaciones} onChange={(event) => actualizarFila(fila.key, 'observaciones', event.target.value)} maxLength={500} /></td>
                   <td><Button type="button" variant="ghost" aria-label={`Quitar fila ${index + 1}`} title="Quitar fila" disabled={filas.length === 1} onClick={() => setFilas((prev) => prev.filter((item) => item.key !== fila.key))}><Trash2 size={16} aria-hidden="true" /></Button></td>
-                </tr>)}</tbody>
+                </tr>})}</tbody>
               </table>
             </div>
           </div>

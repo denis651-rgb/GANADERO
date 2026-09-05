@@ -23,12 +23,43 @@ export interface AnimalSummary {
   fotoPrincipalPath?: string
   observaciones?: string
   version: number
+  edadDeclaradaValor?: number
+  edadDeclaradaUnidad?: UnidadEdadDeclarada
+  fechaReferenciaEdad?: string
+  fuenteEdadDeclarada?: FuenteEdadDeclarada
+  observacionEstimacion?: string
 }
 
 export type AnimalState = 'ACTIVO' | 'VENDIDO' | 'MUERTO' | 'PERDIDO' | 'TRANSFERIDO' | 'DESCARTADO'
+export type UnidadEdadDeclarada = 'DIAS' | 'MESES' | 'ANIOS'
+export type FuenteEdadDeclarada = 'PROVEEDOR' | 'ESTIMACION_CAMPO'
+export type TipoCambioCategoria = 'AUTOMATICO' | 'MANUAL' | 'CORRECCION'
 
 export interface Raza { id: string; codigo: string; nombre: string; especie: string }
-export interface CategoriaAnimal { id: string; codigo: string; nombre: string; sexoAplicable: 'MACHO' | 'HEMBRA' | 'AMBOS' }
+export interface CategoriaAnimal {
+  id: string
+  codigo: string
+  nombre: string
+  sexoAplicable: 'MACHO' | 'HEMBRA' | 'AMBOS'
+  edadMinMeses?: number
+  edadMaxMeses?: number
+  descripcion?: string
+  activo: boolean
+  clasificacionAutomatica: boolean
+  ordenEvaluacion: number
+}
+
+export interface HistorialCategoriaAnimal {
+  id: string
+  categoriaAnteriorId?: string
+  categoriaNuevaId: string
+  fechaCambio: string
+  tipoCambio: TipoCambioCategoria
+  motivo?: string
+  usuarioId?: string
+  edadDias?: number
+  edadConfirmada: boolean
+}
 
 export interface CreateAnimalInput {
   fechaNacimientoEstimada?: boolean
@@ -46,6 +77,12 @@ export interface CreateAnimalInput {
   propiedadActualId: string
   potreroActualId: string
   observaciones?: string
+  edadDeclaradaValor?: number
+  edadDeclaradaUnidad?: UnidadEdadDeclarada
+  fechaReferenciaEdad?: string
+  fuenteEdad?: FuenteEdadDeclarada
+  observacionEstimacion?: string
+  categoriaManualMotivo?: string
 }
 
 /** Alta masiva de compra (docs/backend/PLAN_SANITARIO_SANTA_CRUZ.md, sección 7): origen queda fijo en COMPRADO. */
@@ -59,6 +96,12 @@ export interface AnimalLoteItemInput {
   pesoIngresoKg?: number
   pesoIngresoEstimado?: boolean
   observaciones?: string
+  edadDeclaradaValor?: number
+  edadDeclaradaUnidad?: UnidadEdadDeclarada
+  fechaReferenciaEdad?: string
+  fuenteEdad?: FuenteEdadDeclarada
+  observacionEstimacion?: string
+  categoriaManualMotivo?: string
 }
 
 export interface CrearAnimalesLoteInput {
@@ -73,6 +116,7 @@ export interface CrearAnimalesLoteInput {
 
 export interface UpdateAnimalInput extends Omit<CreateAnimalInput, 'origen'> {
   quitarFechaNacimiento?: boolean
+  confirmarFechaNacimiento?: boolean
   corregirPesoCompra?: boolean
   fechaNacimientoEstimada?: boolean
   color?: string

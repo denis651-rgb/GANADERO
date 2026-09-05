@@ -15,7 +15,7 @@ vi.mock('@/features/animales/api', () => ({
     condicionCorporalActual: null, pesoIngresoKg: null, pesoIngresoEstimado: null, precioAdquisicion: 5600,
   }),
   listRazas: vi.fn().mockResolvedValue([{ id: 'r-1', nombre: 'Nelore' }]),
-  listCategorias: vi.fn().mockResolvedValue([{ id: 'c-1', nombre: 'Novillo' }]),
+  listCategorias: vi.fn().mockResolvedValue([{ id: 'c-1', codigo: 'NOVILLO', nombre: 'Novillo', sexoAplicable: 'MACHO', edadMinMeses: 0, edadMaxMeses: 35, activo: true, clasificacionAutomatica: true, ordenEvaluacion: 0 }]),
 }))
 vi.mock('@/features/propiedades/api', () => ({ listPropiedades: vi.fn().mockResolvedValue([{ id: 'p-1', nombre: 'Finca', activo: true }]) }))
 vi.mock('@/features/potreros/api', () => ({ listPotreros: vi.fn().mockResolvedValue([{ id: 'pot-1', nombre: 'Corral', propiedadId: 'p-1', activo: true }]) }))

@@ -2,4 +2,4 @@ package bo.com.ganadero.sanidad.application; import bo.com.ganadero.animales.dom
 public record CrearPlanItemCommand(TipoActividadSanitaria tipoActividad,UUID productoId,String productoRecomendadoTexto,
  UUID categoriaAnimalId,SexoAnimal sexoAplicable,Integer edadMinDias,Integer edadMaxDias,BigDecimal dosis,String unidadDosis,
  Integer frecuenciaDias,int diasAlerta,String viaAdministracion,boolean obligatorio,
- OrigenRegulatorioActividad origenRegulatorio,String especieAplicable) {}
+ OrigenRegulatorioActividad origenRegulatorio,String especieAplicable,boolean permiteEdadDesconocida) {}

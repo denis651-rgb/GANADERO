@@ -3,6 +3,8 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 import { IngresoLotePage } from './IngresoLotePage'
+import { calcularNacimientoEstimado } from '@/features/animales/edad'
+import { todayInBolivia } from '@/shared/utils/date'
 
 const createAnimalesLote = vi.fn()
 const createMovimiento = vi.fn()
@@ -11,7 +13,7 @@ const confirmarMovimiento = vi.fn()
 vi.mock('@/features/animales/api', () => ({
   createAnimalesLote: (...args: unknown[]) => createAnimalesLote(...args),
   getAnimal: vi.fn(),
-  listCategorias: vi.fn().mockResolvedValue([{ id: 'cat-1', codigo: 'VAQ', nombre: 'Vaquillona', sexoAplicable: 'AMBOS' }]),
+  listCategorias: vi.fn().mockResolvedValue([{ id: 'cat-1', codigo: 'VAQUILLA', nombre: 'Vaquillona', sexoAplicable: 'AMBOS', edadMinMeses: 13, edadMaxMeses: 35, activo: true, clasificacionAutomatica: true, ordenEvaluacion: 0 }]),
   listRazas: vi.fn().mockResolvedValue([{ id: 'raza-1', codigo: 'BRAH', nombre: 'Brahman', especie: 'BOVINO' }]),
 }))
 vi.mock('@/features/propiedades/api', () => ({
@@ -53,6 +55,7 @@ describe('IngresoLotePage', () => {
       renderPage()
       expect(screen.getByLabelText(/^Fecha de ingreso/)).toHaveValue('2026-09-03')
       expect(screen.getByLabelText(/^Fecha de ingreso/)).toHaveAttribute('max', '2026-09-03')
+      fireEvent.change(screen.getByLabelText('Nacimiento del animal 1'), { target: { value: 'CONOCIDA' } })
       expect(screen.getByLabelText(/^Fecha de nacimiento/)).toHaveAttribute('max', '2026-09-03')
     } finally {
       vi.useRealTimers()
@@ -82,7 +85,10 @@ describe('IngresoLotePage', () => {
     fireEvent.change(screen.getByLabelText('Peso al ingreso (kg) del animal 1'), { target: { value: '150' } })
     fireEvent.change(screen.getByLabelText('Peso al ingreso (kg) del animal 2'), { target: { value: '180' } })
     fireEvent.change(screen.getByLabelText('Tipo de peso del animal 2'), { target: { value: 'MEDIDO' } })
-    expect(screen.getByLabelText('Fecha de nacimiento del animal 1')).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Nacimiento del animal 1'), { target: { value: 'EDAD_APROXIMADA' } })
+    fireEvent.change(screen.getByLabelText('Edad aproximada del animal 1'), { target: { value: '18' } })
+    const nacimientoEsperado = calcularNacimientoEstimado(todayInBolivia(), 18, 'MESES')
+    expect(screen.getByText(/Nacimiento estimado:/)).toHaveTextContent(nacimientoEsperado!)
     fireEvent.change(screen.getByLabelText('Nacimiento del animal 2'), { target: { value: 'CONOCIDA' } })
     fireEvent.change(screen.getByLabelText('Fecha de nacimiento del animal 2'), { target: { value: '2025-09-03' } })
 
@@ -97,7 +103,7 @@ describe('IngresoLotePage', () => {
       propiedadActualId: 'prop-1',
       potreroActualId: 'pot-1',
       animales: [
-        expect.objectContaining({ categoriaActualId: 'cat-1', sexo: 'HEMBRA', pesoIngresoKg: 150, pesoIngresoEstimado: true, fechaNacimiento: undefined, fechaNacimientoEstimada: false }),
+        expect.objectContaining({ categoriaActualId: 'cat-1', sexo: 'HEMBRA', pesoIngresoKg: 150, pesoIngresoEstimado: true, fechaNacimiento: undefined, fechaNacimientoEstimada: false, edadDeclaradaValor: 18, edadDeclaradaUnidad: 'MESES', fuenteEdad: 'PROVEEDOR' }),
         expect.objectContaining({ categoriaActualId: 'cat-1', sexo: 'HEMBRA', pesoIngresoKg: 180, pesoIngresoEstimado: false, fechaNacimiento: '2025-09-03', fechaNacimientoEstimada: false }),
       ],
     }))

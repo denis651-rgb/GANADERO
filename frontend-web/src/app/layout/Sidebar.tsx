@@ -1,19 +1,55 @@
+import { useState } from 'react'
 import { NavLink } from 'react-router'
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { appModules, MODULE_STATUS_LABEL } from '@/app/modules'
 import { useAuth } from '@/auth/auth-context'
 import { cn } from '@/shared/utils/cn'
 
+const COLLAPSED_STORAGE_KEY = 'ganadero:sidebar-collapsed'
+
+function getInitialCollapsed() {
+  try {
+    return localStorage.getItem(COLLAPSED_STORAGE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 export function Sidebar() {
   const { user, can } = useAuth()
+  const [collapsed, setCollapsed] = useState(getInitialCollapsed)
+
+  function toggleCollapsed() {
+    setCollapsed((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem(COLLAPSED_STORAGE_KEY, next ? '1' : '0')
+      } catch {
+        // almacenamiento no disponible: la preferencia simplemente no persiste
+      }
+      return next
+    })
+  }
 
   return (
-    <aside className="sidebar" aria-label="Navegación principal">
+    <aside className={cn('sidebar', collapsed && 'collapsed')} aria-label="Navegación principal">
       <div className="brand">
         <img src="/logo.svg" alt="" width="42" height="42" />
-        <div>
-          <strong>GANADERO</strong>
-          <span>Gestión de campo</span>
-        </div>
+        {!collapsed && (
+          <div>
+            <strong>GANADERO</strong>
+            <span>Gestión de campo</span>
+          </div>
+        )}
+        <button
+          type="button"
+          className="icon-button sidebar-toggle"
+          onClick={toggleCollapsed}
+          aria-label={collapsed ? 'Expandir barra lateral' : 'Encoger barra lateral'}
+          title={collapsed ? 'Expandir barra lateral' : 'Encoger barra lateral'}
+        >
+          {collapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}
+        </button>
       </div>
 
       <nav className="sidebar-nav">
@@ -24,6 +60,7 @@ export function Sidebar() {
               key={module.key}
               to={module.path}
               end={module.path === '/'}
+              title={collapsed ? module.label : undefined}
               className={({ isActive }) => cn('nav-item', isActive && 'active')}
             >
               <Icon size={19} aria-hidden="true" />

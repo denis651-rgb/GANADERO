@@ -1,6 +1,6 @@
 import { http } from '@/shared/api/http'
 import type { ApiResponse, Page } from '@/shared/api/types'
-import type { AnimalEvent, AnimalFilters, AnimalState, AnimalSummary, ActualizarIdentificadorInput, AsignarIdentificadorInput, CategoriaAnimal, CrearAnimalesLoteInput, CreateAnimalInput, CrearParentescoInput, Identificador, Parentesco, Raza, TimelineEvent, UpdateAnimalInput } from '@/features/animales/types'
+import type { AnimalEvent, AnimalFilters, AnimalState, AnimalSummary, ActualizarIdentificadorInput, AsignarIdentificadorInput, CategoriaAnimal, CrearAnimalesLoteInput, CreateAnimalInput, CrearParentescoInput, HistorialCategoriaAnimal, Identificador, Parentesco, Raza, TimelineEvent, UpdateAnimalInput } from '@/features/animales/types'
 
 export async function listAnimals(filters: AnimalFilters) {
   const response = await http.get<ApiResponse<Page<AnimalSummary>>>('/api/v1/animales', {
@@ -20,6 +20,7 @@ export async function listAnimals(filters: AnimalFilters) {
 
 export async function getAnimal(id: string) { return (await http.get<ApiResponse<AnimalSummary>>(`/api/v1/animales/${id}`)).data.data }
 export async function getAnimalHistory(id: string) { return (await http.get<ApiResponse<AnimalEvent[]>>(`/api/v1/animales/${id}/historial`)).data.data }
+export async function getHistorialCategorias(id: string) { return (await http.get<ApiResponse<HistorialCategoriaAnimal[]>>(`/api/v1/animales/${id}/historial-categorias`)).data.data }
 export async function updateAnimal(id: string, input: UpdateAnimalInput) { return (await http.patch<ApiResponse<AnimalSummary>>(`/api/v1/animales/${id}`, input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data }
 export async function changeAnimalState(id: string, estado: AnimalState, motivo: string, version: number) { return (await http.patch<ApiResponse<AnimalSummary>>(`/api/v1/animales/${id}/estado`, { estado, motivo, version }, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data }
 

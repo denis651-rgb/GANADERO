@@ -93,6 +93,7 @@ export function PlanesPanel({ planes, isLoading, error, catalogs, refresh }: Pla
         viaAdministracion: String(data.get('viaAdministracion') || '') || undefined,
         obligatorio: data.get('obligatorio') === 'on',
         origenRegulatorio: String(data.get('origenRegulatorio')) as CrearItemInput['origenRegulatorio'],
+        permiteEdadDesconocida: data.get('permiteEdadDesconocida') === 'on',
       }
       return crearPlanItem(expanded!, input)
     },
@@ -218,6 +219,7 @@ export function PlanesPanel({ planes, isLoading, error, catalogs, refresh }: Pla
             </Field>
           </div>
           <label className="checkbox-line"><input type="checkbox" checked={sinEdadMaxima} onChange={(event) => setSinEdadMaxima(event.target.checked)} /> Sin límite máximo</label>
+          <label className="checkbox-line"><input name="permiteEdadDesconocida" type="checkbox" /> Incluir animales con edad desconocida (no se validará el rango de edad para ellos)</label>
           <div className={`age-range-feedback ${edadError ? 'age-range-feedback-error' : ''}`} role={edadError ? 'alert' : 'status'}>{edadError ?? equivalenciaEdad}</div>
           <input type="hidden" name="edadMinDias" value={edadMinDias ?? ''} />
           <input type="hidden" name="edadMaxDias" value={edadMaxDias ?? ''} />

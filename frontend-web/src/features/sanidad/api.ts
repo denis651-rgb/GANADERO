@@ -67,6 +67,7 @@ export interface PlanSanitarioItem {
   obligatorio: boolean
   origenRegulatorio: OrigenRegulatorio
   especieAplicable: string
+  permiteEdadDesconocida: boolean
   activo: boolean
   version: number
 }
@@ -203,6 +204,7 @@ export interface AnimalElegibilidad {
   sexo: 'MACHO' | 'HEMBRA'
   estado: string
   edadDias?: number | null
+  edadEstimada: boolean
   elegible: boolean
   motivos: string[]
 }
@@ -235,6 +237,7 @@ export interface CrearItemInput {
   obligatorio: boolean
   origenRegulatorio: OrigenRegulatorio
   especieAplicable?: string
+  permiteEdadDesconocida?: boolean
 }
 
 export interface CrearJornadaInput {
@@ -246,6 +249,15 @@ export interface CrearJornadaInput {
   responsableId: string
   veterinarioId?: string
   observaciones?: string
+}
+
+export interface ActualizarJornadaInput extends CrearJornadaInput {
+  version: number
+}
+
+export interface AnularJornadaInput {
+  motivo: string
+  version: number
 }
 
 export interface ConfirmarJornadaInput {
@@ -606,6 +618,14 @@ export async function listJornadas() {
 
 export async function crearJornada(input: CrearJornadaInput) {
   return (await http.post<ApiResponse<JornadaSanitaria>>('/api/v1/jornadas-sanitarias', input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
+}
+
+export async function actualizarJornada(jornadaId: string, input: ActualizarJornadaInput) {
+  return (await http.put<ApiResponse<JornadaSanitaria>>(`/api/v1/jornadas-sanitarias/${jornadaId}`, input)).data.data
+}
+
+export async function anularJornada(jornadaId: string, input: AnularJornadaInput) {
+  return (await http.post<ApiResponse<JornadaSanitaria>>(`/api/v1/jornadas-sanitarias/${jornadaId}/anular`, input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
 }
 
 export async function listAnimalesElegibles(params: { propiedadId: string; loteId?: string; categoriaId?: string; sexo?: string }) {
