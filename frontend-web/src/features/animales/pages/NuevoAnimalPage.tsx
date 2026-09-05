@@ -12,6 +12,10 @@ import { listPropiedades } from '@/features/propiedades/api'
 import { listPotreros } from '@/features/potreros/api'
 import type { AnimalSummary, CreateAnimalInput } from '@/features/animales/types'
 import type { Page } from '@/shared/api/types'
+import { crearCompra, confirmarCompra, getCompraDetalles } from '@/features/compras/api'
+import { fechaRecepcionInstant } from '@/features/compras/types'
+import { ProveedorPicker } from '@/features/proveedores/components/ProveedorPicker'
+import type { ProveedorSeleccion } from '@/features/proveedores/types'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
 import { Field } from '@/shared/components/Field'
@@ -38,6 +42,9 @@ export function NuevoAnimalPage() {
     },
   })
   const [tipoNacimiento, setTipoNacimiento] = useState<'CONOCIDA' | 'EDAD_APROXIMADA' | 'DESCONOCIDA'>('CONOCIDA')
+  const [proveedorSeleccion, setProveedorSeleccion] = useState<ProveedorSeleccion>({})
+  const [precioCompra, setPrecioCompra] = useState('')
+  const [monedaCompra, setMonedaCompra] = useState('BOB')
   const unsaved = useUnsavedChanges(isDirty || tipoNacimiento !== 'CONOCIDA')
   const propertyId = useWatch({ control, name: 'propiedadActualId' })
   const sexo = useWatch({ control, name: 'sexo' })
@@ -79,7 +86,7 @@ export function NuevoAnimalPage() {
         setMessage({ tone: 'danger', text: 'Indica la edad aproximada del animal.' })
         return
       }
-      const created = await createAnimal({ ...values,
+      const common: Pick<CreateAnimalInput, 'fechaNacimiento' | 'fechaNacimientoEstimada' | 'edadDeclaradaValor' | 'edadDeclaradaUnidad' | 'fechaReferenciaEdad' | 'fuenteEdad' | 'observacionEstimacion'> = {
         fechaNacimiento: tipoNacimiento === 'CONOCIDA' ? values.fechaNacimiento : undefined,
         fechaNacimientoEstimada: false,
         edadDeclaradaValor: tipoNacimiento === 'EDAD_APROXIMADA' ? values.edadDeclaradaValor : undefined,
@@ -87,6 +94,60 @@ export function NuevoAnimalPage() {
         fechaReferenciaEdad: tipoNacimiento === 'EDAD_APROXIMADA' ? (values.origen === 'NACIDO' ? todayInBolivia() : values.fechaIngreso) : undefined,
         fuenteEdad: tipoNacimiento === 'EDAD_APROXIMADA' ? (values.origen === 'COMPRADO' ? 'PROVEEDOR' : 'ESTIMACION_CAMPO') : undefined,
         observacionEstimacion: tipoNacimiento === 'EDAD_APROXIMADA' ? values.observacionEstimacion : undefined,
+      }
+
+      if (values.origen === 'COMPRADO') {
+        if (!proveedorSeleccion.proveedorId && !proveedorSeleccion.proveedorNuevo?.nombre) {
+          setMessage({ tone: 'danger', text: 'Selecciona o registra el proveedor de la compra.' })
+          return
+        }
+        if (!values.fechaIngreso) {
+          setMessage({ tone: 'danger', text: 'Indica la fecha de recepción.' })
+          return
+        }
+        const borrador = await crearCompra({
+          proveedorId: proveedorSeleccion.proveedorId,
+          proveedorNuevo: proveedorSeleccion.proveedorNuevo,
+          fechaRecepcion: fechaRecepcionInstant(values.fechaIngreso),
+          modalidad: 'POR_UNIDAD',
+          moneda: monedaCompra || 'BOB',
+          precioUnitario: precioCompra ? Number(precioCompra) : 0,
+          propiedadId: values.propiedadActualId,
+          potreroId: values.potreroActualId,
+          proposito: values.proposito,
+          observaciones: values.observaciones,
+          detalles: [{
+            nombre: values.nombre,
+            sexo: values.sexo,
+            razaId: values.razaPrincipalId,
+            proposito: values.proposito,
+            categoriaActualId: values.categoriaActualId,
+            categoriaManualMotivo: values.categoriaManualMotivo,
+            pesoIngresoKg: values.pesoIngresoKg,
+            tipoPeso: values.pesoIngresoKg != null ? (values.pesoIngresoEstimado ? 'ESTIMADO' : 'MEDIDO') : undefined,
+            observaciones: values.observaciones,
+            fechaNacimiento: common.fechaNacimiento,
+            fechaNacimientoEstimada: common.fechaNacimientoEstimada,
+            edadDeclaradaValor: common.edadDeclaradaValor,
+            edadDeclaradaUnidad: common.edadDeclaradaUnidad,
+            fechaReferenciaEdad: common.fechaReferenciaEdad,
+            fuenteEdadDeclarada: common.fuenteEdad,
+            observacionEstimacion: common.observacionEstimacion,
+          }],
+        })
+        const confirmada = await confirmarCompra(borrador.id, borrador.version)
+        const detalles = await getCompraDetalles(confirmada.id)
+        const animalId = detalles[0]?.animalId
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['animals'] }),
+          queryClient.invalidateQueries({ queryKey: ['compras'] }),
+        ])
+        navigate(animalId ? `/animales/${animalId}` : '/animales')
+        return
+      }
+
+      const created = await createAnimal({ ...values,
+        ...common,
         fechaIngreso: values.origen === 'NACIDO' ? values.fechaNacimiento : values.fechaIngreso,
         pesoIngresoEstimado: values.pesoIngresoKg != null ? values.pesoIngresoEstimado : undefined,
       })
@@ -176,6 +237,12 @@ export function NuevoAnimalPage() {
               <textarea rows={4} {...register('observaciones')} />
             </Field>
           </div>
+          {origen === 'COMPRADO' && <>
+            <div className="form-section-title form-full"><h2>Datos de la compra</h2></div>
+            <ProveedorPicker value={proveedorSeleccion} onChange={setProveedorSeleccion} />
+            <Field label="Precio de compra" hint="Precio pagado por este animal."><input type="number" inputMode="decimal" min="0" step="0.01" value={precioCompra} onChange={(event) => setPrecioCompra(event.target.value)} /></Field>
+            <Field label="Moneda"><input value={monedaCompra} onChange={(event) => setMonedaCompra(event.target.value)} maxLength={10} placeholder="BOB" /></Field>
+          </>}
           <div className="form-full form-actions">
             <Button type="submit" loading={isSubmitting}><Save size={18} />Guardar animal</Button>
           </div>

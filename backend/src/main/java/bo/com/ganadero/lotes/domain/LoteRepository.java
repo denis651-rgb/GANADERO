@@ -31,4 +31,13 @@ public interface LoteRepository {
     }
     MembresiaLotePage findHistory(UUID loteId, UUID empresa, UUID animalId, Instant desde, Instant hasta,
                                   String motivoIngreso, String motivoSalida, int page, int size);
+
+    /** Solo para el movimiento completo de un lote (transferencia de identidad): cambia la propiedad del lote. */
+    void transferirPropiedad(UUID loteId, UUID nuevaPropiedadId, UUID actor);
+    /**
+     * Recalcula la proyección de "ubicación operativa actual" (potrero_actual_id) de un lote:
+     * si todos sus miembros activos comparten el mismo potrero, lo fija; si no (o si no tiene
+     * miembros activos), la deja en null en vez de adivinar. Nunca es la fuente de verdad.
+     */
+    void recomputarUbicacionOperativa(UUID loteId, UUID actor);
 }

@@ -21,6 +21,7 @@ vi.mock('@/features/animales/api', () => ({
   ] }),
 }))
 vi.mock('@/features/propiedades/api', () => ({ listPropiedades: vi.fn().mockResolvedValue([{ id: 'p-1', nombre: 'Finca' }]) }))
+vi.mock('@/features/potreros/api', () => ({ listPotreros: vi.fn().mockResolvedValue([{ id: 'pt-1', propiedadId: 'p-1', nombre: 'Corral', activo: true }]) }))
 vi.mock('@/shared/toast/useToast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 
 function renderPage() {

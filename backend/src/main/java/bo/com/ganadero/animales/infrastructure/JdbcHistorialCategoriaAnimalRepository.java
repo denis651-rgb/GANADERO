@@ -43,7 +43,7 @@ import java.util.UUID;
         return new HistorialCategoriaAnimal(Rows.uuid(r, "id"), Rows.uuid(r, "animal_id"),
                 Rows.uuid(r, "categoria_anterior_id"), Rows.uuid(r, "categoria_nueva_id"),
                 Rows.instant(r, "fecha_cambio"), r.getString("tipo_cambio"), r.getString("motivo"),
-                Rows.uuid(r, "usuario_id"), (Long) r.getObject("edad_dias"), r.getBoolean("edad_confirmada"),
+                Rows.uuid(r, "usuario_id"), Rows.longOrNull(r, "edad_dias"), r.getBoolean("edad_confirmada"),
                 Rows.uuid(r, "categoria_config_id"));
     }
 }

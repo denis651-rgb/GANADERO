@@ -1,12 +1,15 @@
 ﻿import { useDeferredValue, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Bug, Plus, Search, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRightLeft, Bug, Plus, Search, Trash2 } from 'lucide-react'
 import { addAnimales, cerrarLote, getLote, listMembresias, retirarAnimales, updateLote } from '@/features/lotes/api'
 import type { ModoIngreso } from '@/features/lotes/api'
 import { listAnimals } from '@/features/animales/api'
 import { listPropiedades } from '@/features/propiedades/api'
+import { listPotreros } from '@/features/potreros/api'
 import { ControlEctoparasitarioModal } from '@/features/sanidad/components/ControlEctoparasitarioModal'
+import { MoverLoteWizard } from '@/features/lotes/components/MoverLoteWizard'
+import type { ResultadoMovimientoLote } from '@/features/movimientolote/types'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
@@ -39,13 +42,15 @@ export function LoteDetailPage() {
   const [showClose, setShowClose] = useState(false)
   const [closeMotivo, setCloseMotivo] = useState('')
   const [showControlEcto, setShowControlEcto] = useState(false)
+  const [showMover, setShowMover] = useState(false)
+  const [resultadoMovimiento, setResultadoMovimiento] = useState<ResultadoMovimientoLote | null>(null)
 
   const lote = useQuery({ queryKey: ['lote', id], queryFn: () => getLote(id), enabled: Boolean(id) })
   const miembros = useQuery({ queryKey: ['lote-miembros', id, true], queryFn: () => listMembresias(id, true), enabled: Boolean(id) })
   const historicos = useQuery({ queryKey: ['lote-miembros', id, false], queryFn: () => listMembresias(id, false), enabled: Boolean(id) })
   const catalogs = useQuery({ queryKey: ['lote-catalogs'], queryFn: async () => {
-    const propiedades = await listPropiedades()
-    return { propiedades }
+    const [propiedades, potreros] = await Promise.all([listPropiedades(), listPotreros()])
+    return { propiedades, potreros }
   } })
   const disponiblesQuery = useQuery({
     queryKey: ['lote-animales-disponibles', deferredAddSearch],
@@ -148,10 +153,17 @@ export function LoteDetailPage() {
   const value = lote.data
 
   return <div className="page-stack">
-    <PageHeader eyebrow="Lotes" title={`${value.codigo} · ${value.nombre}`} description={value.descripcion || 'Sin descripción.'} actions={<><Link className="button button-ghost" to="/lotes"><ArrowLeft size={18} aria-hidden="true" />Volver</Link><Button variant="secondary" onClick={() => setShowControlEcto(true)}><Bug size={18} aria-hidden="true" />Registrar control ectoparasitario</Button>{value.estado === 'ACTIVO' && <Button variant="danger" onClick={() => setShowClose(true)}>Cerrar lote</Button>}</>} />
+    <PageHeader eyebrow="Lotes" title={`${value.codigo} · ${value.nombre}`} description={value.descripcion || 'Sin descripción.'} actions={<><Link className="button button-ghost" to="/lotes"><ArrowLeft size={18} aria-hidden="true" />Volver</Link>{value.estado === 'ACTIVO' && <Button variant="secondary" onClick={() => setShowMover(true)}><ArrowRightLeft size={18} aria-hidden="true" />Mover lote</Button>}<Button variant="secondary" onClick={() => setShowControlEcto(true)}><Bug size={18} aria-hidden="true" />Registrar control ectoparasitario</Button>{value.estado === 'ACTIVO' && <Button variant="danger" onClick={() => setShowClose(true)}>Cerrar lote</Button>}</>} />
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
+    {resultadoMovimiento && <Alert tone="success">
+      Se movieron {resultadoMovimiento.animalesMovidos} animal(es){resultadoMovimiento.identidadTransferida ? ' junto con la identidad del lote' : ''}.
+      {resultadoMovimiento.animalesPermanecenEnOrigen > 0 && ` ${resultadoMovimiento.animalesPermanecenEnOrigen} animal(es) permanecen en el lote de origen (lote dividido).`}
+    </Alert>}
     <div className="two-column-grid">
-      <Card><dl className="detail-list"><div><dt>Propiedad</dt><dd>{catalogs.data?.propiedades.find((item) => item.id === value.propiedadId)?.nombre ?? '—'}</dd></div><div><dt>Estado</dt><dd>{value.estado}</dd></div><div><dt>Apertura</dt><dd>{new Date(value.fechaApertura).toLocaleDateString('es-BO')}</dd></div><div><dt>Cierre</dt><dd>{value.fechaCierre ? new Date(value.fechaCierre).toLocaleDateString('es-BO') : '—'}</dd></div></dl></Card>
+      <Card><dl className="detail-list">
+        <div><dt>Propiedad</dt><dd>{catalogs.data?.propiedades.find((item) => item.id === value.propiedadId)?.nombre ?? '—'}</dd></div>
+        <div><dt>Potrero operativo actual</dt><dd>{value.potreroActualId ? (catalogs.data?.potreros.find((p) => p.id === value.potreroActualId)?.nombre ?? '—') : 'Mixto o sin definir'}</dd></div>
+        <div><dt>Estado</dt><dd>{value.estado}</dd></div><div><dt>Apertura</dt><dd>{new Date(value.fechaApertura).toLocaleDateString('es-BO')}</dd></div><div><dt>Cierre</dt><dd>{value.fechaCierre ? new Date(value.fechaCierre).toLocaleDateString('es-BO') : '—'}</dd></div></dl></Card>
       <Card><h3>Ocupación del lote</h3><p>{value.cantidadActual} / {value.cantidadMaxima ?? 'Sin límite'} animales</p><p className="muted">{cupos == null ? 'Sin límite configurado.' : `${cupos} cupos disponibles`}</p>
         {value.estado === 'ACTIVO' && <Button variant="secondary" onClick={() => { setMaximo(value.cantidadMaxima?.toString() ?? ''); capacity.reset(); setShowCapacity(true) }}>Configurar cantidad máxima</Button>}
       </Card>
@@ -217,5 +229,12 @@ export function LoteDetailPage() {
     </Modal>
 
     {showControlEcto && <ControlEctoparasitarioModal loteGanaderoId={id} destinoLabel={`${value.codigo} · ${value.nombre}`} onClose={() => setShowControlEcto(false)} onSaved={() => setShowControlEcto(false)} />}
+
+    {showMover && miembros.data && <MoverLoteWizard
+      lote={value}
+      miembrosActivos={miembros.data}
+      onClose={() => setShowMover(false)}
+      onSuccess={(resultado) => { setShowMover(false); setResultadoMovimiento(resultado); showToast('Movimiento de lote confirmado.') }}
+    />}
   </div>
 }

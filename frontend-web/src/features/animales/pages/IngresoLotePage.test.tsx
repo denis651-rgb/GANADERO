@@ -6,13 +6,15 @@ import { IngresoLotePage } from './IngresoLotePage'
 import { calcularNacimientoEstimado } from '@/features/animales/edad'
 import { todayInBolivia } from '@/shared/utils/date'
 
-const createAnimalesLote = vi.fn()
+const getAnimal = vi.fn()
 const createMovimiento = vi.fn()
 const confirmarMovimiento = vi.fn()
+const crearCompra = vi.fn()
+const confirmarCompra = vi.fn()
+const getCompraDetalles = vi.fn()
 
 vi.mock('@/features/animales/api', () => ({
-  createAnimalesLote: (...args: unknown[]) => createAnimalesLote(...args),
-  getAnimal: vi.fn(),
+  getAnimal: (...args: unknown[]) => getAnimal(...args),
   listCategorias: vi.fn().mockResolvedValue([{ id: 'cat-1', codigo: 'VAQUILLA', nombre: 'Vaquillona', sexoAplicable: 'AMBOS', edadMinMeses: 13, edadMaxMeses: 35, activo: true, clasificacionAutomatica: true, ordenEvaluacion: 0 }]),
   listRazas: vi.fn().mockResolvedValue([{ id: 'raza-1', codigo: 'BRAH', nombre: 'Brahman', especie: 'BOVINO' }]),
 }))
@@ -26,10 +28,21 @@ vi.mock('@/features/movimientos/api', () => ({
   createMovimiento: (...args: unknown[]) => createMovimiento(...args),
   confirmarMovimiento: (...args: unknown[]) => confirmarMovimiento(...args),
 }))
+vi.mock('@/features/compras/api', () => ({
+  crearCompra: (...args: unknown[]) => crearCompra(...args),
+  confirmarCompra: (...args: unknown[]) => confirmarCompra(...args),
+  getCompraDetalles: (...args: unknown[]) => getCompraDetalles(...args),
+}))
+vi.mock('@/features/proveedores/api', () => ({ buscarProveedores: vi.fn().mockResolvedValue([]) }))
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(<MemoryRouter><QueryClientProvider client={client}><IngresoLotePage /></QueryClientProvider></MemoryRouter>)
+}
+
+function registrarProveedorNuevo(nombre: string) {
+  fireEvent.click(screen.getByRole('button', { name: 'Registrar proveedor nuevo' }))
+  fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: nombre } })
 }
 
 describe('IngresoLotePage', () => {
@@ -62,11 +75,14 @@ describe('IngresoLotePage', () => {
     }
   })
 
-  it('crea el lote con 2 filas y encadena el movimiento de ingreso por compra', async () => {
-    createAnimalesLote.mockResolvedValue([
-      { id: 'a-1', codigo: 'ANI-000001', version: 0 },
-      { id: 'a-2', codigo: 'ANI-000002', version: 0 },
+  it('crea la compra por lote con 2 filas y encadena el movimiento de ingreso', async () => {
+    crearCompra.mockResolvedValue({ id: 'compra-1', version: 0 })
+    confirmarCompra.mockResolvedValue({ id: 'compra-1', version: 1 })
+    getCompraDetalles.mockResolvedValue([
+      { id: 'det-1', animalId: 'a-1', numeroLinea: 1, precioAsignado: 0 },
+      { id: 'det-2', animalId: 'a-2', numeroLinea: 2, precioAsignado: 0 },
     ])
+    getAnimal.mockImplementation((id: string) => Promise.resolve({ id, codigo: id === 'a-1' ? 'ANI-000001' : 'ANI-000002', version: 0 }))
     createMovimiento.mockResolvedValue({ id: 'mov-1', version: 0 })
     confirmarMovimiento.mockResolvedValue({ id: 'mov-1' })
 
@@ -76,6 +92,7 @@ describe('IngresoLotePage', () => {
     fireEvent.change(screen.getByLabelText(/^Raza/), { target: { value: 'raza-1' } })
     fireEvent.change(screen.getByLabelText(/^Propiedad/), { target: { value: 'prop-1' } })
     fireEvent.change(screen.getByLabelText(/^Potrero/), { target: { value: 'pot-1' } })
+    registrarProveedorNuevo('Estancia El Roble')
 
     fireEvent.click(screen.getByRole('button', { name: 'Agregar fila' }))
     const categorias = screen.getAllByLabelText(/^Categoría/)
@@ -97,52 +114,48 @@ describe('IngresoLotePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Registrar lote' }))
 
-    await waitFor(() => expect(createAnimalesLote).toHaveBeenCalledOnce())
-    expect(createAnimalesLote).toHaveBeenCalledWith(expect.objectContaining({
-      razaPrincipalId: 'raza-1',
-      propiedadActualId: 'prop-1',
-      potreroActualId: 'pot-1',
-      animales: [
-        expect.objectContaining({ categoriaActualId: 'cat-1', sexo: 'HEMBRA', pesoIngresoKg: 150, pesoIngresoEstimado: true, fechaNacimiento: undefined, fechaNacimientoEstimada: false, edadDeclaradaValor: 18, edadDeclaradaUnidad: 'MESES', fuenteEdad: 'PROVEEDOR' }),
-        expect.objectContaining({ categoriaActualId: 'cat-1', sexo: 'HEMBRA', pesoIngresoKg: 180, pesoIngresoEstimado: false, fechaNacimiento: '2025-09-03', fechaNacimientoEstimada: false }),
+    await waitFor(() => expect(crearCompra).toHaveBeenCalledOnce())
+    expect(crearCompra).toHaveBeenCalledWith(expect.objectContaining({
+      proveedorNuevo: expect.objectContaining({ nombre: 'Estancia El Roble' }),
+      modalidad: 'POR_UNIDAD',
+      propiedadId: 'prop-1',
+      potreroId: 'pot-1',
+      detalles: [
+        expect.objectContaining({ categoriaActualId: 'cat-1', razaId: 'raza-1', sexo: 'HEMBRA', pesoIngresoKg: 150, tipoPeso: 'ESTIMADO', fechaNacimiento: undefined, fechaNacimientoEstimada: false, edadDeclaradaValor: 18, edadDeclaradaUnidad: 'MESES', fuenteEdadDeclarada: 'PROVEEDOR' }),
+        expect.objectContaining({ categoriaActualId: 'cat-1', sexo: 'HEMBRA', pesoIngresoKg: 180, tipoPeso: 'MEDIDO', fechaNacimiento: '2025-09-03', fechaNacimientoEstimada: false }),
       ],
     }))
 
-    for (const animal of createAnimalesLote.mock.calls[0][0].animales) {
-      expect(animal).not.toHaveProperty('codigo')
-      expect(animal).not.toHaveProperty('pesoNacimientoKg')
+    for (const detalle of crearCompra.mock.calls[0][0].detalles) {
+      expect(detalle).not.toHaveProperty('codigoSolicitado')
     }
 
-    await waitFor(() => expect(createMovimiento).toHaveBeenCalledWith(expect.objectContaining({
-      tipo: 'INGRESO_COMPRA',
-      destinoPropiedadId: 'prop-1',
-      destinoPotreroId: 'pot-1',
-      animales: [{ animalId: 'a-1', version: 0 }, { animalId: 'a-2', version: 0 }],
-    })))
-    expect(confirmarMovimiento).toHaveBeenCalledWith('mov-1', 0)
-
+    await waitFor(() => expect(confirmarCompra).toHaveBeenCalledWith('compra-1', 0))
     expect(await screen.findByText('2 animal(es) registrado(s)')).toBeInTheDocument()
+    expect(createMovimiento).not.toHaveBeenCalled()
     expect(screen.getAllByRole('button', { name: 'Declarar historial sanitario' })).toHaveLength(2)
   })
 
   it('no encadena movimiento de cuarentena si el checkbox no está marcado', async () => {
-    createAnimalesLote.mockResolvedValue([{ id: 'a-1', codigo: 'ANI-000001', version: 0 }])
-    createMovimiento.mockResolvedValue({ id: 'mov-1', version: 0 })
-    confirmarMovimiento.mockResolvedValue({ id: 'mov-1' })
+    crearCompra.mockResolvedValue({ id: 'compra-2', version: 0 })
+    confirmarCompra.mockResolvedValue({ id: 'compra-2', version: 1 })
+    getCompraDetalles.mockResolvedValue([{ id: 'det-1', animalId: 'a-1', numeroLinea: 1, precioAsignado: 0 }])
+    getAnimal.mockResolvedValue({ id: 'a-1', codigo: 'ANI-000001', version: 0 })
     createMovimiento.mockClear()
     confirmarMovimiento.mockClear()
 
     renderPage()
 
-    await screen.findByText('Brahman') // espera a que resuelvan los catálogos (raza/categoría/propiedad/potrero)
+    await screen.findByText('Brahman')
     fireEvent.change(screen.getByLabelText(/^Raza/), { target: { value: 'raza-1' } })
     fireEvent.change(screen.getByLabelText(/^Propiedad/), { target: { value: 'prop-1' } })
     fireEvent.change(screen.getByLabelText(/^Potrero/), { target: { value: 'pot-1' } })
     fireEvent.change(screen.getByLabelText(/^Categoría/), { target: { value: 'cat-1' } })
+    registrarProveedorNuevo('Estancia El Roble')
 
     fireEvent.click(screen.getByRole('button', { name: 'Registrar lote' }))
 
-    await waitFor(() => expect(confirmarMovimiento).toHaveBeenCalledOnce())
-    expect(createMovimiento).toHaveBeenCalledOnce()
+    await waitFor(() => expect(confirmarCompra).toHaveBeenCalledOnce())
+    expect(createMovimiento).not.toHaveBeenCalled()
   })
 })

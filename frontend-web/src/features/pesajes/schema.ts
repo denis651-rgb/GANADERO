@@ -15,7 +15,8 @@ export const registrarPesajeSchema = z.object({
   animalId: backendUuid('Selecciona un animal.'),
   fecha: optionalText(10),
   pesoKg: z.coerce.number().positive('El peso debe ser mayor a cero.').max(2000, 'Peso fuera de rango.'),
-  tipo: z.enum(['RUTINA', 'NACIMIENTO', 'DESTETE', 'ENTRADA', 'VENTA', 'PESADA_ESPECIAL']),
+  tipo: z.enum(['RUTINA', 'NACIMIENTO', 'DESTETE', 'ENTRADA', 'VENTA', 'PESADA_ESPECIAL', 'COMPRA', 'SALIDA_LOTE', 'OTRO']),
+  tipoPeso: z.enum(['MEDIDO', 'ESTIMADO']).default('MEDIDO'),
   condicionCorporal: z.union([z.literal(''), z.coerce.number().min(1, 'La condición corporal va de 1 a 9.').max(9, 'La condición corporal va de 1 a 9.')]).optional()
     .transform((value) => (value === '' ? undefined : value)),
   bascula: optionalText(50),
@@ -28,6 +29,7 @@ export const registrarPesajeSchema = z.object({
 export const pesajeLoteSchema = z.object({
   loteId: backendUuid('Selecciona un lote.'),
   pesoKg: z.coerce.number().positive('El peso debe ser mayor a cero.').max(2000, 'Peso fuera de rango.'),
+  tipoPeso: z.enum(['MEDIDO', 'ESTIMADO']).default('MEDIDO'),
   fecha: optionalText(10),
   observaciones: optionalText(500),
 })

@@ -1,5 +1,6 @@
 package bo.com.ganadero.ventas.api;
 
+import bo.com.ganadero.pesajes.domain.TipoPeso;
 import bo.com.ganadero.ventas.application.VentaCommand;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -16,9 +17,13 @@ public record CrearVentaRequest(
         @NotNull @DecimalMin(value = "0.01") BigDecimal precio,
         String moneda,
         BigDecimal pesoVentaKg,
-        String observaciones) {
+        String observaciones,
+        UUID pesajeExistenteId,
+        TipoPeso tipoPeso,
+        String dispositivo) {
 
     public VentaCommand toCommand() {
-        return new VentaCommand(animalId, fechaVenta, comprador, precio, moneda, pesoVentaKg, observaciones);
+        return new VentaCommand(animalId, fechaVenta, comprador, precio, moneda, pesoVentaKg, observaciones,
+                pesajeExistenteId, tipoPeso, dispositivo);
     }
 }

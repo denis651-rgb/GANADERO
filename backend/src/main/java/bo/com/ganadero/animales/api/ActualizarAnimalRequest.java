@@ -1,4 +1,4 @@
-package bo.com.ganadero.animales.api; import bo.com.ganadero.animales.application.AnimalCommand; import bo.com.ganadero.animales.domain.*; import jakarta.validation.constraints.*; import java.math.BigDecimal; import java.time.LocalDate; import java.util.UUID;
+package bo.com.ganadero.animales.api; import bo.com.ganadero.animales.application.AnimalCommand; import bo.com.ganadero.animales.application.EstimacionEdadAnimal; import bo.com.ganadero.animales.domain.*; import jakarta.validation.constraints.*; import java.math.BigDecimal; import java.time.LocalDate; import java.util.UUID;
 public record ActualizarAnimalRequest(@Size(max=60) String codigo,@Size(max=160) String nombre,SexoAnimal sexo,
  LocalDate fechaNacimiento,Boolean fechaNacimientoEstimada,UUID razaPrincipalId,UUID categoriaActualId,String color,
  PropositoAnimal proposito,UUID propiedadActualId,UUID potreroActualId,LocalDate fechaIngreso,

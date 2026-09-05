@@ -1,4 +1,4 @@
-package bo.com.ganadero.animales.api;
+package bo.com.ganadero.animales.application;
 
 import bo.com.ganadero.animales.domain.FuenteEdadDeclarada;
 import bo.com.ganadero.animales.domain.UnidadEdadDeclarada;
@@ -11,13 +11,16 @@ import java.time.LocalDate;
  * Resuelve fecha de nacimiento conocida, edad aproximada declarada (compra/campo) o edad
  * desconocida. El dato original declarado se conserva estructurado — nunca se mezcla con las
  * observaciones libres del usuario, para poder mostrarlo y corregirlo después.
+ *
+ * <p>Pública (movida desde animales.api) para que otros módulos que ya dependen de animales,
+ * como compras, la reutilicen en vez de duplicar la resolución de edad.</p>
  */
-final class EstimacionEdadAnimal {
+public final class EstimacionEdadAnimal {
     private EstimacionEdadAnimal() {}
 
-    static Resultado resolver(LocalDate fechaNacimiento, Boolean estimada, Integer valor,
-                              UnidadEdadDeclarada unidad, LocalDate referencia,
-                              FuenteEdadDeclarada fuente, String detalle) {
+    public static Resultado resolver(LocalDate fechaNacimiento, Boolean estimada, Integer valor,
+                                     UnidadEdadDeclarada unidad, LocalDate referencia,
+                                     FuenteEdadDeclarada fuente, String detalle) {
         if (valor == null) {
             return new Resultado(fechaNacimiento, Boolean.TRUE.equals(estimada), null, null, null, null, null);
         }
@@ -40,7 +43,7 @@ final class EstimacionEdadAnimal {
         return new BusinessException(ErrorCode.VALIDATION_ERROR, message);
     }
 
-    record Resultado(LocalDate fechaNacimiento, boolean estimada, Integer valorDeclarado,
-                     UnidadEdadDeclarada unidad, LocalDate fechaReferencia, FuenteEdadDeclarada fuente,
-                     String detalle) {}
+    public record Resultado(LocalDate fechaNacimiento, boolean estimada, Integer valorDeclarado,
+                            UnidadEdadDeclarada unidad, LocalDate fechaReferencia, FuenteEdadDeclarada fuente,
+                            String detalle) {}
 }

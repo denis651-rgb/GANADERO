@@ -16,6 +16,8 @@ import { MovimientosPage } from '@/features/movimientos/pages/MovimientosPage'
 import { AuditoriaPage } from '@/features/auditoria/pages/AuditoriaPage'
 import { PesajesPage } from '@/features/pesajes/pages/PesajesPage'
 import { PesajeDetailPage } from '@/features/pesajes/pages/PesajeDetailPage'
+import { ComprasPage } from '@/features/compras/pages/ComprasPage'
+import { CompraDetailPage } from '@/features/compras/pages/CompraDetailPage'
 import { ReproduccionPage } from '@/features/reproduccion/pages/ReproduccionPage'
 import { SanidadPage } from '@/features/sanidad/pages/SanidadPage'
 import { VentasPage } from '@/features/ventas/pages/VentasPage'
@@ -41,6 +43,8 @@ export function AppRouter() {
         <Route path="auditoria" element={<AuditoriaPage />} />
         <Route path="pesajes" element={<PesajesPage />} />
         <Route path="pesajes/:id" element={<PesajeDetailPage />} />
+        <Route path="compras" element={<ComprasPage />} />
+        <Route path="compras/:id" element={<CompraDetailPage />} />
         <Route path="reproduccion" element={<ReproduccionPage />} />
         <Route path="sanidad" element={<SanidadPage />} />
         <Route path="ventas" element={<VentasPage />} />

@@ -1,4 +1,4 @@
-package bo.com.ganadero.animales.api;
+package bo.com.ganadero.animales.application;
 
 import bo.com.ganadero.animales.domain.FuenteEdadDeclarada;
 import bo.com.ganadero.animales.domain.UnidadEdadDeclarada;

@@ -19,8 +19,11 @@ const tipoLabel: Record<string, string> = {
   NACIMIENTO: 'Nacimiento',
   DESTETE: 'Destete',
   ENTRADA: 'Entrada',
+  SALIDA_LOTE: 'Salida de lote',
   VENTA: 'Venta',
+  COMPRA: 'Compra',
   PESADA_ESPECIAL: 'Especial',
+  OTRO: 'Otro',
 }
 
 function fmtNum(value?: number, digits = 2): string {
@@ -99,8 +102,8 @@ export function PesajeDetailPage() {
         <dl className="definition-list grid">
           <div><dt>Animal</dt><dd><Link to={`/animales/${pesaje.animalId}`}>{pesaje.codigoAnimal ?? '—'}{pesaje.nombreAnimal ? ` · ${pesaje.nombreAnimal}` : ''}</Link></dd></div>
           <div><dt>Fecha</dt><dd>{formatDate(pesaje.fecha)}</dd></div>
-          <div><dt>Peso</dt><dd><strong>{pesaje.pesoKg} kg</strong></dd></div>
-          <div><dt>Tipo</dt><dd>{tipoLabel[pesaje.tipo] ?? pesaje.tipo}</dd></div>
+          <div><dt>Peso</dt><dd><strong>{pesaje.pesoKg} kg</strong> {pesaje.tipoPeso && <span className={`status-badge ${pesaje.tipoPeso === 'ESTIMADO' ? 'status-en_desarrollo' : 'status-activo'}`}>{pesaje.tipoPeso === 'ESTIMADO' ? 'ESTIMADO' : 'MEDIDO'}</span>}</dd></div>
+          <div><dt>Tipo / motivo</dt><dd>{tipoLabel[pesaje.tipo] ?? pesaje.tipo}</dd></div>
           <div><dt>Condición corporal</dt><dd>{pesaje.condicionCorporal ?? '—'}</dd></div>
           <div><dt>Báscula</dt><dd>{pesaje.bascula || '—'}</dd></div>
           <div><dt>Responsable</dt><dd>{pesaje.responsableNombre || '—'}</dd></div>
@@ -136,7 +139,7 @@ export function PesajeDetailPage() {
         {historyQuery.data?.length === 0 && <EmptyState title="Sin historial" description="Este animal aún no tiene otros pesajes registrados." />}
         {historyQuery.data && historyQuery.data.length > 0 && <div className="table-wrapper"><table><caption className="visually-hidden">Historial de pesajes del animal</caption><thead><tr><th scope="col">Fecha</th><th scope="col">Peso</th><th scope="col">Tipo</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead><tbody>{historyQuery.data.map((item) => <tr key={item.id}>
           <td>{formatDate(item.fecha)}</td>
-          <td><strong>{item.pesoKg} kg</strong></td>
+          <td><strong>{item.pesoKg} kg</strong> {item.tipoPeso && <span className={`status-badge ${item.tipoPeso === 'ESTIMADO' ? 'status-en_desarrollo' : 'status-activo'}`}>{item.tipoPeso === 'ESTIMADO' ? 'ESTIMADO' : 'MEDIDO'}</span>}</td>
           <td>{tipoLabel[item.tipo] ?? item.tipo}</td>
           <td><span className={`status-badge status-${item.estado.toLowerCase()}`}>{item.estado}</span></td>
           <td>{item.id !== pesaje.id && <Link to={`/pesajes/${item.id}`}><Button variant="ghost"><Eye size={16} />Ver</Button></Link>}</td>

@@ -1,7 +1,7 @@
 ﻿import { useRef, useState, type KeyboardEvent } from 'react'
 import { Link, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, AlertTriangle, ArrowLeft, Baby, Bug, CalendarClock, Edit3, ExternalLink, MapPin, RefreshCw, Stethoscope, Syringe } from 'lucide-react'
+import { AlertCircle, AlertTriangle, ArrowLeft, Baby, Bug, CalendarClock, Edit3, ExternalLink, MapPin, RefreshCw, Scale, ShoppingCart, Stethoscope, Syringe } from 'lucide-react'
 import { changeAnimalState, getAnimal, getAnimalTimeline, getHistorialCategorias, listCategorias, listRazas } from '@/features/animales/api'
 import { listAlerts, type AlertType } from '@/features/alertas/api'
 import { GenealogiaTab } from '@/features/animales/components/GenealogiaTab'
@@ -11,6 +11,8 @@ import type { AnimalState } from '@/features/animales/types'
 import { listPropiedades } from '@/features/propiedades/api'
 import { listPotreros } from '@/features/potreros/api'
 import { ESTADO_CALOSTRADO_LABELS, listControlesEctoparasitarios, listControlesNeonatales, listExamenesReproductivos, listTratamientos, MOMENTO_CONTROL_NEONATAL_LABELS, NIVEL_CARGA_PARASITARIA_LABELS, RESULTADO_EXAMEN_REPRODUCTIVO_LABELS, TIPO_ECTOPARASITO_LABELS, type ControlEctoparasitario, type ControlNeonatal, type ExamenReproductivo, type Tratamiento } from '@/features/sanidad/api'
+import { getResumenCompraAnimal } from '@/features/compras/api'
+import { getPesajeHistory } from '@/features/pesajes/api'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
@@ -20,6 +22,7 @@ import { LoadingState } from '@/shared/components/LoadingState'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { useToast } from '@/shared/toast/useToast'
 import { normalizeApiError } from '@/shared/api/errors'
+import { formatDate } from '@/shared/utils/date'
 
 const states: AnimalState[] = ['ACTIVO', 'VENDIDO', 'MUERTO', 'PERDIDO', 'TRANSFERIDO', 'DESCARTADO']
 const criticalStates = new Set<AnimalState>(['VENDIDO', 'MUERTO', 'PERDIDO', 'TRANSFERIDO', 'DESCARTADO'])
@@ -85,6 +88,8 @@ export function AnimalDetailPage() {
   })
   const tratamientos = useQuery({ queryKey: ['sanidad-tratamientos', id], queryFn: () => listTratamientos(id), enabled: Boolean(id) })
   const historialCategorias = useQuery({ queryKey: ['animal-historial-categorias', id], queryFn: () => getHistorialCategorias(id), enabled: Boolean(id) })
+  const compraResumen = useQuery({ queryKey: ['animal-compra-resumen', id], queryFn: () => getResumenCompraAnimal(id), enabled: Boolean(id) })
+  const historialPesos = useQuery({ queryKey: ['pesaje-history', id], queryFn: () => getPesajeHistory(id), enabled: Boolean(id) })
   const catalogs = useQuery({ queryKey: ['animal-detail-catalogs'], queryFn: async () => {
     const [breeds, categories, properties, paddocks] = await Promise.all([listRazas(), listCategorias(), listPropiedades(), listPotreros()])
     return { breeds, categories, properties, paddocks }
@@ -102,12 +107,16 @@ export function AnimalDetailPage() {
       ])
     },
   })
-  const error = animal.error ?? history.error ?? catalogs.error ?? stateMutation.error ?? calendarioSanitario.error ?? controlesNeonatales.error ?? controlesEctoparasitarios.error ?? examenesReproductivos.error ?? vacunaciones.error ?? tratamientos.error ?? historialCategorias.error
+  const error = animal.error ?? history.error ?? catalogs.error ?? stateMutation.error ?? calendarioSanitario.error ?? controlesNeonatales.error ?? controlesEctoparasitarios.error ?? examenesReproductivos.error ?? vacunaciones.error ?? tratamientos.error ?? historialCategorias.error ?? compraResumen.error ?? historialPesos.error
 
   if (animal.isPending) return <LoadingState message="Cargando animal…" />
   if (!animal.data) return <Alert tone="danger">No se encontró el animal solicitado.</Alert>
   const value = animal.data
   const location = [catalogs.data?.properties.find((item) => item.id === value.propiedadActualId)?.nombre, catalogs.data?.paddocks.find((item) => item.id === value.potreroActualId)?.nombre].filter(Boolean).join(' / ')
+  const pesosActivos = (historialPesos.data ?? []).filter((p) => p.estado === 'ACTIVO')
+  const ultimoMedido = [...pesosActivos].filter((p) => p.tipoPeso === 'MEDIDO').sort((a, b) => b.fecha.localeCompare(a.fecha))[0]
+  const ultimoEstimado = [...pesosActivos].filter((p) => p.tipoPeso === 'ESTIMADO').sort((a, b) => b.fecha.localeCompare(a.fecha))[0]
+  const historialPesosOrdenado = [...pesosActivos].sort((a, b) => b.fecha.localeCompare(a.fecha))
 
   function requestStateChange(form: HTMLFormElement) {
     const data = new FormData(form)
@@ -153,6 +162,32 @@ export function AnimalDetailPage() {
       </Card>
       <Card><h3><MapPin size={19} /> Ubicación y observaciones</h3><p><strong>{location || 'Ubicación no disponible'}</strong></p><p className="muted">{value.observaciones || 'Sin observaciones registradas.'}</p></Card>
     </div>
+    {compraResumen.data && <Card><h3><ShoppingCart size={19} aria-hidden="true" /> Compra</h3><dl className="detail-list">
+      <div><dt>Código de compra</dt><dd><Link to="/compras">{compraResumen.data.codigo}</Link></dd></div>
+      <div><dt>Proveedor</dt><dd>{compraResumen.data.proveedorNombre || '—'}{compraResumen.data.proveedorTelefono ? ` · ${compraResumen.data.proveedorTelefono}` : ''}</dd></div>
+      <div><dt>Documento del proveedor</dt><dd>{compraResumen.data.proveedorDocumento || '—'}</dd></div>
+      <div><dt>Fecha de recepción</dt><dd>{formatDate(compraResumen.data.fechaRecepcion)}</dd></div>
+      <div><dt>Modalidad</dt><dd>{compraResumen.data.modalidad === 'POR_TROPA' ? 'Por tropa o punta' : 'Por unidad'}</dd></div>
+      <div><dt>Precio asignado</dt><dd>{compraResumen.data.precioAsignado != null ? compraResumen.data.precioAsignado.toLocaleString('es-BO', { style: 'currency', currency: compraResumen.data.moneda || 'BOB' }) : 'Sin registro'}</dd></div>
+    </dl></Card>}
+    <Card><div className="section-heading"><h3><Scale size={19} aria-hidden="true" /> Peso</h3><Link className="button button-secondary" to={`/pesajes?animalId=${id}`}><ExternalLink size={17} aria-hidden="true" />Ver pesajes</Link></div>
+      {historialPesos.isPending && <LoadingState message="Cargando historial de pesos…" />}
+      {!historialPesos.isPending && pesosActivos.length === 0 && <p className="muted">Este animal aún no tiene pesos registrados.</p>}
+      {pesosActivos.length > 0 && <>
+        <dl className="detail-list">
+          <div><dt>Último peso medido</dt><dd>{ultimoMedido ? <><strong>{ultimoMedido.pesoKg} kg</strong> · {formatDate(ultimoMedido.fecha)}</> : 'Sin registro'}</dd></div>
+          <div><dt>Último peso estimado</dt><dd>{ultimoEstimado ? <><strong>{ultimoEstimado.pesoKg} kg</strong> · {formatDate(ultimoEstimado.fecha)}</> : 'Sin registro'}</dd></div>
+        </dl>
+        {!ultimoMedido && ultimoEstimado && <Alert tone="info">El último peso disponible es estimado; no hay un peso medido registrado todavía.</Alert>}
+        <div className="table-wrapper"><table><caption className="visually-hidden">Historial de pesos del animal</caption><thead><tr><th scope="col">Fecha</th><th scope="col">Peso</th><th scope="col">Tipo</th><th scope="col">Motivo</th><th scope="col">Responsable</th></tr></thead><tbody>{historialPesosOrdenado.map((pesaje) => <tr key={pesaje.id}>
+          <td>{formatDate(pesaje.fecha)}</td>
+          <td><strong>{pesaje.pesoKg} kg</strong></td>
+          <td><span className={`status-badge ${pesaje.tipoPeso === 'ESTIMADO' ? 'status-en_desarrollo' : 'status-activo'}`}>{pesaje.tipoPeso === 'ESTIMADO' ? 'ESTIMADO' : pesaje.tipoPeso === 'MEDIDO' ? 'MEDIDO' : 'SIN DATO'}</span></td>
+          <td>{pesaje.tipo}</td>
+          <td>{pesaje.responsableNombre || '—'}</td>
+        </tr>)}</tbody></table></div>
+      </>}
+    </Card>
     <Card><h3><Syringe size={19} aria-hidden="true" /> Calendario sanitario</h3>
       {calendarioSanitario.isPending && <LoadingState message="Cargando calendario sanitario…" />}
       {!calendarioSanitario.isPending && alertasSanitarias.length === 0 && <p className="muted">Sin alertas sanitarias activas para este animal.</p>}

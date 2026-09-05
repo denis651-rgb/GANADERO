@@ -1,5 +1,6 @@
-export type TipoPesaje = 'RUTINA' | 'NACIMIENTO' | 'DESTETE' | 'ENTRADA' | 'VENTA' | 'PESADA_ESPECIAL'
+export type TipoPesaje = 'RUTINA' | 'NACIMIENTO' | 'DESTETE' | 'ENTRADA' | 'VENTA' | 'PESADA_ESPECIAL' | 'COMPRA' | 'SALIDA_LOTE' | 'OTRO'
 export type EstadoPesaje = 'ACTIVO' | 'ANULADO'
+export type TipoPeso = 'MEDIDO' | 'ESTIMADO'
 
 export interface Pesaje {
   id: string
@@ -9,6 +10,7 @@ export interface Pesaje {
   fecha: string
   pesoKg: number
   tipo: TipoPesaje
+  tipoPeso?: TipoPeso
   condicionCorporal?: number
   bascula?: string
   responsableId?: string
@@ -20,6 +22,9 @@ export interface Pesaje {
   loteId?: string
   loteNombre?: string
   dispositivo?: string
+  compraId?: string
+  ventaId?: string
+  movimientoId?: string
   clienteUuid?: string
   estado: EstadoPesaje
   motivoAnulacion?: string
@@ -39,6 +44,7 @@ export interface RegistrarPesajeInput {
   fecha?: string
   pesoKg: number
   tipo?: TipoPesaje
+  tipoPeso?: TipoPeso
   condicionCorporal?: number
   bascula?: string
   propiedadId?: string
@@ -126,6 +132,7 @@ export interface PesajeMasivoItemInput {
   fecha?: string
   pesoKg: number
   tipo?: TipoPesaje
+  tipoPeso?: TipoPeso
   condicionCorporal?: number
   bascula?: string
   propiedadId?: string

@@ -31,6 +31,8 @@ vi.mock('@/features/sanidad/api', async () => {
 })
 vi.mock('@/features/propiedades/api', () => ({ listPropiedades: vi.fn().mockResolvedValue([]) }))
 vi.mock('@/features/potreros/api', () => ({ listPotreros: vi.fn().mockResolvedValue([]) }))
+vi.mock('@/features/compras/api', () => ({ getResumenCompraAnimal: vi.fn().mockResolvedValue(null) }))
+vi.mock('@/features/pesajes/api', () => ({ getPesajeHistory: vi.fn().mockResolvedValue([]) }))
 vi.mock('@/features/animales/components/GenealogiaTab', () => ({ GenealogiaTab: () => null }))
 vi.mock('@/features/animales/components/IdentificadoresTab', () => ({ IdentificadoresTab: () => null }))
 vi.mock('@/features/animales/components/FotosTab', () => ({ FotosTab: () => null }))

@@ -5,7 +5,7 @@ public record ActualizarConfiguracionRequest(
  @Min(0) Integer diasAlertaPreparto,@Min(0) Integer diasAlertaVacunacion,@Min(0) Integer diasSinPesaje,@Min(0) Integer diasAlertaDestete,
  @Min(0) Integer diasDiagnosticoPostServicio,@Min(1) Integer diasGestacionEstimada,Boolean comprimirImagenes,
  @Min(1) @Max(100) Integer calidadImagen,@Size(max=120) String nombreUsuario,
- @Size(min=4,max=20) String nuevoPin,Boolean quitarPin,@NotNull Long version){
+ @Size(min=4,max=20) String nuevoPin,Boolean quitarPin,@Min(0) Integer diasToleranciaPesoCompra,@NotNull Long version){
  ConfiguracionCommand command(){return new ConfiguracionCommand(zonaHoraria,moneda,unidadPeso,unidadSuperficie,
   diasAlertaPreparto,diasAlertaVacunacion,diasSinPesaje,diasAlertaDestete,diasDiagnosticoPostServicio,
-  diasGestacionEstimada,comprimirImagenes,calidadImagen,nombreUsuario,nuevoPin,quitarPin,version);}}
+  diasGestacionEstimada,comprimirImagenes,calidadImagen,nombreUsuario,nuevoPin,quitarPin,diasToleranciaPesoCompra,version);}}

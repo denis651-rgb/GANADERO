@@ -1,5 +1,6 @@
 package bo.com.ganadero.animales.api;
 import bo.com.ganadero.animales.application.AnimalCommand;
+import bo.com.ganadero.animales.application.EstimacionEdadAnimal;
 import bo.com.ganadero.animales.domain.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;

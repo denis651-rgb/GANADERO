@@ -17,10 +17,12 @@ public record LoteResponse(
         LocalDate fechaCierre,
         long version,
         Integer cantidadMaxima,
-        long cantidadActual) {
+        long cantidadActual,
+        UUID potreroActualId) {
 
     public static LoteResponse from(Lote lote) {
         return new LoteResponse(lote.id(), lote.propiedadId(), lote.codigo(), lote.nombre(), lote.descripcion(),
-                lote.estado(), lote.fechaApertura(), lote.fechaCierre(), lote.version(), lote.cantidadMaxima(), lote.cantidadActual());
+                lote.estado(), lote.fechaApertura(), lote.fechaCierre(), lote.version(), lote.cantidadMaxima(),
+                lote.cantidadActual(), lote.potreroActualId());
     }
 }

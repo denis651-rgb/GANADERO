@@ -11,6 +11,6 @@
  */
 @org.springframework.modulith.ApplicationModule(
         type = org.springframework.modulith.ApplicationModule.Type.OPEN,
-        allowedDependencies = {"movimientos", "animales", "shared"}
+        allowedDependencies = {"movimientos", "animales", "pesajes", "shared"}
 )
 package bo.com.ganadero.ventas;

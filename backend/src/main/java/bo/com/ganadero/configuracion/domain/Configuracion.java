@@ -9,4 +9,4 @@ import java.util.UUID;
 public record Configuracion(UUID id, String zonaHoraria, String moneda, String unidadPeso, String unidadSuperficie,
  Integer diasAlertaPreparto, Integer diasAlertaVacunacion, Integer diasSinPesaje, Integer diasAlertaDestete,
  Integer diasDiagnosticoPostServicio, Integer diasGestacionEstimada, Boolean comprimirImagenes, Integer calidadImagen,
- String nombreUsuario, boolean pinConfigurado, long version) {}
+ String nombreUsuario, boolean pinConfigurado, Integer diasToleranciaPesoCompra, long version) {}

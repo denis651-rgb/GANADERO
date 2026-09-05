@@ -27,6 +27,7 @@ export function PesajeLoteForm({ onSaved, onCancel }: PesajeLoteFormProps) {
   const [reintentando, setReintentando] = useState(false)
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<PesajeLoteFormInput, unknown, PesajeLoteForm>({
     resolver: zodResolver(pesajeLoteSchema),
+    defaultValues: { tipoPeso: 'MEDIDO' },
   })
   const lots = useQuery({ queryKey: ['pesaje-lote-lots'], queryFn: () => listLotes({ estado: 'ACTIVO', page: 0, size: 200 }) })
 
@@ -64,6 +65,7 @@ export function PesajeLoteForm({ onSaved, onCancel }: PesajeLoteFormProps) {
       loteId: values.loteId,
       animalIds,
       pesoKg: values.pesoKg,
+      tipoPeso: values.tipoPeso,
       fecha: values.fecha,
       observaciones: values.observaciones,
     }))
@@ -94,6 +96,9 @@ export function PesajeLoteForm({ onSaved, onCancel }: PesajeLoteFormProps) {
         </Field>
         <Field label="Peso (kg)" error={errors.pesoKg?.message} hint="El mismo peso se aplicará a todos los animales activos del lote.">
           <input type="number" inputMode="decimal" min="1" step="0.1" {...register('pesoKg')} placeholder="250" />
+        </Field>
+        <Field label="Tipo de peso" error={errors.tipoPeso?.message}>
+          <select {...register('tipoPeso')}><option value="MEDIDO">Medido</option><option value="ESTIMADO">Estimado</option></select>
         </Field>
         <Field label="Fecha" error={errors.fecha?.message}>
           <input type="date" {...register('fecha')} />

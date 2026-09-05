@@ -23,8 +23,11 @@ const tipoLabel: Record<string, string> = {
   NACIMIENTO: 'Nacimiento',
   DESTETE: 'Destete',
   ENTRADA: 'Entrada',
+  SALIDA_LOTE: 'Salida de lote',
   VENTA: 'Venta',
+  COMPRA: 'Compra',
   PESADA_ESPECIAL: 'Especial',
+  OTRO: 'Otro',
 }
 
 export function PesajesPage() {
@@ -67,7 +70,7 @@ export function PesajesPage() {
         <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Pesajes que coinciden con los filtros</caption><thead><tr><th scope="col">Fecha</th><th scope="col">Animal</th><th scope="col">Peso</th><th scope="col">Tipo</th><th scope="col">Condición</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead><tbody>{query.data.content.map((pesaje) => <tr key={pesaje.id}>
           <td>{formatDate(pesaje.fecha)}</td>
           <td><Link to={`/animales/${pesaje.animalId}`}><strong>{pesaje.codigoAnimal ?? '—'}</strong></Link>{pesaje.nombreAnimal ? <div className="cell-sub">{pesaje.nombreAnimal}</div> : null}</td>
-          <td><strong>{pesaje.pesoKg} kg</strong></td>
+          <td><strong>{pesaje.pesoKg} kg</strong> {pesaje.tipoPeso && <span className={`status-badge ${pesaje.tipoPeso === 'ESTIMADO' ? 'status-en_desarrollo' : 'status-activo'}`}>{pesaje.tipoPeso === 'ESTIMADO' ? 'ESTIMADO' : 'MEDIDO'}</span>}</td>
           <td>{tipoLabel[pesaje.tipo] ?? pesaje.tipo}</td>
           <td>{pesaje.condicionCorporal ?? '—'}</td>
           <td><span className={`status-badge status-${pesaje.estado.toLowerCase()}`}>{pesaje.estado}</span></td>
@@ -76,7 +79,7 @@ export function PesajesPage() {
             {pesaje.estado === 'ACTIVO' && <Button variant="ghost" aria-label={`Anular pesaje de ${pesaje.codigoAnimal ?? 'animal sin código'} del ${formatDate(pesaje.fecha)}`} onClick={() => setAnularTarget(pesaje)}><Ban size={16} aria-hidden="true" />Anular</Button>}
           </td>
         </tr>)}</tbody></table></div>
-        <div className="mobile-only"><div className="mobile-entity-list">{query.data.content.map((pesaje) => <MobileEntityCard key={pesaje.id} title={pesaje.codigoAnimal ?? 'Animal sin código'} subtitle={pesaje.nombreAnimal} status={<span className={`status-badge status-${pesaje.estado.toLowerCase()}`}>{pesaje.estado}</span>} metadata={<><strong className="mobile-weight">{pesaje.pesoKg} kg</strong><span>{formatDate(pesaje.fecha)} · {tipoLabel[pesaje.tipo] ?? pesaje.tipo}</span>{pesaje.condicionCorporal != null && <span>Condición corporal: {pesaje.condicionCorporal}</span>}</>} action={<><Link className="button button-ghost" to={`/pesajes/${pesaje.id}`}>Ver →</Link>{pesaje.estado === 'ACTIVO' && <Button variant="ghost" onClick={() => setAnularTarget(pesaje)}>Anular</Button>}</>} />)}</div></div>
+        <div className="mobile-only"><div className="mobile-entity-list">{query.data.content.map((pesaje) => <MobileEntityCard key={pesaje.id} title={pesaje.codigoAnimal ?? 'Animal sin código'} subtitle={pesaje.nombreAnimal} status={<span className={`status-badge status-${pesaje.estado.toLowerCase()}`}>{pesaje.estado}</span>} metadata={<><strong className="mobile-weight">{pesaje.pesoKg} kg {pesaje.tipoPeso && `(${pesaje.tipoPeso === 'ESTIMADO' ? 'estimado' : 'medido'})`}</strong><span>{formatDate(pesaje.fecha)} · {tipoLabel[pesaje.tipo] ?? pesaje.tipo}</span>{pesaje.condicionCorporal != null && <span>Condición corporal: {pesaje.condicionCorporal}</span>}</>} action={<><Link className="button button-ghost" to={`/pesajes/${pesaje.id}`}>Ver →</Link>{pesaje.estado === 'ACTIVO' && <Button variant="ghost" onClick={() => setAnularTarget(pesaje)}>Anular</Button>}</>} />)}</div></div>
         <div className="pagination"><span>Página {query.data.page + 1} de {Math.max(query.data.totalPages, 1)}</span><div><Button variant="ghost" disabled={page === 0 || query.isFetching} onClick={() => setPage((value) => value - 1)}><ChevronLeft size={17} />Anterior</Button><Button variant="ghost" disabled={page + 1 >= query.data.totalPages || query.isFetching} onClick={() => setPage((value) => value + 1)}>Siguiente<ChevronRight size={17} /></Button></div></div>
       </>}
     </Card>
