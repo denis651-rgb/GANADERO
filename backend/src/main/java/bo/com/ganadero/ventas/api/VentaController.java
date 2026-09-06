@@ -27,6 +27,11 @@ public class VentaController {
         return success(service.registrar(body.toCommand()), request);
     }
 
+    @PostMapping("/lote")
+    public ApiResponse<List<Venta>> registrarLote(@Valid @RequestBody CrearVentaLoteRequest body, HttpServletRequest request) {
+        return success(service.registrarLote(body.toCommand()), request);
+    }
+
     @GetMapping
     public ApiResponse<List<Venta>> list(@RequestParam(required = false) UUID animalId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,

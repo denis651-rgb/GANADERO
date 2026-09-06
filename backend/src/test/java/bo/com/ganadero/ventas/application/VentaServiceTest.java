@@ -10,6 +10,7 @@ import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import bo.com.ganadero.shared.security.CurrentUser;
 import bo.com.ganadero.shared.security.UserContext;
+import bo.com.ganadero.ventas.domain.ModalidadVenta;
 import bo.com.ganadero.ventas.domain.Venta;
 import bo.com.ganadero.ventas.domain.VentaRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +21,8 @@ import org.springframework.beans.factory.ObjectProvider;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -64,6 +67,12 @@ class VentaServiceTest {
 
     private Animal animal() {
         return new Animal(animalId, empresa, "ANI-000001", null, SexoAnimal.HEMBRA, null, false, UUID.randomUUID(),
+                UUID.randomUUID(), null, PropositoAnimal.CARNE, OrigenAnimal.COMPRADO, propiedad, potrero, null,
+                EstadoAnimal.ACTIVO, LocalDate.now(), null, null, null, null, null, 3);
+    }
+
+    private Animal animal(UUID id, String codigo) {
+        return new Animal(id, empresa, codigo, null, SexoAnimal.HEMBRA, null, false, UUID.randomUUID(),
                 UUID.randomUUID(), null, PropositoAnimal.CARNE, OrigenAnimal.COMPRADO, propiedad, potrero, null,
                 EstadoAnimal.ACTIVO, LocalDate.now(), null, null, null, null, null, 3);
     }
@@ -137,5 +146,79 @@ class VentaServiceTest {
                 .isInstanceOfSatisfying(BusinessException.class,
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.VENTA_RETIRO_SANITARIO_VIGENTE));
         verify(movimientos, never()).create(any());
+    }
+
+    @Test
+    void ventaPorLoteEnPieAplicaElMismoPrecioACadaAnimal() {
+        UUID animalId2 = UUID.randomUUID();
+        when(animales.findById(animalId2, empresa)).thenReturn(Optional.of(animal(animalId2, "ANI-000002")));
+
+        List<Venta> ventas = service.registrarLote(new VentaLoteCommand(List.of(animalId, animalId2),
+                LocalDate.now(), "Frigorífico Norte", "77712345", ModalidadVenta.EN_PIE,
+                new BigDecimal("3500"), null, Map.of(), null));
+
+        assertThat(ventas).hasSize(2);
+        assertThat(ventas).allSatisfy(v -> {
+            assertThat(v.precio()).isEqualByComparingTo("3500");
+            assertThat(v.modalidad()).isEqualTo(ModalidadVenta.EN_PIE);
+            assertThat(v.telefonoComprador()).isEqualTo("77712345");
+        });
+        assertThat(ventas.get(0).grupoVentaId()).isNotNull().isEqualTo(ventas.get(1).grupoVentaId());
+    }
+
+    @Test
+    void ventaPorLoteCarneadoCalculaPrecioSegunPesoDeCadaAnimal() {
+        UUID animalId2 = UUID.randomUUID();
+        when(animales.findById(animalId2, empresa)).thenReturn(Optional.of(animal(animalId2, "ANI-000002")));
+
+        List<Venta> ventas = service.registrarLote(new VentaLoteCommand(List.of(animalId, animalId2),
+                LocalDate.now(), "Frigorífico Norte", null, ModalidadVenta.CARNEADO,
+                null, new BigDecimal("15"), Map.of(animalId, new BigDecimal("380"), animalId2, new BigDecimal("400")),
+                null));
+
+        assertThat(ventas).hasSize(2);
+        assertThat(ventas.get(0).precio()).isEqualByComparingTo("5700.00");
+        assertThat(ventas.get(1).precio()).isEqualByComparingTo("6000.00");
+        assertThat(ventas).allSatisfy(v -> assertThat(v.precioUnitario()).isEqualByComparingTo("15"));
+    }
+
+    @Test
+    void rechazaUnLoteVacio() {
+        assertThatThrownBy(() -> service.registrarLote(new VentaLoteCommand(List.of(), LocalDate.now(),
+                "Comprador", null, ModalidadVenta.EN_PIE, new BigDecimal("100"), null, Map.of(), null)))
+                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.VENTA_LOTE_VACIO));
+    }
+
+    @Test
+    void rechazaCarneadoSiFaltaElPesoDeUnAnimal() {
+        UUID animalId2 = UUID.randomUUID();
+        when(animales.findById(animalId2, empresa)).thenReturn(Optional.of(animal(animalId2, "ANI-000002")));
+
+        assertThatThrownBy(() -> service.registrarLote(new VentaLoteCommand(List.of(animalId, animalId2),
+                LocalDate.now(), "Comprador", null, ModalidadVenta.CARNEADO, null, new BigDecimal("15"),
+                Map.of(animalId, new BigDecimal("380")), null)))
+                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.VENTA_PESO_REQUERIDO));
+    }
+
+    @Test
+    void detieneElLoteAlPrimerAnimalConRetiroSanitarioVigente() {
+        UUID animalId2 = UUID.randomUUID();
+        when(animales.findById(animalId2, empresa)).thenReturn(Optional.of(animal(animalId2, "ANI-000002")));
+        @SuppressWarnings("unchecked")
+        ObjectProvider<RestriccionRetiroPort> conRetiro = mock(ObjectProvider.class);
+        RestriccionRetiroPort port = mock(RestriccionRetiroPort.class);
+        when(conRetiro.getIfAvailable()).thenReturn(port);
+        when(port.vigente(eq(empresa), eq(animalId2), any())).thenReturn(
+                Optional.of(new RestriccionRetiroPort.RestriccionRetiroVigente("CARNE", LocalDate.now().plusDays(5))));
+        CurrentUser user = new CurrentUser(UUID.randomUUID(), empresa, UUID.randomUUID(), Set.of(),
+                Set.of("VENTA_REGISTRAR", "VENTA_VER"), Set.of(), true);
+        VentaService conBloqueo = new VentaService(ventas, animales, movimientos, pesajes,
+                new UserContext(() -> user), conRetiro);
+
+        assertThatThrownBy(() -> conBloqueo.registrarLote(new VentaLoteCommand(List.of(animalId, animalId2),
+                LocalDate.now(), "Comprador", null, ModalidadVenta.EN_PIE, new BigDecimal("3500"), null, Map.of(), null)))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.code()).isEqualTo(ErrorCode.VENTA_RETIRO_SANITARIO_VIGENTE));
+        verify(ventas, times(1)).create(any());
     }
 }

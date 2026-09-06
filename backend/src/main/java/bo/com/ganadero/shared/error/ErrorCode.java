@@ -105,6 +105,8 @@ public enum ErrorCode {
     VENTA_NOT_FOUND(HttpStatus.NOT_FOUND, "La venta no existe."),
     VENTA_PRECIO_INVALIDO(HttpStatus.BAD_REQUEST, "El precio de venta debe ser mayor a cero."),
     VENTA_PESAJE_INVALIDO(HttpStatus.UNPROCESSABLE_CONTENT, "El pesaje indicado no corresponde a este animal o no está activo."),
+    VENTA_LOTE_VACIO(HttpStatus.BAD_REQUEST, "Selecciona al menos un animal para la venta."),
+    VENTA_PESO_REQUERIDO(HttpStatus.BAD_REQUEST, "En una venta carneada, todos los animales deben tener un peso de salida registrado."),
     PROVEEDOR_NOT_FOUND(HttpStatus.NOT_FOUND, "El proveedor no existe."),
     PROVEEDOR_DATOS_REQUERIDOS(HttpStatus.BAD_REQUEST, "Indica al menos el nombre del proveedor."),
     COMPRA_NOT_FOUND(HttpStatus.NOT_FOUND, "La compra no existe."),
