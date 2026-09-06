@@ -46,10 +46,10 @@ public class ProyectarCalendarioSanitarioService {
             TipoActividadSanitaria.VACUNACION, "vacunación",
             TipoActividadSanitaria.DESPARASITACION, "desparasitación",
             TipoActividadSanitaria.VITAMINIZACION, "vitaminización",
-            TipoActividadSanitaria.CONTROL, "control",
+            TipoActividadSanitaria.CONTROL_ECTOPARASITARIO, "control ectoparasitario",
             TipoActividadSanitaria.PRUEBA_DIAGNOSTICA, "prueba diagnóstica",
-            TipoActividadSanitaria.OTRO, "la actividad sanitaria",
-            TipoActividadSanitaria.VIGILANCIA_EPIDEMIOLOGICA, "vigilancia epidemiológica");
+            TipoActividadSanitaria.OTRA, "la actividad sanitaria",
+            TipoActividadSanitaria.VIGILANCIA, "vigilancia epidemiológica");
 
     private final JdbcClient jdbc;
     private final MotorAlertas alertas;

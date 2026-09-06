@@ -56,8 +56,8 @@ class JornadaSanitariaServiceTest {
         CurrentUser user = new CurrentUser(usuarioId, empresa, UUID.randomUUID(), Set.of(),
                 Set.of("SANIDAD_VER", "SANIDAD_JORNADA_CREAR", "SANIDAD_JORNADA_CONFIRMAR"), Set.of(), true);
         service = new JornadaSanitariaService(jornadas, planes, animales, new UserContext(() -> user),
-                mock(ObjectProvider.class), mock(ObjectProvider.class), mock(TimelineEventPublisher.class),
-                mock(ApplicationEventPublisher.class));
+                mock(DosisCalculadaService.class), mock(EventoCalendarioSanitarioRepository.class),
+                mock(ObjectProvider.class), mock(TimelineEventPublisher.class), mock(ApplicationEventPublisher.class));
     }
 
     @Test

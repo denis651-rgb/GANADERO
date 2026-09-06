@@ -1,5 +1,26 @@
-package bo.com.ganadero.sanidad.application; import bo.com.ganadero.animales.domain.SexoAnimal; import bo.com.ganadero.sanidad.domain.OrigenRegulatorioActividad; import bo.com.ganadero.sanidad.domain.TipoActividadSanitaria; import java.math.BigDecimal; import java.util.UUID;
-public record CrearPlanItemCommand(TipoActividadSanitaria tipoActividad,UUID productoId,String productoRecomendadoTexto,
- UUID categoriaAnimalId,SexoAnimal sexoAplicable,Integer edadMinDias,Integer edadMaxDias,BigDecimal dosis,String unidadDosis,
- Integer frecuenciaDias,int diasAlerta,String viaAdministracion,boolean obligatorio,
- OrigenRegulatorioActividad origenRegulatorio,String especieAplicable,boolean permiteEdadDesconocida) {}
+package bo.com.ganadero.sanidad.application;
+
+import bo.com.ganadero.animales.domain.SexoAnimal;
+import bo.com.ganadero.sanidad.domain.*;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Datos de una actividad sanitaria (sección 2). {@code motivoVersion}/{@code fechaVigencia} sólo
+ * se exigen cuando se edita una actividad ya usada (sección 16-17); se ignoran al crear una nueva.
+ */
+public record CrearPlanItemCommand(
+        String codigoInterno, String nombre, String descripcion, TipoActividadSanitaria tipoActividad,
+        ModalidadActividad modalidad, ModalidadConfig modalidadConfig, String productoRecomendadoTexto,
+        String principioActivo, String instruccionesVeterinario, String observaciones,
+        BigDecimal dosisCantidad, UnidadDosis dosisUnidad, String dosisUnidadDetalle, TipoCalculoDosis dosisTipoCalculo,
+        BigDecimal dosisPesoReferenciaKg, BigDecimal dosisMinima, BigDecimal dosisMaxima,
+        ViaAdministracion viaAdministracionCodigo, String viaAdministracionDetalle, LugarAplicacion lugarAplicacion,
+        String lugarAplicacionDetalle, List<UUID> categoriasAplicables, SexoAnimal sexoAplicable,
+        Integer edadMinDias, Integer edadMaxDias, UnidadEdadActividad edadUnidad, boolean permiteEdadDesconocida,
+        int diasAlerta, boolean obligatorio, OrigenRegulatorioActividad origenRegulatorio, String especieAplicable,
+        String motivoVersion, Instant fechaVigencia) {
+}

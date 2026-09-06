@@ -138,7 +138,7 @@ class LoteCapacidadIntegrationTest {
                     .param("id", UUID.randomUUID().toString()).param("movimiento", movimiento)
                     .param("animal", id.toString()).param("lote", lote.id().toString()).update();
         }
-        Flyway.configure().dataSource(f.ds).locations("classpath:db/migration").load().migrate();
+        Flyway.configure().dataSource(f.ds).locations("classpath:db/migration").mixed(true).load().migrate();
         var salida = f.repo.findMemberships(lote.id(), null, false).stream()
                 .filter(m -> m.animalId().equals(vendido)).findFirst().orElseThrow();
         assertThat(salida.fechaSalida()).isEqualTo(Instant.parse(confirmacion));
@@ -150,14 +150,14 @@ class LoteCapacidadIntegrationTest {
         assertThat(f.repo.findById(lote.id(), null).orElseThrow().cantidadActual()).isEqualTo(2);
         assertThat(f.jdbc.sql("select count(*) from animal where id=:id and lote_actual_id is null")
                 .param("id", vendido.toString()).query(Integer.class).single()).isEqualTo(1);
-        Flyway.configure().dataSource(f.ds).locations("classpath:db/migration").load().migrate();
+        Flyway.configure().dataSource(f.ds).locations("classpath:db/migration").mixed(true).load().migrate();
         assertThat(f.repo.findMemberships(lote.id(), null, false)).hasSize(3);
     }
 
     private Fixture fixture(Path dir, String target) {
         var ds = new SQLiteDataSource();
         ds.setUrl("jdbc:sqlite:" + dir.resolve("lotes.db") + "?foreign_keys=on&busy_timeout=5000");
-        Flyway.configure().dataSource(ds).locations("classpath:db/migration").target(target).load().migrate();
+        Flyway.configure().dataSource(ds).locations("classpath:db/migration").mixed(true).target(target).load().migrate();
         var jdbc = JdbcClient.create(ds);
         var potrero = UUID.randomUUID();
         jdbc.sql("insert into potrero(id,codigo,nombre,propiedad_id) values(:id,:id,'Prueba',:propiedad)")

@@ -15,6 +15,7 @@ import bo.com.ganadero.ventas.domain.VentaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.beans.factory.ObjectProvider;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -48,7 +49,9 @@ class VentaServiceTest {
         potrero = UUID.randomUUID();
         CurrentUser user = new CurrentUser(UUID.randomUUID(), empresa, UUID.randomUUID(), Set.of(),
                 Set.of("VENTA_REGISTRAR", "VENTA_VER"), Set.of(), true);
-        service = new VentaService(ventas, animales, movimientos, pesajes, new UserContext(() -> user));
+        @SuppressWarnings("unchecked")
+        ObjectProvider<RestriccionRetiroPort> sinRetiro = mock(ObjectProvider.class);
+        service = new VentaService(ventas, animales, movimientos, pesajes, new UserContext(() -> user), sinRetiro);
 
         Movimiento movimiento = new Movimiento(UUID.randomUUID(), empresa, TipoMovimiento.SALIDA_VENTA,
                 EstadoMovimiento.CONFIRMADO, LocalDate.now(), null, null, null, null, null, null, null, null,
@@ -114,5 +117,25 @@ class VentaServiceTest {
         assertThatThrownBy(() -> service.registrar(new VentaCommand(animalId, LocalDate.now(), "Comprador",
                 BigDecimal.ZERO, "BOB", null, null)))
                 .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.VENTA_PRECIO_INVALIDO));
+    }
+
+    @Test
+    void bloqueaLaVentaSiHayUnRetiroSanitarioVigente() {
+        @SuppressWarnings("unchecked")
+        ObjectProvider<RestriccionRetiroPort> conRetiro = mock(ObjectProvider.class);
+        RestriccionRetiroPort port = mock(RestriccionRetiroPort.class);
+        when(conRetiro.getIfAvailable()).thenReturn(port);
+        when(port.vigente(eq(empresa), eq(animalId), any())).thenReturn(
+                Optional.of(new RestriccionRetiroPort.RestriccionRetiroVigente("CARNE", LocalDate.now().plusDays(5))));
+        CurrentUser user = new CurrentUser(UUID.randomUUID(), empresa, UUID.randomUUID(), Set.of(),
+                Set.of("VENTA_REGISTRAR", "VENTA_VER"), Set.of(), true);
+        VentaService conBloqueo = new VentaService(ventas, animales, movimientos, pesajes,
+                new UserContext(() -> user), conRetiro);
+
+        assertThatThrownBy(() -> conBloqueo.registrar(new VentaCommand(animalId, LocalDate.now(), "Comprador",
+                new BigDecimal("100"), "BOB", null, null)))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.code()).isEqualTo(ErrorCode.VENTA_RETIRO_SANITARIO_VIGENTE));
+        verify(movimientos, never()).create(any());
     }
 }

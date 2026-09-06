@@ -24,7 +24,7 @@ class CodigoServiceSqliteTest {
     @Test
     void generaCodigosDistintosParaPotrerosDeDistintasPropiedades(@TempDir Path tempDir) {
         DataSource dataSource = sqliteDataSource(tempDir);
-        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
+        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").mixed(true).load().migrate();
         JdbcClient jdbc = JdbcClient.create(dataSource);
         CodigoService service = new CodigoService(jdbc);
         CurrentUser user = new CurrentUser(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),

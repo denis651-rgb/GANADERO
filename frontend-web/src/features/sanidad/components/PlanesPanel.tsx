@@ -3,19 +3,36 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Pencil, Plus, Power } from 'lucide-react'
 import { useAuth } from '@/auth/auth-context'
 import {
+  actualizarPlanItem,
   cambiarEstadoItem,
   cambiarEstadoPlan,
   crearPlan,
   crearPlanItem,
   listPlanItems,
+  listVersionesItem,
+  LUGAR_APLICACION_LABELS,
+  MODALIDAD_ACTIVIDAD_LABELS,
   ORIGEN_REGULATORIO_BADGE_CLASS,
   ORIGEN_REGULATORIO_LABELS,
+  REFERENCIA_CALCULO_PERIODICA_LABELS,
   TIPO_ACTIVIDAD_LABELS,
+  TIPO_CALCULO_DOSIS_LABELS,
+  UNIDAD_DOSIS_LABELS,
+  VIA_ADMINISTRACION_LABELS,
   type CrearItemInput,
   type CrearPlanInput,
   type EstadoPlan,
+  type LugarAplicacion,
+  type ModalidadActividad,
+  type ModalidadConfig,
   type OrigenRegulatorio,
   type PlanSanitario,
+  type PlanSanitarioItem,
+  type ReferenciaCalculoPeriodica,
+  type TipoCalculoDosis,
+  type UnidadEdadActividad,
+  type UnidadFrecuencia,
+  type ViaAdministracion,
 } from '@/features/sanidad/api'
 import type { SanidadCatalogs } from '@/features/sanidad/catalogs'
 import { Alert } from '@/shared/components/Alert'
@@ -37,24 +54,44 @@ interface PlanesPanelProps {
   refresh: () => void
 }
 
+const TIPOS_HALLAZGO_CATALOGO = [
+  { valor: 'CASO_CLINICO_ABIERTO', label: 'Caso clínico abierto' },
+  { valor: 'CONTROL_ECTOPARASITARIO_POSITIVO', label: 'Control ectoparasitario con carga alta' },
+  { valor: 'EXAMEN_REPRODUCTIVO_NO_APTO', label: 'Examen reproductivo no apto' },
+  { valor: 'CONTROL_NEONATAL_ALERTA', label: 'Control neonatal con alerta' },
+]
+
 export function PlanesPanel({ planes, isLoading, error, catalogs, refresh }: PlanesPanelProps) {
   const client = useQueryClient()
   const { can } = useAuth()
   const canAdmin = can('SANIDAD_PLAN_ADMINISTRAR')
   const [showPlanForm, setShowPlanForm] = useState(false)
   const [showItemForm, setShowItemForm] = useState(false)
+  const [editingItem, setEditingItem] = useState<PlanSanitarioItem | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [edadMinValor, setEdadMinValor] = useState('')
   const [edadMaxValor, setEdadMaxValor] = useState('')
   const [unidadEdad, setUnidadEdad] = useState<UnidadEdad>('MESES')
   const [sinEdadMaxima, setSinEdadMaxima] = useState(false)
+  const [modalidad, setModalidad] = useState<ModalidadActividad>('MANUAL')
+  const [dosisTipoCalculo, setDosisTipoCalculo] = useState<TipoCalculoDosis>('NO_APLICA')
+  const [viaCodigo, setViaCodigo] = useState<ViaAdministracion | ''>('')
+  const [lugar, setLugar] = useState<LugarAplicacion | ''>('')
+  const [tiposHallazgoSeleccionados, setTiposHallazgoSeleccionados] = useState<string[]>([])
   const [stateTarget, setStateTarget] = useState<{ plan: PlanSanitario; estado: EstadoPlan } | null>(null)
   const [itemTarget, setItemTarget] = useState<{ plan: PlanSanitario; item: { id: string; activo: boolean; version: number; nombre: string } } | null>(null)
+  const [historial, setHistorial] = useState<{ plan: PlanSanitario; itemId: string; nombre: string } | null>(null)
 
   const items = useQuery({
     queryKey: ['sanidad-items', expanded],
     queryFn: () => (expanded ? listPlanItems(expanded) : Promise.resolve([])),
     enabled: Boolean(expanded),
+  })
+
+  const versiones = useQuery({
+    queryKey: ['sanidad-item-versiones', historial?.plan.id, historial?.itemId],
+    queryFn: () => listVersionesItem(historial!.plan.id, historial!.itemId),
+    enabled: Boolean(historial),
   })
 
   const crearPlanMut = useMutation({
@@ -76,24 +113,82 @@ export function PlanesPanel({ planes, isLoading, error, catalogs, refresh }: Pla
     onSuccess: () => { setStateTarget(null); refresh() },
   })
 
+  function construirModalidadConfig(data: FormData): ModalidadConfig {
+    switch (modalidad) {
+      case 'POR_EDAD':
+        return {
+          edadObjetivoValor: Number(data.get('edadObjetivoValor')) || 0,
+          edadUnidad: String(data.get('edadObjetivoUnidad') || 'DIAS') as UnidadEdadActividad,
+          ventanaAnticipadaDias: Number(data.get('ventanaAnticipadaDias')) || 0,
+          ventanaPosteriorDias: Number(data.get('ventanaPosteriorDias')) || 0,
+          politicaEdadEstimada: data.get('excluirEdadEstimada') === 'on' ? 'EXCLUIR' : 'PERMITIR',
+          politicaEdadDesconocida: 'EXCLUIR',
+          unaVezEnLaVida: true,
+        }
+      case 'PERIODICA':
+        return {
+          frecuenciaValor: Number(data.get('frecuenciaValor')) || 1,
+          frecuenciaUnidad: String(data.get('frecuenciaUnidad') || 'DIAS') as UnidadFrecuencia,
+          referenciaCalculo: String(data.get('referenciaCalculo') || 'ULTIMA_APLICACION') as ReferenciaCalculoPeriodica,
+          toleranciaAnticipadaDias: Number(data.get('toleranciaAnticipadaDias')) || 0,
+          toleranciaPosteriorDias: Number(data.get('toleranciaPosteriorDias')) || 0,
+        }
+      case 'FECHA_PROGRAMADA':
+        return {
+          fechaProgramada: new Date(String(data.get('fechaProgramada'))).toISOString(),
+          unicaVez: data.get('unicaVez') === 'on',
+        }
+      case 'POR_HALLAZGO':
+        return {
+          tiposHallazgo: tiposHallazgoSeleccionados,
+          plazoDias: Number(data.get('plazoDias')) || undefined,
+          requiereValidacionVeterinaria: data.get('requiereValidacionVeterinaria') === 'on',
+        }
+      default:
+        return {}
+    }
+  }
+
   const crearItemMut = useMutation({
     mutationFn: (form: HTMLFormElement) => {
       const data = new FormData(form)
       const input: CrearItemInput = {
+        nombre: String(data.get('nombre')),
+        descripcion: String(data.get('descripcion') || '') || undefined,
         tipoActividad: String(data.get('tipoActividad')) as CrearItemInput['tipoActividad'],
+        modalidad,
+        modalidadConfig: construirModalidadConfig(data),
         productoRecomendadoTexto: String(data.get('productoRecomendadoTexto') || '') || undefined,
-        categoriaAnimalId: String(data.get('categoriaAnimalId') || '') || undefined,
+        principioActivo: String(data.get('principioActivo') || '') || undefined,
+        instruccionesVeterinario: String(data.get('instruccionesVeterinario') || '') || undefined,
+        dosisTipoCalculo,
+        dosisCantidad: dosisTipoCalculo === 'NO_APLICA' ? undefined : Number(data.get('dosisCantidad')) || undefined,
+        dosisUnidad: dosisTipoCalculo === 'NO_APLICA' ? undefined : (String(data.get('dosisUnidad') || '') as CrearItemInput['dosisUnidad']) || undefined,
+        dosisUnidadDetalle: String(data.get('dosisUnidadDetalle') || '') || undefined,
+        dosisPesoReferenciaKg: dosisTipoCalculo === 'POR_PESO' ? Number(data.get('dosisPesoReferenciaKg')) || undefined : undefined,
+        dosisMinima: Number(data.get('dosisMinima')) || undefined,
+        dosisMaxima: Number(data.get('dosisMaxima')) || undefined,
+        viaAdministracionCodigo: viaCodigo || undefined,
+        viaAdministracionDetalle: String(data.get('viaAdministracionDetalle') || '') || undefined,
+        lugarAplicacion: lugar || undefined,
+        lugarAplicacionDetalle: String(data.get('lugarAplicacionDetalle') || '') || undefined,
+        categoriasAplicables: (() => { const v = String(data.get('categoriaAnimalId') || ''); return v ? [v] : [] })(),
         sexoAplicable: (String(data.get('sexoAplicable') || '') || undefined) as CrearItemInput['sexoAplicable'],
         edadMinDias: Number(data.get('edadMinDias')) || undefined,
         edadMaxDias: Number(data.get('edadMaxDias')) || undefined,
-        dosis: Number(data.get('dosis')) || undefined,
-        unidadDosis: String(data.get('unidadDosis') || '') || undefined,
-        frecuenciaDias: Number(data.get('frecuenciaDias')) || undefined,
+        edadUnidad: unidadEdad,
+        permiteEdadDesconocida: data.get('permiteEdadDesconocida') === 'on',
         diasAlerta: Number(data.get('diasAlerta')) || 0,
-        viaAdministracion: String(data.get('viaAdministracion') || '') || undefined,
         obligatorio: data.get('obligatorio') === 'on',
         origenRegulatorio: String(data.get('origenRegulatorio')) as CrearItemInput['origenRegulatorio'],
-        permiteEdadDesconocida: data.get('permiteEdadDesconocida') === 'on',
+        especieAplicable: String(data.get('especieAplicable') || '') || undefined,
+      }
+      if (editingItem) {
+        return actualizarPlanItem(expanded!, editingItem.id, editingItem.version, {
+          ...input,
+          motivoVersion: String(data.get('motivoVersion') || '') || undefined,
+          fechaVigencia: data.get('fechaVigencia') ? new Date(String(data.get('fechaVigencia'))).toISOString() : undefined,
+        })
       }
       return crearPlanItem(expanded!, input)
     },
@@ -121,18 +216,25 @@ export function PlanesPanel({ planes, isLoading, error, catalogs, refresh }: Pla
         ? `Se aplicará desde los ${edadMinDias} días, sin límite máximo.`
         : `Se aplicará hasta los ${edadMaxDias} días.`
 
-  function abrirFormularioItem(planId: string) {
+  function abrirFormularioItem(planId: string, item?: PlanSanitarioItem) {
     setExpanded(planId)
-    setEdadMinValor('')
-    setEdadMaxValor('')
-    setUnidadEdad('MESES')
+    setEditingItem(item ?? null)
+    setEdadMinValor(item?.edadMinDias ? String(item.edadMinDias) : '')
+    setEdadMaxValor(item?.edadMaxDias ? String(item.edadMaxDias) : '')
+    setUnidadEdad(item?.edadUnidad ?? 'MESES')
     setSinEdadMaxima(false)
+    setModalidad(item?.modalidad ?? 'MANUAL')
+    setDosisTipoCalculo(item?.dosisTipoCalculo ?? 'NO_APLICA')
+    setViaCodigo(item?.viaAdministracionCodigo ?? '')
+    setLugar(item?.lugarAplicacion ?? '')
+    setTiposHallazgoSeleccionados(item?.modalidad === 'POR_HALLAZGO' && 'tiposHallazgo' in item.modalidadConfig ? item.modalidadConfig.tiposHallazgo : [])
     crearItemMut.reset()
     setShowItemForm(true)
   }
 
   function cerrarFormularioItem() {
     setShowItemForm(false)
+    setEditingItem(null)
     setEdadMinValor('')
     setEdadMaxValor('')
     setSinEdadMaxima(false)
@@ -168,18 +270,21 @@ export function PlanesPanel({ planes, isLoading, error, catalogs, refresh }: Pla
       {items.isPending && <LoadingState message="Cargando actividades…" />}
       {items.error && <Alert tone="danger">{normalizeApiError(items.error).message}</Alert>}
       {items.data?.length === 0 && <p className="muted">Este plan todavía no tiene actividades.</p>}
-      {items.data && items.data.length > 0 && <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Actividades del plan</caption><thead><tr><th scope="col">Actividad</th><th scope="col">Producto</th><th scope="col">Aplicable a</th><th scope="col">Dosis</th><th scope="col">Frecuencia</th><th scope="col">Alerta</th><th scope="col">Obligatorio</th><th scope="col">Estado</th>{canAdmin && <th scope="col">Acciones</th>}</tr></thead><tbody>{items.data.map((item) => <tr key={item.id}>
-        <td><strong>{TIPO_ACTIVIDAD_LABELS[item.tipoActividad]}</strong> <span className={`status-badge ${ORIGEN_REGULATORIO_BADGE_CLASS[item.origenRegulatorio]}`}>{ORIGEN_REGULATORIO_LABELS[item.origenRegulatorio]}</span><span className="table-secondary">{item.viaAdministracion ?? '—'}</span></td>
-        <td>{item.productoRecomendadoTexto ?? (item.productoId ? item.productoId.slice(0, 8) : '—')}</td>
-        <td>{[item.sexoAplicable, catalogs?.categories.find((cat) => cat.id === item.categoriaAnimalId)?.nombre, item.edadMinDias !== undefined || item.edadMaxDias !== undefined ? `${item.edadMinDias ?? 0}–${item.edadMaxDias ?? '∞'} días` : null].filter(Boolean).join(' · ') || 'Todos'}</td>
-        <td>{item.dosis !== undefined ? `${item.dosis} ${item.unidadDosis ?? ''}` : '—'}</td>
-        <td>{item.frecuenciaDias ? `Cada ${item.frecuenciaDias} días` : '—'}</td>
+      {items.data && items.data.length > 0 && <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Actividades del plan</caption><thead><tr><th scope="col">Actividad</th><th scope="col">Modalidad</th><th scope="col">Medicamento</th><th scope="col">Dosis</th><th scope="col">Vía / lugar</th><th scope="col">Alerta</th><th scope="col">Versión</th><th scope="col">Estado</th>{canAdmin && <th scope="col">Acciones</th>}</tr></thead><tbody>{items.data.map((item) => <tr key={item.id}>
+        <td><strong>{item.nombre}</strong> <span className="table-secondary">{TIPO_ACTIVIDAD_LABELS[item.tipoActividad]}</span> <span className={`status-badge ${ORIGEN_REGULATORIO_BADGE_CLASS[item.origenRegulatorio]}`}>{ORIGEN_REGULATORIO_LABELS[item.origenRegulatorio]}</span>{item.requiereRevision && <span className="status-badge status-badge-warning">Requiere revisión</span>}</td>
+        <td>{MODALIDAD_ACTIVIDAD_LABELS[item.modalidad]}</td>
+        <td>{item.productoRecomendadoTexto ?? '—'}{item.principioActivo ? ` (${item.principioActivo})` : ''}</td>
+        <td>{item.dosisTipoCalculo === 'NO_APLICA' ? '—' : `${item.dosisCantidad ?? ''} ${item.dosisUnidad ? UNIDAD_DOSIS_LABELS[item.dosisUnidad] : ''}`.trim()}</td>
+        <td>{[item.viaAdministracionCodigo ? VIA_ADMINISTRACION_LABELS[item.viaAdministracionCodigo] : null, item.lugarAplicacion ? LUGAR_APLICACION_LABELS[item.lugarAplicacion] : null].filter(Boolean).join(' · ') || '—'}</td>
         <td>{item.diasAlerta > 0 ? `Desde ${item.diasAlerta} días antes` : '—'}</td>
-        <td>{item.obligatorio ? 'Sí' : 'No'}</td>
+        <td>v{item.numeroVersion}</td>
         <td><span className="status-badge">{item.activo ? 'ACTIVO' : 'INACTIVO'}</span></td>
-        {canAdmin && <td><Button variant="ghost" onClick={() => setItemTarget({ plan: planes.find((plan) => plan.id === expanded)!, item: { id: item.id, activo: item.activo, version: item.version, nombre: TIPO_ACTIVIDAD_LABELS[item.tipoActividad] } })}><Power size={16} aria-hidden="true" />{item.activo ? 'Desactivar' : 'Activar'}</Button></td>}
+        {canAdmin && <td className="inline-actions">
+          <Button variant="ghost" onClick={() => abrirFormularioItem(expanded, item)}><Pencil size={16} aria-hidden="true" />Editar</Button>
+          <Button variant="ghost" onClick={() => setHistorial({ plan: planes.find((plan) => plan.id === expanded)!, itemId: item.identidadLogicaId, nombre: item.nombre })}>Versiones</Button>
+          <Button variant="ghost" onClick={() => setItemTarget({ plan: planes.find((plan) => plan.id === expanded)!, item: { id: item.id, activo: item.activo, version: item.version, nombre: item.nombre } })}><Power size={16} aria-hidden="true" />{item.activo ? 'Desactivar' : 'Activar'}</Button>
+        </td>}
       </tr>)}</tbody></table></div>}
-      {items.data && items.data.length > 0 && <div className="mobile-only">{items.data.map((item) => <div key={item.id} className="mobile-entity-card"><div><strong>{TIPO_ACTIVIDAD_LABELS[item.tipoActividad]}</strong> <span className={`status-badge ${ORIGEN_REGULATORIO_BADGE_CLASS[item.origenRegulatorio]}`}>{ORIGEN_REGULATORIO_LABELS[item.origenRegulatorio]}</span><p className="muted">{item.productoRecomendadoTexto ?? 'Producto sin especificar'}</p><p className="muted">{item.dosis !== undefined ? `${item.dosis} ${item.unidadDosis ?? ''}` : '—'} · {item.frecuenciaDias ? `cada ${item.frecuenciaDias} días` : '—'}</p></div>{canAdmin && <Button variant="ghost" onClick={() => setItemTarget({ plan: planes.find((plan) => plan.id === expanded)!, item: { id: item.id, activo: item.activo, version: item.version, nombre: TIPO_ACTIVIDAD_LABELS[item.tipoActividad] } })}><Power size={16} aria-hidden="true" />{item.activo ? 'Desactivar' : 'Activar'}</Button>}</div>)}</div>}
     </Card>}
 
     <Modal open={showPlanForm} title="Nuevo plan sanitario" onClose={() => setShowPlanForm(false)} description="Registra un plan sanitario de la empresa.">
@@ -192,13 +297,55 @@ export function PlanesPanel({ planes, isLoading, error, catalogs, refresh }: Pla
       </form>
     </Modal>
 
-    <Modal open={showItemForm} title="Agregar actividad al plan" onClose={cerrarFormularioItem} wide description="Define una actividad programada dentro del plan sanitario.">
+    <Modal open={showItemForm} title={editingItem ? `Editar «${editingItem.nombre}»` : 'Agregar actividad al plan'} onClose={cerrarFormularioItem} wide description="Define qué debe hacerse, a quién, cuándo y con qué instrucciones — sin inventario de medicamentos.">
       <form className="form-grid" onSubmit={(event) => { event.preventDefault(); if (!edadError) crearItemMut.mutate(event.currentTarget) }}>
-        <Field label="Tipo de actividad" required><select name="tipoActividad" required defaultValue="VACUNACION">{(Object.keys(TIPO_ACTIVIDAD_LABELS) as Array<keyof typeof TIPO_ACTIVIDAD_LABELS>).map((tipo) => <option key={tipo} value={tipo}>{TIPO_ACTIVIDAD_LABELS[tipo]}</option>)}</select></Field>
-        <Field label="Clasificación regulatoria" required hint="Por qué existe esta actividad en el plan"><select name="origenRegulatorio" required defaultValue=""><option value="" disabled>Selecciona…</option>{(Object.keys(ORIGEN_REGULATORIO_LABELS) as OrigenRegulatorio[]).map((origen) => <option key={origen} value={origen}>{ORIGEN_REGULATORIO_LABELS[origen]}</option>)}</select></Field>
-        <Field label="Producto recomendado"><input name="productoRecomendadoTexto" maxLength={300} placeholder="Ej. BOVISAN 2 mL…" autoComplete="off" /></Field>
-        <Field label="Categoría"><select name="categoriaAnimalId"><option value="">Todas</option>{catalogs?.categories.map((categoria) => <option key={categoria.id} value={categoria.id}>{categoria.nombre}</option>)}</select></Field>
-        <Field label="Sexo aplicable"><select name="sexoAplicable"><option value="">Ambos</option><option value="MACHO">Macho</option><option value="HEMBRA">Hembra</option></select></Field>
+        <h4 className="form-full">Datos generales</h4>
+        <Field label="Nombre de la actividad" required><input name="nombre" required maxLength={200} defaultValue={editingItem?.nombre} autoComplete="off" /></Field>
+        <Field label="Tipo de actividad" required><select name="tipoActividad" required defaultValue={editingItem?.tipoActividad ?? 'VACUNACION'}>{(Object.keys(TIPO_ACTIVIDAD_LABELS) as Array<keyof typeof TIPO_ACTIVIDAD_LABELS>).map((tipo) => <option key={tipo} value={tipo}>{TIPO_ACTIVIDAD_LABELS[tipo]}</option>)}</select></Field>
+        <Field label="Clasificación regulatoria" required hint="Por qué existe esta actividad en el plan"><select name="origenRegulatorio" required defaultValue={editingItem?.origenRegulatorio ?? ''}><option value="" disabled>Selecciona…</option>{(Object.keys(ORIGEN_REGULATORIO_LABELS) as OrigenRegulatorio[]).map((origen) => <option key={origen} value={origen}>{ORIGEN_REGULATORIO_LABELS[origen]}</option>)}</select></Field>
+        <div className="form-full"><Field label="Descripción"><textarea name="descripcion" rows={2} maxLength={2000} defaultValue={editingItem?.descripcion} /></Field></div>
+
+        <h4 className="form-full">Medicamento recomendado (informativo, no es inventario)</h4>
+        <Field label="Producto recomendado"><input name="productoRecomendadoTexto" maxLength={300} placeholder="Ej. Ivermectina 1%…" defaultValue={editingItem?.productoRecomendadoTexto} autoComplete="off" /></Field>
+        <Field label="Principio activo"><input name="principioActivo" maxLength={200} defaultValue={editingItem?.principioActivo} autoComplete="off" /></Field>
+        <div className="form-full"><Field label="Instrucciones del veterinario"><textarea name="instruccionesVeterinario" rows={2} maxLength={2000} defaultValue={editingItem?.instruccionesVeterinario} placeholder="Ej. Pesar al animal o usar el último peso medido vigente." /></Field></div>
+
+        <h4 className="form-full">Dosis</h4>
+        <Field label="Tipo de cálculo" required>
+          <select value={dosisTipoCalculo} onChange={(event) => setDosisTipoCalculo(event.target.value as TipoCalculoDosis)}>
+            {(Object.keys(TIPO_CALCULO_DOSIS_LABELS) as TipoCalculoDosis[]).map((tipo) => <option key={tipo} value={tipo}>{TIPO_CALCULO_DOSIS_LABELS[tipo]}</option>)}
+          </select>
+        </Field>
+        {dosisTipoCalculo !== 'NO_APLICA' && <>
+          <Field label="Cantidad"><input name="dosisCantidad" type="number" inputMode="decimal" min="0" step="0.001" defaultValue={editingItem?.dosisCantidad} /></Field>
+          <Field label="Unidad"><select name="dosisUnidad" defaultValue={editingItem?.dosisUnidad ?? ''}><option value="">Selecciona…</option>{(Object.keys(UNIDAD_DOSIS_LABELS) as Array<keyof typeof UNIDAD_DOSIS_LABELS>).map((u) => <option key={u} value={u}>{UNIDAD_DOSIS_LABELS[u]}</option>)}</select></Field>
+          <Field label="Detalle de unidad (si elegiste «otra»)"><input name="dosisUnidadDetalle" maxLength={100} defaultValue={editingItem?.dosisUnidadDetalle} /></Field>
+        </>}
+        {dosisTipoCalculo === 'POR_PESO' && <>
+          <Field label="Peso de referencia (kg)" required><input name="dosisPesoReferenciaKg" type="number" inputMode="decimal" min="0.1" step="0.1" required defaultValue={editingItem?.dosisPesoReferenciaKg} /></Field>
+          <Field label="Dosis mínima (opcional)"><input name="dosisMinima" type="number" inputMode="decimal" min="0" step="0.001" defaultValue={editingItem?.dosisMinima} /></Field>
+          <Field label="Dosis máxima (opcional)"><input name="dosisMaxima" type="number" inputMode="decimal" min="0" step="0.001" defaultValue={editingItem?.dosisMaxima} /></Field>
+        </>}
+
+        <h4 className="form-full">Vía y lugar de aplicación</h4>
+        <Field label="Vía de administración">
+          <select value={viaCodigo} onChange={(event) => setViaCodigo(event.target.value as ViaAdministracion | '')}>
+            <option value="">Selecciona…</option>
+            {(Object.keys(VIA_ADMINISTRACION_LABELS) as ViaAdministracion[]).map((via) => <option key={via} value={via}>{VIA_ADMINISTRACION_LABELS[via]}</option>)}
+          </select>
+        </Field>
+        {viaCodigo === 'OTRA' && <Field label="Detalle de la vía"><input name="viaAdministracionDetalle" maxLength={100} defaultValue={editingItem?.viaAdministracionDetalle} /></Field>}
+        <Field label="Lugar anatómico">
+          <select value={lugar} onChange={(event) => setLugar(event.target.value as LugarAplicacion | '')}>
+            <option value="">Selecciona…</option>
+            {(Object.keys(LUGAR_APLICACION_LABELS) as LugarAplicacion[]).map((l) => <option key={l} value={l}>{LUGAR_APLICACION_LABELS[l]}</option>)}
+          </select>
+        </Field>
+        {lugar === 'OTRO' && <Field label="Detalle del lugar"><input name="lugarAplicacionDetalle" maxLength={100} defaultValue={editingItem?.lugarAplicacionDetalle} /></Field>}
+
+        <h4 className="form-full">Elegibilidad</h4>
+        <Field label="Categoría"><select name="categoriaAnimalId" defaultValue={editingItem?.categoriasAplicables[0] ?? ''}><option value="">Todas</option>{catalogs?.categories.map((categoria) => <option key={categoria.id} value={categoria.id}>{categoria.nombre}</option>)}</select></Field>
+        <Field label="Sexo aplicable"><select name="sexoAplicable" defaultValue={editingItem?.sexoAplicable ?? ''}><option value="">Ambos</option><option value="MACHO">Macho</option><option value="HEMBRA">Hembra</option></select></Field>
         <div className="form-full age-range-panel">
           <div className="age-range-heading">
             <div><strong>Edad de aplicación</strong><span>Indica el rango usando la unidad que te resulte más cómoda.</span></div>
@@ -219,19 +366,70 @@ export function PlanesPanel({ planes, isLoading, error, catalogs, refresh }: Pla
             </Field>
           </div>
           <label className="checkbox-line"><input type="checkbox" checked={sinEdadMaxima} onChange={(event) => setSinEdadMaxima(event.target.checked)} /> Sin límite máximo</label>
-          <label className="checkbox-line"><input name="permiteEdadDesconocida" type="checkbox" /> Incluir animales con edad desconocida (no se validará el rango de edad para ellos)</label>
+          <label className="checkbox-line"><input name="permiteEdadDesconocida" type="checkbox" defaultChecked={editingItem?.permiteEdadDesconocida} /> Incluir animales con edad desconocida (no se validará el rango de edad para ellos)</label>
           <div className={`age-range-feedback ${edadError ? 'age-range-feedback-error' : ''}`} role={edadError ? 'alert' : 'status'}>{edadError ?? equivalenciaEdad}</div>
           <input type="hidden" name="edadMinDias" value={edadMinDias ?? ''} />
           <input type="hidden" name="edadMaxDias" value={edadMaxDias ?? ''} />
         </div>
-        <Field label="Dosis"><input name="dosis" type="number" inputMode="decimal" min="0" step="0.001" /></Field>
-        <Field label="Unidad de dosis"><input name="unidadDosis" maxLength={30} placeholder="mL, cc…" autoComplete="off" /></Field>
-        <Field label="Frecuencia (días)"><input name="frecuenciaDias" type="number" inputMode="numeric" min="1" /></Field>
-        <Field label="Días de alerta"><input name="diasAlerta" type="number" inputMode="numeric" min="0" defaultValue="0" /></Field>
-        <Field label="Vía de administración"><input name="viaAdministracion" maxLength={60} placeholder="IM, SC…" autoComplete="off" /></Field>
-        <label className="checkbox-line"><input name="obligatorio" type="checkbox" /> Actividad obligatoria</label>
-        <div className="form-actions"><Button type="submit" loading={crearItemMut.isPending} disabled={Boolean(edadError)}>Agregar actividad</Button></div>
+
+        <h4 className="form-full">Modalidad de programación</h4>
+        <Field label="Modalidad" required>
+          <select value={modalidad} onChange={(event) => setModalidad(event.target.value as ModalidadActividad)}>
+            {(Object.keys(MODALIDAD_ACTIVIDAD_LABELS) as ModalidadActividad[]).map((m) => <option key={m} value={m}>{MODALIDAD_ACTIVIDAD_LABELS[m]}</option>)}
+          </select>
+        </Field>
+        {modalidad === 'POR_EDAD' && <>
+          <Field label="Edad objetivo (días)" required><input name="edadObjetivoValor" type="number" inputMode="numeric" min="1" required /></Field>
+          <input type="hidden" name="edadObjetivoUnidad" value="DIAS" />
+          <Field label="Ventana anticipada (días)"><input name="ventanaAnticipadaDias" type="number" inputMode="numeric" min="0" defaultValue={0} /></Field>
+          <Field label="Ventana posterior (días)"><input name="ventanaPosteriorDias" type="number" inputMode="numeric" min="0" defaultValue={0} /></Field>
+          <label className="checkbox-line"><input name="excluirEdadEstimada" type="checkbox" /> Excluir animales con fecha de nacimiento estimada (no confirmada)</label>
+        </>}
+        {modalidad === 'PERIODICA' && <>
+          <Field label="Frecuencia" required><input name="frecuenciaValor" type="number" inputMode="numeric" min="1" required defaultValue={90} /></Field>
+          <Field label="Unidad de frecuencia"><select name="frecuenciaUnidad" defaultValue="DIAS"><option value="DIAS">Días</option><option value="SEMANAS">Semanas</option><option value="MESES">Meses</option><option value="ANIOS">Años</option></select></Field>
+          <Field label="Se calcula desde"><select name="referenciaCalculo" defaultValue="ULTIMA_APLICACION">{(Object.keys(REFERENCIA_CALCULO_PERIODICA_LABELS) as Array<keyof typeof REFERENCIA_CALCULO_PERIODICA_LABELS>).map((r) => <option key={r} value={r}>{REFERENCIA_CALCULO_PERIODICA_LABELS[r]}</option>)}</select></Field>
+          <Field label="Tolerancia anticipada (días)"><input name="toleranciaAnticipadaDias" type="number" inputMode="numeric" min="0" defaultValue={0} /></Field>
+          <Field label="Tolerancia posterior (días)"><input name="toleranciaPosteriorDias" type="number" inputMode="numeric" min="0" defaultValue={0} /></Field>
+        </>}
+        {modalidad === 'FECHA_PROGRAMADA' && <>
+          <Field label="Fecha y hora programada" required><input name="fechaProgramada" type="datetime-local" required /></Field>
+          <label className="checkbox-line"><input name="unicaVez" type="checkbox" defaultChecked /> Una sola vez</label>
+        </>}
+        {modalidad === 'POR_HALLAZGO' && <div className="form-full">
+          <fieldset>
+            <legend>Hallazgos que activan esta actividad</legend>
+            {TIPOS_HALLAZGO_CATALOGO.map((tipo) => <label key={tipo.valor} className="checkbox-line">
+              <input type="checkbox" checked={tiposHallazgoSeleccionados.includes(tipo.valor)}
+                onChange={(event) => setTiposHallazgoSeleccionados((prev) => event.target.checked ? [...prev, tipo.valor] : prev.filter((v) => v !== tipo.valor))} />
+              {tipo.label}
+            </label>)}
+          </fieldset>
+          <Field label="Plazo para resolverlo (días)"><input name="plazoDias" type="number" inputMode="numeric" min="0" /></Field>
+          <label className="checkbox-line"><input name="requiereValidacionVeterinaria" type="checkbox" /> Requiere validación veterinaria</label>
+        </div>}
+
+        <h4 className="form-full">Alertas</h4>
+        <Field label="Días de alerta"><input name="diasAlerta" type="number" inputMode="numeric" min="0" defaultValue={editingItem?.diasAlerta ?? 0} /></Field>
+        <label className="checkbox-line"><input name="obligatorio" type="checkbox" defaultChecked={editingItem?.obligatorio} /> Actividad obligatoria</label>
+
+        {editingItem && <div className="form-full">
+          <Field label="Motivo del cambio (si la actividad ya fue usada, se creará una nueva versión)"><input name="motivoVersion" maxLength={500} /></Field>
+          <Field label="Vigente desde"><input name="fechaVigencia" type="datetime-local" /></Field>
+        </div>}
+
+        <div className="form-actions"><Button type="submit" loading={crearItemMut.isPending} disabled={Boolean(edadError)}>{editingItem ? 'Guardar cambios' : 'Agregar actividad'}</Button></div>
       </form>
+    </Modal>
+
+    <Modal open={Boolean(historial)} title={`Historial de versiones — ${historial?.nombre ?? ''}`} onClose={() => setHistorial(null)}>
+      {versiones.isPending && <LoadingState message="Cargando versiones…" />}
+      {versiones.data && <ul className="detail-list">
+        {versiones.data.map((v) => <li key={v.id}>
+          <span><strong>v{v.numeroVersion}</strong> {v.vigenteHasta ? `vigente hasta ${new Date(v.vigenteHasta).toLocaleString('es-BO')}` : 'vigente actualmente'}</span>
+          {v.motivoVersion && <span className="table-secondary">{v.motivoVersion}</span>}
+        </li>)}
+      </ul>}
     </Modal>
 
     <ConfirmDialog

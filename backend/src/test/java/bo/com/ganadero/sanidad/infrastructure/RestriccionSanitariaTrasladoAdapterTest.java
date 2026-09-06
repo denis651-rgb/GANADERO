@@ -34,7 +34,7 @@ class RestriccionSanitariaTrasladoAdapterTest {
     @Test
     void respetaLaRestriccionExplicitaAunqueContradigaLaSeveridadClinica(@TempDir Path tempDir) {
         DataSource dataSource = sqliteDataSource(tempDir);
-        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
+        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").mixed(true).load().migrate();
         JdbcClient jdbc = JdbcClient.create(dataSource);
         JdbcClinicaRepository clinica = new JdbcClinicaRepository(jdbc);
         RestriccionSanitariaTrasladoAdapter adapter = new RestriccionSanitariaTrasladoAdapter(jdbc);
@@ -54,7 +54,7 @@ class RestriccionSanitariaTrasladoAdapterTest {
     @Test
     void calculaElValorPorDefectoSoloCuandoNoSeEspecificaExplicitamente(@TempDir Path tempDir) {
         DataSource dataSource = sqliteDataSource(tempDir);
-        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
+        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").mixed(true).load().migrate();
         JdbcClient jdbc = JdbcClient.create(dataSource);
         JdbcClinicaRepository clinica = new JdbcClinicaRepository(jdbc);
         RestriccionSanitariaTrasladoAdapter adapter = new RestriccionSanitariaTrasladoAdapter(jdbc);
@@ -75,7 +75,7 @@ class RestriccionSanitariaTrasladoAdapterTest {
     @Test
     void unTratamientoActivoConRestriccionExplicitaBloqueanteSeRespeta(@TempDir Path tempDir) {
         DataSource dataSource = sqliteDataSource(tempDir);
-        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
+        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").mixed(true).load().migrate();
         JdbcClient jdbc = JdbcClient.create(dataSource);
         JdbcClinicaRepository clinica = new JdbcClinicaRepository(jdbc);
         RestriccionSanitariaTrasladoAdapter adapter = new RestriccionSanitariaTrasladoAdapter(jdbc);

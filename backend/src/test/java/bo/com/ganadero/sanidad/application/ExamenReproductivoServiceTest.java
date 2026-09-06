@@ -11,6 +11,8 @@ import bo.com.ganadero.sanidad.domain.EnfermedadReproductiva;
 import bo.com.ganadero.sanidad.domain.ExamenReproductivo;
 import bo.com.ganadero.sanidad.domain.ResultadoExamenReproductivo;
 import bo.com.ganadero.sanidad.domain.ResultadoPruebaReproductiva;
+import bo.com.ganadero.sanidad.domain.EventoCalendarioSanitarioRepository;
+import bo.com.ganadero.sanidad.domain.SanidadRepository;
 import bo.com.ganadero.sanidad.infrastructure.JdbcClinicaRepository;
 import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
@@ -131,7 +133,7 @@ class ExamenReproductivoServiceTest {
         MotorAlertas motorAlertas = mock(MotorAlertas.class);
         ObjectProvider<MotorAlertas> alertasProvider = mock(ObjectProvider.class);
         when(alertasProvider.getIfAvailable()).thenReturn(motorAlertas);
-        return new ClinicaService(repo, animales, userContext(), mock(ObjectProvider.class), alertasProvider,
+        return new ClinicaService(repo, animales, userContext(), mock(SanidadRepository.class), mock(EventoCalendarioSanitarioRepository.class), alertasProvider,
                 mock(bo.com.ganadero.timeline.application.TimelineEventPublisher.class),
                 mock(ApplicationEventPublisher.class), mock(ConfiguracionSanitariaService.class));
     }
@@ -174,7 +176,7 @@ class ExamenReproductivoServiceTest {
     private JdbcClient jdbcClient(Path tempDir) {
         SQLiteDataSource dataSource = new SQLiteDataSource();
         dataSource.setUrl("jdbc:sqlite:" + tempDir.resolve("examen-repro-test.db") + "?foreign_keys=on");
-        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
+        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").mixed(true).load().migrate();
         return JdbcClient.create(dataSource);
     }
 }

@@ -139,7 +139,7 @@ class CategoriaAnimalConfigServiceTest {
 
     private Fixture servicio(Path tempDir) {
         DataSource dataSource = sqliteDataSource(tempDir);
-        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
+        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").mixed(true).load().migrate();
         JdbcClient jdbc = JdbcClient.create(dataSource);
         CurrentUser currentUser = new CurrentUser(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 Set.of(), Set.of(), Set.of(), true);

@@ -15,7 +15,7 @@ class AnularCeloSqliteTest {
  @Test void anulaConFechaMotivoYVersionSinBorrarHistorial(@TempDir Path dir) {
   var ds = new SQLiteDataSource();
   ds.setUrl("jdbc:sqlite:" + dir.resolve("test.db"));
-  Flyway.configure().dataSource(ds).locations("classpath:db/migration").load().migrate();
+  Flyway.configure().dataSource(ds).locations("classpath:db/migration").mixed(true).load().migrate();
   var jdbc = JdbcClient.create(ds);
   UUID id = UUID.randomUUID(), actor = UUID.randomUUID();
   jdbc.sql("insert into celo(id,animal_id,fecha_deteccion,tipo_deteccion,observaciones) values(:id,:animal,'2026-09-04T13:29:00Z','VISUAL','Observación original')")

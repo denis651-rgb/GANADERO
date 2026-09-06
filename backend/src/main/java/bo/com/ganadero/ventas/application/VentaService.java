@@ -19,6 +19,7 @@ import bo.com.ganadero.shared.security.CurrentUser;
 import bo.com.ganadero.shared.security.UserContext;
 import bo.com.ganadero.ventas.domain.Venta;
 import bo.com.ganadero.ventas.domain.VentaRepository;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,14 +45,16 @@ public class VentaService {
     private final MovimientoService movimientos;
     private final PesajeRepository pesajes;
     private final UserContext context;
+    private final ObjectProvider<RestriccionRetiroPort> restriccionRetiro;
 
     public VentaService(VentaRepository ventas, AnimalRepository animales, MovimientoService movimientos,
-                        PesajeRepository pesajes, UserContext context) {
+                        PesajeRepository pesajes, UserContext context, ObjectProvider<RestriccionRetiroPort> restriccionRetiro) {
         this.ventas = ventas;
         this.animales = animales;
         this.movimientos = movimientos;
         this.pesajes = pesajes;
         this.context = context;
+        this.restriccionRetiro = restriccionRetiro;
     }
 
     @Transactional
@@ -70,6 +73,14 @@ public class VentaService {
             throw new BusinessException(ErrorCode.ANIMAL_STATUS_NOT_ALLOWED, "El animal ya fue vendido.");
         }
         LocalDate fecha = command.fechaVenta() == null ? LocalDate.now() : command.fechaVenta();
+
+        RestriccionRetiroPort retiro = restriccionRetiro.getIfAvailable();
+        if (retiro != null) {
+            retiro.vigente(user.empresaId(), animal.id(), fecha).ifPresent(r -> {
+                throw new BusinessException(ErrorCode.VENTA_RETIRO_SANITARIO_VIGENTE,
+                        "El animal tiene un retiro de " + r.tipo() + " vigente hasta " + r.hasta() + ".");
+            });
+        }
 
         Pesaje pesajeReferenciado = null;
         if (command.pesajeExistenteId() != null) {

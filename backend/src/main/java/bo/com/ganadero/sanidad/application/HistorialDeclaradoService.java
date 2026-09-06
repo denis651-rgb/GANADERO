@@ -51,13 +51,16 @@ public class HistorialDeclaradoService {
                 "El antecedente del proveedor no puede ser posterior al ingreso del animal.");
         PlanSanitarioItem item = c.planItemId() == null ? null
                 : requireItemCompatible(c.planItemId(), u.empresaId(), c.tipoActividad());
-        if (item != null) ReglasSanitarias.intervaloVacuna(repo, u.empresaId(), animal.id(), item, item.productoId(), c.fechaAplicacion());
+        if (item != null) ReglasSanitarias.intervaloMinimoEntreAplicaciones(repo, u.empresaId(), animal.id(), item, item.productoId(), c.fechaAplicacion());
         LocalDate proxima = item != null && item.frecuenciaDias() != null
                 ? c.fechaAplicacion().plusDays(item.frecuenciaDias()) : null;
         AplicacionSanitaria value = new AplicacionSanitaria(UUID.randomUUID(), u.empresaId(), null,
-                c.planItemId(), c.animalId(), null, null, c.dosis(), c.unidadDosis(), null, c.fechaAplicacion(),
-                proxima, null, null, u.userId(), null, componerObservaciones(c), UUID.randomUUID().toString(),
-                "APLICADA", 0, OrigenRegistroAplicacion.DECLARADA_PROVEEDOR);
+                c.planItemId(), c.animalId(), null, null, c.dosis(), c.unidadDosis(), c.dosis(), c.dosis(),
+                null, null, null, c.productoTexto(), null, null, null, null,
+                item == null ? null : item.id(), item == null ? null : item.instruccionesVeterinario(), null,
+                c.fechaAplicacion(), proxima, null, null, u.userId(), null, componerObservaciones(c),
+                UUID.randomUUID().toString(), EstadoAplicacionSanitaria.APLICADO, 0,
+                OrigenRegistroAplicacion.DECLARADA_PROVEEDOR);
         AplicacionSanitaria saved = repo.crearAplicacion(value, u.userId());
         if (item != null) programarAlerta(u, saved, item, animal);
         audit(u, "REGISTRAR_HISTORIAL_DECLARADO", saved.id());
@@ -76,15 +79,13 @@ public class HistorialDeclaradoService {
     }
 
     /**
-     * AplicacionSanitaria no tiene columna propia para el tipo de actividad ni para un
-     * producto en texto libre (a diferencia de PlanSanitarioItem.productoRecomendadoTexto);
-     * se componen en observaciones para no perder lo declarado ni ampliar el esquema más
-     * allá de lo que pide esta fase.
+     * AplicacionSanitaria no tiene columna propia para el tipo de actividad (a diferencia del
+     * producto, que ya se guarda en productoAplicadoTexto); el tipo se deja en observaciones
+     * para no perder lo declarado ni ampliar el esquema más allá de lo que pide esta fase.
      */
     private String componerObservaciones(RegistrarAplicacionDeclaradaCommand c) {
         List<String> partes = new ArrayList<>();
         partes.add("Historial declarado por el proveedor (" + c.tipoActividad().name() + ")");
-        if (c.productoTexto() != null && !c.productoTexto().isBlank()) partes.add("producto: " + c.productoTexto());
         if (c.observaciones() != null && !c.observaciones().isBlank()) partes.add(c.observaciones());
         return String.join(" — ", partes);
     }

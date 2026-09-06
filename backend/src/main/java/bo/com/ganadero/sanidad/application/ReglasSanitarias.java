@@ -45,17 +45,19 @@ final class ReglasSanitarias {
                 "Día 0 corresponde al nacimiento; primera semana corresponde a los días 1 a 7. Fuera de ese período registre un caso clínico.");
     }
 
-    static void intervaloVacuna(JornadaSanitariaRepository repo, UUID empresa, UUID animal,
-                                 PlanSanitarioItem item, UUID producto, LocalDate fecha) {
-        if (item.tipoActividad() != TipoActividadSanitaria.VACUNACION) return;
+    /**
+     * Genérico para cualquier tipo de actividad (no sólo vacunación): si el ítem no tiene
+     * frecuencia configurada, no hay intervalo mínimo que exigir.
+     */
+    static void intervaloMinimoEntreAplicaciones(JornadaSanitariaRepository repo, UUID empresa, UUID animal,
+                                                 PlanSanitarioItem item, UUID producto, LocalDate fecha) {
+        if (item.frecuenciaDias() == null || item.frecuenciaDias() <= 0) return;
         for (AplicacionSanitaria anterior : repo.vacunacionesRelacionadas(empresa, animal, item, producto)) {
             long distancia = Math.abs(ChronoUnit.DAYS.between(anterior.fechaAplicacion(), fecha));
-            exigir(distancia != 0, "Ya existe una vacunación de esta actividad para el animal en esa fecha.");
-            exigir(item.frecuenciaDias() != null && item.frecuenciaDias() > 0,
-                    "Esta vacuna ya está registrada y no tiene intervalo de repetición configurado. Revise el plan sanitario antes de repetirla.");
+            exigir(distancia != 0, "Ya existe una aplicación de esta actividad para el animal en esa fecha.");
             exigir(distancia >= item.frecuenciaDias(),
                     "Debe respetar el intervalo configurado de " + item.frecuenciaDias()
-                            + " días respecto de la vacunación del " + anterior.fechaAplicacion() + ".");
+                            + " días respecto de la aplicación del " + anterior.fechaAplicacion() + ".");
         }
     }
 }
