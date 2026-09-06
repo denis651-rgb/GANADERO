@@ -2,6 +2,7 @@ package bo.com.ganadero.pesajes.api;
 
 import bo.com.ganadero.pesajes.application.PesajeCommand;
 import bo.com.ganadero.pesajes.domain.TipoPesaje;
+import bo.com.ganadero.pesajes.domain.TipoPeso;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -13,6 +14,7 @@ public record RegistrarPesajeRequest(
         LocalDate fecha,
         @NotNull @Positive BigDecimal pesoKg,
         TipoPesaje tipo,
+        TipoPeso tipoPeso,
         @DecimalMin("1.0") @DecimalMax("5.0") BigDecimal condicionCorporal,
         @Size(max = 120) String bascula,
         UUID responsableId,
@@ -25,7 +27,8 @@ public record RegistrarPesajeRequest(
         @Size(max = 1000) String observaciones) {
 
     PesajeCommand command() {
-        return new PesajeCommand(id, animalId, fecha, pesoKg, tipo, condicionCorporal, bascula,
-                responsableId, propiedadId, potreroId, loteId, dispositivo, clienteUuid, idempotencyKey, observaciones);
+        return new PesajeCommand(id, animalId, fecha, pesoKg, tipo, tipoPeso, condicionCorporal, bascula,
+                responsableId, propiedadId, potreroId, loteId, dispositivo, null, null, null, clienteUuid,
+                idempotencyKey, observaciones);
     }
 }

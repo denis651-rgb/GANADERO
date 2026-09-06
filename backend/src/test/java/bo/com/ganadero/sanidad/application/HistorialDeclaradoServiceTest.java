@@ -47,11 +47,44 @@ import static org.mockito.Mockito.when;
 class HistorialDeclaradoServiceTest {
 
     @Test
+    void registraVariasActividadesParaVariosAnimalesEnUnaOperacion(@TempDir Path tempDir) {
+        DataSource dataSource = sqliteDataSource(tempDir);
+        migrar(dataSource);
+        JdbcClient jdbc = JdbcClient.create(dataSource);
+        JdbcSanidadRepository planes = new JdbcSanidadRepository(jdbc, new tools.jackson.databind.ObjectMapper());
+        JdbcJornadaSanitariaRepository jornadas = new JdbcJornadaSanitariaRepository(jdbc);
+        Animal primero = sembrarAnimal(jdbc);
+        Animal segundo = sembrarAnimal(jdbc);
+        AnimalRepository animales = mock(AnimalRepository.class);
+        when(animales.findById(primero.id(), null)).thenReturn(java.util.Optional.of(primero));
+        when(animales.findById(segundo.id(), null)).thenReturn(java.util.Optional.of(segundo));
+        ObjectProvider<MotorAlertas> alertasProvider = mock(ObjectProvider.class);
+        when(alertasProvider.getIfAvailable()).thenReturn(null);
+        HistorialDeclaradoService service = new HistorialDeclaradoService(jornadas, planes, animales,
+                userContext(), alertasProvider, mock(ApplicationEventPublisher.class));
+
+        LocalDate fecha = LocalDate.now();
+        var command = new RegistrarHistorialDeclaradoLoteCommand(List.of(primero.id(), segundo.id()), List.of(
+                new RegistrarHistorialDeclaradoLoteCommand.Actividad(TipoActividadSanitaria.VACUNACION,
+                        null, fecha, null, null, "Vacuna declarada", "Certificado 123"),
+                new RegistrarHistorialDeclaradoLoteCommand.Actividad(TipoActividadSanitaria.DESPARASITACION,
+                        null, fecha, null, null, "Ivermectina", "Declarado por el proveedor")
+        ));
+
+        List<AplicacionSanitaria> resultado = service.registrarLote(command);
+
+        assertThat(resultado).hasSize(4);
+        assertThat(resultado).extracting(AplicacionSanitaria::animalId)
+                .containsOnly(primero.id(), segundo.id());
+        assertThat(resultado).allMatch(a -> a.origenRegistro() == OrigenRegistroAplicacion.DECLARADA_PROVEEDOR);
+    }
+
+    @Test
     void conPlanItemCalculaProximaAplicacionYProgramaLaAlerta(@TempDir Path tempDir) {
         DataSource dataSource = sqliteDataSource(tempDir);
         migrar(dataSource);
         JdbcClient jdbc = JdbcClient.create(dataSource);
-        JdbcSanidadRepository planes = new JdbcSanidadRepository(jdbc);
+        JdbcSanidadRepository planes = new JdbcSanidadRepository(jdbc, new tools.jackson.databind.ObjectMapper());
         JdbcJornadaSanitariaRepository jornadas = new JdbcJornadaSanitariaRepository(jdbc);
         UUID actor = UUID.randomUUID();
 
@@ -82,7 +115,8 @@ class HistorialDeclaradoServiceTest {
         assertThat(resultado.origenRegistro()).isEqualTo(OrigenRegistroAplicacion.DECLARADA_PROVEEDOR);
         assertThat(resultado.proximaAplicacion()).isEqualTo(fechaDeclarada.plusDays(180));
         assertThat(resultado.observaciones()).contains("Historial declarado por el proveedor")
-                .contains("Brucelosis Cepa 19").contains("Estancia El Roble");
+                .contains("Estancia El Roble");
+        assertThat(resultado.productoAplicadoTexto()).isEqualTo("Brucelosis Cepa 19");
 
         AplicacionSanitaria releida = jornadas.aplicacion(resultado.id(), null).orElseThrow();
         assertThat(releida.origenRegistro()).isEqualTo(OrigenRegistroAplicacion.DECLARADA_PROVEEDOR);
@@ -96,7 +130,7 @@ class HistorialDeclaradoServiceTest {
         DataSource dataSource = sqliteDataSource(tempDir);
         migrar(dataSource);
         JdbcClient jdbc = JdbcClient.create(dataSource);
-        JdbcSanidadRepository planes = new JdbcSanidadRepository(jdbc);
+        JdbcSanidadRepository planes = new JdbcSanidadRepository(jdbc, new tools.jackson.databind.ObjectMapper());
         JdbcJornadaSanitariaRepository jornadas = new JdbcJornadaSanitariaRepository(jdbc);
 
         Animal animal = sembrarAnimal(jdbc);
@@ -112,7 +146,7 @@ class HistorialDeclaradoServiceTest {
                 userContext(), alertasProvider, mock(ApplicationEventPublisher.class));
 
         AplicacionSanitaria resultado = service.registrar(new RegistrarAplicacionDeclaradaCommand(animalId,
-                TipoActividadSanitaria.VIGILANCIA_EPIDEMIOLOGICA, null, LocalDate.of(2026, 1, 10), null, null,
+                TipoActividadSanitaria.VIGILANCIA, null, LocalDate.of(2026, 1, 10), null, null,
                 null, "Notificación de ingreso, sin certificado sanitario del vendedor"));
 
         assertThat(resultado.planItemId()).isNull();
@@ -155,7 +189,7 @@ class HistorialDeclaradoServiceTest {
     }
 
     private void migrar(DataSource dataSource) {
-        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
+        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").mixed(true).load().migrate();
     }
 
     private DataSource sqliteDataSource(Path tempDir) {

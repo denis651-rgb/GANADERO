@@ -178,6 +178,26 @@ class JdbcMovimientoRepository implements MovimientoRepository {
         }
     }
 
+    @Override
+    public Optional<Movimiento> findUltimoConfirmadoPorAnimal(UUID animalId, UUID empresa) {
+        return jdbc.sql("""
+                select m.* from movimiento m
+                join movimiento_detalle d on d.movimiento_id = m.id
+                where d.animal_id = :animal and m.estado = 'CONFIRMADO'
+                order by m.fecha_confirmacion desc limit 1
+                """).param("animal", animalId.toString()).query(this::map).optional();
+    }
+
+    @Override
+    public boolean existsPendientePorAnimal(UUID animalId, UUID empresa) {
+        return jdbc.sql("""
+                select exists(
+                    select 1 from movimiento m join movimiento_detalle d on d.movimiento_id = m.id
+                    where d.animal_id = :animal and m.estado = 'PENDIENTE'
+                )
+                """).param("animal", animalId.toString()).query(Boolean.class).single();
+    }
+
     private Movimiento map(ResultSet rs, int rowNum) throws SQLException {
         Instant confirmacion = Rows.instant(rs, "fecha_confirmacion");
         Instant anulacion = Rows.instant(rs, "fecha_anulacion");

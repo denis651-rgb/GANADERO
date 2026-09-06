@@ -26,11 +26,19 @@ export function ConfiguracionSanitariaPanel() {
       e.preventDefault()
       if (!editable || guardar.isPending) return
       const values = new FormData(e.currentTarget)
-      const input: ConfiguracionSanitaria = { edadMinMachoMeses: Number(values.get('macho')), edadMinHembraMeses: Number(values.get('hembra')), version: query.data.version }
+      const input: ConfiguracionSanitaria = {
+        edadMinMachoMeses: Number(values.get('macho')),
+        edadMinHembraMeses: Number(values.get('hembra')),
+        horizonteProyeccionMeses: Number(values.get('horizonteProyeccionMeses')),
+        version: query.data.version,
+      }
       guardar.mutate(input)
     }}>
       <Field label="Machos: edad mínima (meses)" required><input name="macho" type="number" min="1" max="120" step="1" required disabled={!editable} defaultValue={query.data.edadMinMachoMeses ?? ''} /></Field>
       <Field label="Hembras: edad mínima (meses)" required><input name="hembra" type="number" min="1" max="120" step="1" required disabled={!editable} defaultValue={query.data.edadMinHembraMeses ?? ''} /></Field>
+      <Field label="Proyección del calendario (meses)" hint="Genera con anticipación las actividades que luego podrán sincronizarse con un calendario externo." required>
+        <input name="horizonteProyeccionMeses" type="number" min="1" max="24" step="1" required disabled={!editable} defaultValue={query.data.horizonteProyeccionMeses ?? 12} />
+      </Field>
       {editable && <div className="form-actions"><Button type="submit" loading={guardar.isPending}>Guardar edades mínimas</Button></div>}
     </form>}
     {guardar.error && <Alert tone="danger">{normalizeApiError(guardar.error).message}</Alert>}

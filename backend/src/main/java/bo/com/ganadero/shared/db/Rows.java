@@ -25,6 +25,12 @@ public final class Rows {
         return rs.wasNull() ? null : value;
     }
 
+    /** sqlite-jdbc's getObject() returns Integer (not Long) for values that fit in an int; nunca hagas (Long) rs.getObject(...). */
+    public static Long longOrNull(ResultSet rs, String column) throws SQLException {
+        long value = rs.getLong(column);
+        return rs.wasNull() ? null : value;
+    }
+
     public static LocalDate localDate(ResultSet rs, String column) throws SQLException {
         String raw = rs.getString(column);
         return raw == null ? null : LocalDate.parse(raw);

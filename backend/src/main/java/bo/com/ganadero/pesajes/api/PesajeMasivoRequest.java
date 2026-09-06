@@ -18,7 +18,7 @@ public record PesajeMasivoRequest(
     PesajeMasivoCommand command() {
         return new PesajeMasivoCommand(fecha, dispositivo, observaciones,
                 items.stream().map(item -> new PesajeMasivoItem(
-                        item.id(), item.animalId(), item.fecha(), item.pesoKg(), item.tipo(),
+                        item.id(), item.animalId(), item.fecha(), item.pesoKg(), item.tipo(), item.tipoPeso(),
                         item.condicionCorporal(), item.bascula(), item.propiedadId(), item.potreroId(),
                         item.loteId(), item.observaciones())).toList());
     }

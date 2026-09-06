@@ -98,7 +98,7 @@ export function JornadaPrepararModal({ jornada, catalogs, onClose, onSaved }: Jo
     <div className="page-stack">
       <form className="form-grid" onSubmit={(event) => event.preventDefault()}>
         <Field label="Actividad del plan" required>
-          <select value={planItemId} required onChange={(event) => cambiarActividad(event.target.value)}>
+          <select value={planItemId} required disabled={planItems.isPending} onChange={(event) => cambiarActividad(event.target.value)}>
             <option value="">Selecciona una actividad…</option>
             {planItems.data?.map((item) => <option key={item.id} value={item.id}>{TIPO_ACTIVIDAD_LABELS[item.tipoActividad]}{item.productoRecomendadoTexto ? ` · ${item.productoRecomendadoTexto}` : ''}</option>)}
           </select>
@@ -109,7 +109,9 @@ export function JornadaPrepararModal({ jornada, catalogs, onClose, onSaved }: Jo
       </form>
 
       {planItems.isPending && <LoadingState message="Cargando actividades del plan…" />}
+      {planItems.error && <Alert tone="danger">{normalizeApiError(planItems.error).message} <button type="button" className="text-link" onClick={() => void planItems.refetch()}>Reintentar</button></Alert>}
       {planItems.data?.length === 0 && <Alert tone="info">No existe una actividad activa del tipo {TIPO_ACTIVIDAD_LABELS[jornada.tipoJornada]}. Créala primero en Planes sanitarios.</Alert>}
+      {!planItems.isPending && !planItems.error && (planItems.data?.length ?? 0) > 0 && !itemSeleccionado && <Alert tone="info">Selecciona una actividad del plan para verificar los animales elegibles.</Alert>}
 
       {itemSeleccionado && <div className="eligibility-criteria" aria-label="Criterios de elegibilidad">
         <strong>Criterios aplicados automáticamente</strong>
@@ -118,7 +120,7 @@ export function JornadaPrepararModal({ jornada, catalogs, onClose, onSaved }: Jo
         <span>Edad: <b>{rangoEdad}</b></span>
       </div>}
 
-      {elegibilidad.isPending && <LoadingState message="Verificando animales…" />}
+      {elegibilidad.isFetching && <LoadingState message="Verificando animales…" />}
       {elegibilidad.error && <Alert tone="danger">{normalizeApiError(elegibilidad.error).message}</Alert>}
 
       {elegibilidad.data && <>
@@ -134,7 +136,7 @@ export function JornadaPrepararModal({ jornada, catalogs, onClose, onSaved }: Jo
         {vista === 'ELEGIBLES' && elegibles.length === 0 && <Alert tone="info">Ningún animal cumple todos los criterios. Revisa la pestaña “Excluidos” para conocer los motivos.</Alert>}
         {vista === 'ELEGIBLES' && elegibles.length > 0 && <div className="table-wrapper"><table><caption className="visually-hidden">Animales elegibles</caption><thead><tr><th scope="col"><span className="visually-hidden">Seleccionar</span></th><th scope="col">Animal</th><th scope="col">Sexo</th><th scope="col">Edad</th></tr></thead><tbody>{elegibles.map((animal) => <tr key={animal.id} className={selected.has(animal.id) ? 'selected-row' : undefined}>
           <td><label className="checkbox-line"><input type="checkbox" checked={selected.has(animal.id)} onChange={() => toggle(animal.id)} aria-label={`Seleccionar ${animal.codigo}`} /></label></td>
-          <td><strong>{animal.codigo}</strong>{animal.nombre ? <span className="table-secondary">{animal.nombre}</span> : null}</td><td>{animal.sexo === 'HEMBRA' ? 'Hembra' : 'Macho'}</td><td>{animal.edadDias != null ? `${animal.edadDias} días` : 'Sin fecha'}</td>
+          <td><strong>{animal.codigo}</strong>{animal.nombre ? <span className="table-secondary">{animal.nombre}</span> : null}</td><td>{animal.sexo === 'HEMBRA' ? 'Hembra' : 'Macho'}</td><td>{animal.edadDias != null ? `${animal.edadEstimada ? '≈ ' : ''}${animal.edadDias} días${animal.edadEstimada ? ' (estimada)' : ''}` : 'Sin fecha'}</td>
         </tr>)}</tbody></table></div>}
 
         {vista === 'EXCLUIDOS' && excluidos.length === 0 && <Alert tone="success">Todos los animales del alcance cumplen los criterios.</Alert>}

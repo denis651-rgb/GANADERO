@@ -93,6 +93,14 @@ public class MotorAlertasService implements MotorAlertas {
                     animal + " tiene una vacunación prevista para el " + fechaTexto, severidadVacuna(metadata));
             case VACUNA_VENCIDA -> new Plantilla("Vacuna vencida",
                     "La vacunación de " + animal + " está vencida.", severidadVacuna(metadata));
+            case ACTIVIDAD_SANITARIA_PROXIMA -> new Plantilla(
+                    String.valueOf(metadata.getOrDefault("nombreActividad", "Actividad sanitaria")) + " próxima",
+                    animal + " tiene " + String.valueOf(metadata.getOrDefault("nombreActividad", "una actividad sanitaria"))
+                            + " prevista para el " + fechaTexto, SeveridadAlerta.WARNING);
+            case ACTIVIDAD_SANITARIA_VENCIDA -> new Plantilla(
+                    String.valueOf(metadata.getOrDefault("nombreActividad", "Actividad sanitaria")) + " vencida",
+                    animal + " tiene " + String.valueOf(metadata.getOrDefault("nombreActividad", "una actividad sanitaria"))
+                            + " vencida desde el " + fechaTexto, SeveridadAlerta.WARNING);
             case REVISION_SANITARIA_INGRESO -> new Plantilla(
                     tituloRevisionIngreso(metadata),
                     mensajeRevisionIngreso(metadata, animal),

@@ -22,8 +22,11 @@ export interface VentaInput {
   comprador: string
   precio: number
   moneda?: string
-  pesoVentaKg?: number
   observaciones?: string
+  pesajeExistenteId?: string
+  pesoVentaKg?: number
+  tipoPeso?: 'MEDIDO' | 'ESTIMADO'
+  dispositivo?: string
 }
 
 export interface VentaFilters {

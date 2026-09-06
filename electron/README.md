@@ -1,5 +1,26 @@
 # Ganadero Desktop (Electron)
 
+## Google Calendar OAuth
+
+La integración usa un cliente OAuth 2.0 de tipo **Aplicación de escritorio**, PKCE (`S256`) y un
+callback temporal en `http://127.0.0.1:<puerto>/oauth2/callback`. La autorización siempre se abre
+en el navegador predeterminado; la contraseña de Google nunca pasa por Ganadero.
+
+1. En Google Cloud habilita Google Calendar API y crea un cliente OAuth de tipo `Desktop app`.
+2. Descarga el JSON, renómbralo `google-oauth-client.json` y guárdalo en
+   `%APPDATA%\Ganadero\google-oauth-client.json`.
+3. También puede configurarse en desarrollo con `GANADERO_GOOGLE_CLIENT_ID` y, si Google lo
+   entrega, `GANADERO_GOOGLE_CLIENT_SECRET`.
+4. Abre `Mi finca → Configuración general → Google Calendar` y pulsa **Conectar Google**.
+
+No se debe versionar el JSON real. El repositorio incluye `google-oauth-client.example.json` sólo
+como referencia. Los tokens se guardan cifrados mediante `safeStorage` en el directorio de datos
+de Ganadero y no se almacenan en SQLite ni se exponen al renderer.
+
+Los únicos alcances solicitados son identidad básica (`openid email`) y
+`https://www.googleapis.com/auth/calendar.app.created`, limitado a calendarios creados por la
+aplicación. La creación del calendario y el consumo de la cola corresponden a la fase siguiente.
+
 Empaqueta el backend Spring Boot y el frontend React como una app de escritorio Windows,
 con notificaciones nativas y ciclo de vida del backend embebido.
 

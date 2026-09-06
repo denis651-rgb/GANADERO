@@ -207,13 +207,50 @@ class JdbcLoteRepository implements LoteRepository {
         return MembresiaLotePage.of(values, page, size, total);
     }
 
+    @Override
+    public void transferirPropiedad(UUID loteId, UUID nuevaPropiedadId, UUID actor) {
+        jdbc.sql("""
+                update lote_ganadero set propiedad_id=:propiedad,
+                    updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),updated_by=:actor,version=version+1
+                where id=:id""")
+                .param("propiedad", nuevaPropiedadId.toString()).param("actor", actor.toString())
+                .param("id", loteId.toString()).update();
+    }
+
+    @Override
+    public void recomputarUbicacionOperativa(UUID loteId, UUID actor) {
+        jdbc.sql("""
+                update lote_ganadero set potrero_actual_id=(
+                    select case when count(distinct a.potrero_actual_id) = 1 then max(a.potrero_actual_id) else null end
+                    from membresia_lote m join animal a on a.id=m.animal_id
+                    where m.lote_id=:id and m.fecha_salida is null
+                ), updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'), updated_by=:actor
+                where id=:id""")
+                .param("id", loteId.toString()).param("actor", actor.toString()).update();
+    }
+
     private Lote map(ResultSet rs, int rowNum) throws SQLException {
         return new Lote(Rows.uuid(rs, "id"), null,
                 Rows.uuid(rs, "propiedad_id"), rs.getString("codigo"), rs.getString("nombre"),
                 rs.getString("descripcion"), EstadoLote.valueOf(rs.getString("estado")),
                 rs.getString("fecha_apertura") == null ? null : LocalDate.parse(rs.getString("fecha_apertura")),
                 rs.getString("fecha_cierre") == null ? null : LocalDate.parse(rs.getString("fecha_cierre")),
-                rs.getLong("version"), (Integer) rs.getObject("cantidad_maxima"), rs.getLong("cantidad_actual"));
+                rs.getLong("version"), (Integer) rs.getObject("cantidad_maxima"), rs.getLong("cantidad_actual"),
+                potreroActualIdSiExiste(rs));
+    }
+
+    /**
+     * Algunas pruebas de integración fijan deliberadamente el esquema en una versión histórica
+     * anterior a la V23 (para validar comportamiento de una migración pasada tal como existía
+     * en ese momento); en esas conexiones la columna aún no existe. Producción siempre migra
+     * hasta la versión más reciente, así que esto nunca oculta un problema real allí.
+     */
+    private UUID potreroActualIdSiExiste(ResultSet rs) throws SQLException {
+        try {
+            return Rows.uuid(rs, "potrero_actual_id");
+        } catch (SQLException ex) {
+            return null;
+        }
     }
 
     private MembresiaLote mapMembership(ResultSet rs, int rowNum) throws SQLException {

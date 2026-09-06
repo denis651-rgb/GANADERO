@@ -15,7 +15,7 @@ import java.time.Instant; import java.util.*;
   Configuracion patch=new Configuracion(null,c.zonaHoraria(),c.moneda(),c.unidadPeso(),c.unidadSuperficie(),
    c.diasAlertaPreparto(),c.diasAlertaVacunacion(),c.diasSinPesaje(),c.diasAlertaDestete(),
    c.diasDiagnosticoPostServicio(),c.diasGestacionEstimada(),c.comprimirImagenes(),c.calidadImagen(),c.nombreUsuario(),
-   false,Objects.requireNonNull(c.version()));
+   false,c.diasToleranciaPesoCompra(),Objects.requireNonNull(c.version()));
   Configuracion saved=repo.update(patch,u.userId());
   if(c.nuevoPin()!=null&&!c.nuevoPin().isBlank())repo.updatePin(PIN_ENCODER.encode(c.nuevoPin()));
   else if(Boolean.TRUE.equals(c.quitarPin()))repo.updatePin(null);

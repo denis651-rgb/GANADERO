@@ -1,8 +1,10 @@
-import { app, BrowserWindow, Menu, Tray, dialog } from 'electron'
+import { app, BrowserWindow, Menu, Tray, dialog, ipcMain } from 'electron'
 import path from 'node:path'
 import { BackendManager } from './backend'
 import { startNotificationPolling } from './notifications'
 import { registerFrontendScheme, serveFrontend, FRONTEND_SCHEME } from './frontend-protocol'
+import { GoogleOAuthManager } from './google-oauth'
+import { startGoogleCalendarSync, type GoogleCalendarSyncHandle } from './google-calendar-sync'
 
 const DEV_SERVER_URL = 'http://localhost:5173'
 const ICON_PATH = path.join(__dirname, '..', 'build', 'icon.ico')
@@ -10,9 +12,11 @@ const ICON_PATH = path.join(__dirname, '..', 'build', 'icon.ico')
 registerFrontendScheme()
 
 const backend = new BackendManager()
+const googleOAuth = new GoogleOAuthManager(() => backend.port)
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let stopNotifications: (() => void) | null = null
+let googleCalendarSync: GoogleCalendarSyncHandle | null = null
 let quitting = false
 
 if (!app.requestSingleInstanceLock()) {
@@ -41,9 +45,21 @@ if (!app.requestSingleInstanceLock()) {
     }
 
     createWindow()
+    registerGoogleOAuthIpc()
     createTray()
     stopNotifications = startNotificationPolling(() => backend.port, focusWindow)
+    googleCalendarSync = startGoogleCalendarSync(() => backend.port, googleOAuth)
   })
+}
+
+function registerGoogleOAuthIpc(): void {
+  ipcMain.handle('google-calendar-oauth:status', () => googleOAuth.status())
+  ipcMain.handle('google-calendar-oauth:connect', () => googleOAuth.connect())
+  ipcMain.handle('google-calendar-oauth:import-client', (_event, jsonText: string, fileName: string) =>
+    googleOAuth.importClientConfig(jsonText, fileName))
+  ipcMain.handle('google-calendar-oauth:revoke', () => googleOAuth.revoke())
+  ipcMain.handle('google-calendar-oauth:change-account', () => googleOAuth.changeAccount())
+  ipcMain.handle('google-calendar:sync-now', () => googleCalendarSync?.syncNow())
 }
 
 function createWindow(): void {
@@ -104,6 +120,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   quitting = true
   stopNotifications?.()
+  googleCalendarSync?.stop()
   backend.stop()
 })
 

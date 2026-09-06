@@ -8,6 +8,8 @@ public enum TipoAlerta {
 
     VACUNA_PROXIMA(CategoriaAlerta.SANIDAD),
     VACUNA_VENCIDA(CategoriaAlerta.SANIDAD),
+    ACTIVIDAD_SANITARIA_PROXIMA(CategoriaAlerta.SANIDAD),
+    ACTIVIDAD_SANITARIA_VENCIDA(CategoriaAlerta.SANIDAD),
     REVISION_SANITARIA_INGRESO(CategoriaAlerta.SANIDAD),
     RETIRO_CARNE_VIGENTE(CategoriaAlerta.SANIDAD),
     RETIRO_LECHE_VIGENTE(CategoriaAlerta.SANIDAD),

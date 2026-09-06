@@ -8,8 +8,11 @@ import bo.com.ganadero.archivos.application.ArchivoAuditEvent;
 import bo.com.ganadero.configuracion.application.ConfiguracionAuditEvent;
 import bo.com.ganadero.lotes.application.LoteAuditEvent;
 import bo.com.ganadero.movimientos.application.MovimientoAuditEvent;
+import bo.com.ganadero.movimientolote.application.MoverLoteAuditEvent;
 import bo.com.ganadero.pesajes.application.PesajeAuditEvent;
 import bo.com.ganadero.potreros.application.PotreroAuditEvent;
+import bo.com.ganadero.proveedores.application.ProveedorAuditEvent;
+import bo.com.ganadero.compras.application.CompraAuditEvent;
 import bo.com.ganadero.propiedades.application.CampoAuditEvent;
 import bo.com.ganadero.reproduccion.application.ReproduccionAuditEvent;
 import bo.com.ganadero.sanidad.application.SanidadAuditEvent;
@@ -80,6 +83,21 @@ public class AuditEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onMovimiento(MovimientoAuditEvent event) {
         persist(event.empresaId(), event.usuarioId(), event.accion(), "MOVIMIENTOS", event.entidad(), event.entidadId());
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onMoverLote(MoverLoteAuditEvent event) {
+        persist(event.empresaId(), event.usuarioId(), event.accion(), "MOVIMIENTO_LOTE", "LOTE", event.entidadId());
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onProveedor(ProveedorAuditEvent event) {
+        persist(event.empresaId(), event.usuarioId(), event.accion(), "PROVEEDORES", "PROVEEDOR", event.entidadId());
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onCompra(CompraAuditEvent event) {
+        persist(event.empresaId(), event.usuarioId(), event.accion(), "COMPRAS", "COMPRA", event.entidadId());
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

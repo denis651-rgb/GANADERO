@@ -18,6 +18,10 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    # V27 necesita `pragma foreign_keys=off/on` alrededor de una recreación de tabla con datos
+    # reales referenciándola (ver comentario en V27); SQLite trata PRAGMA como no-transaccional,
+    # y Flyway rechaza mezclar eso con DDL/DML transaccional salvo `mixed: true`.
+    mixed: true
 
 server:
   port: ${PORT:8080}

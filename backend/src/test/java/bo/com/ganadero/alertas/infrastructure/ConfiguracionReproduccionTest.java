@@ -12,7 +12,7 @@ class ConfiguracionReproduccionTest {
  @Test void leeConfiguracionTrasMigracionMultiPropiedad(@TempDir Path dir) {
   var ds = new SQLiteDataSource();
   ds.setUrl("jdbc:sqlite:" + dir.resolve("test.db"));
-  Flyway.configure().dataSource(ds).locations("classpath:db/migration").load().migrate();
+  Flyway.configure().dataSource(ds).locations("classpath:db/migration").mixed(true).load().migrate();
   var jdbc = JdbcClient.create(ds);
   jdbc.sql("update configuracion set dias_diagnostico_post_servicio=35, dias_gestacion_estimada=280").update();
   var config = new JdbcAlertaConfiguracion(jdbc).obtener(null);

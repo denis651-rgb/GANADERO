@@ -17,25 +17,31 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @Service
 public class AnimalService {
+    private static final ZoneId BOLIVIA = ZoneId.of("America/La_Paz");
     private final AnimalRepository animals;
     private final RazaRepository breeds;
     private final CategoriaAnimalRepository categories;
+    private final HistorialCategoriaAnimalRepository historial;
     private final UserContext context;
     private final ApplicationEventPublisher events;
     private final TimelineEventPublisher timeline;
     private final TimelineService timelineService;
     private final CodigoService codigos;
 
-    public AnimalService(AnimalRepository a, RazaRepository b, CategoriaAnimalRepository c, UserContext u,
+    public AnimalService(AnimalRepository a, RazaRepository b, CategoriaAnimalRepository c,
+                         HistorialCategoriaAnimalRepository historial, UserContext u,
                          ApplicationEventPublisher e, TimelineEventPublisher timeline,
                          TimelineService timelineService, CodigoService codigos) {
         animals = a;
         breeds = b;
         categories = c;
+        this.historial = historial;
         context = u;
         events = e;
         this.timeline = timeline;
@@ -70,6 +76,14 @@ public class AnimalService {
     }
 
     @Transactional(readOnly = true)
+    public List<HistorialCategoriaAnimal> historialCategorias(UUID id) {
+        CurrentUser u = context.requirePermission("ANIMAL_VER");
+        Animal a = require(id, u.empresaId());
+        context.requirePropertyAccess(u, a.propiedadActualId());
+        return historial.listar(id);
+    }
+
+    @Transactional(readOnly = true)
     public TimelinePageResponse timeline(UUID id, EventoTimelineFilter filtro) {
         CurrentUser u = context.requirePermission("ANIMAL_VER");
         Animal a = require(id, u.empresaId());
@@ -90,18 +104,29 @@ public class AnimalService {
     @Transactional
     public Animal create(AnimalCommand c) {
         CurrentUser u = context.requirePermission("ANIMAL_CREAR");
+        LocalDate fechaIngreso = fechaIngresoSegunOrigen(c.origen(), c.fechaNacimiento(), c.fechaIngreso());
+        CategoriaResuelta categoriaResuelta = categoriaSegunEdad(c.sexo(), c.fechaNacimiento(), c.categoriaActualId(), u);
+        UUID categoria = categoriaResuelta.id();
         validateEntryWeight(c.pesoIngresoKg(), c.pesoIngresoEstimado());
-        validateReferences(c.razaPrincipalId(), c.categoriaActualId(), c.sexo(), c.propiedadActualId(),
+        validateReferences(c.razaPrincipalId(), categoria, c.sexo(), c.propiedadActualId(),
                 c.potreroActualId(), u);
         UUID id = c.id() != null ? c.id() : UUID.randomUUID();
         String codigo = codigos.paraCreacion(u, TipoCodigo.ANIMAL, null, null, c.codigo());
+        boolean estimada = c.fechaNacimiento() != null && Boolean.TRUE.equals(c.fechaNacimientoEstimada());
         Animal a = new Animal(id, u.empresaId(), codigo, c.nombre(), c.sexo(), c.fechaNacimiento(),
-                c.fechaNacimiento() != null && Boolean.TRUE.equals(c.fechaNacimientoEstimada()), c.razaPrincipalId(), c.categoriaActualId(),
+                estimada, c.razaPrincipalId(), categoria,
                 c.color(), c.proposito(), c.origen(), c.propiedadActualId(), c.potreroActualId(), null,
-                EstadoAnimal.ACTIVO, c.fechaIngreso() == null ? LocalDate.now(java.time.ZoneId.of("America/La_Paz")) : c.fechaIngreso(),
+                EstadoAnimal.ACTIVO, fechaIngreso,
                 c.precioAdquisicion(), c.pesoNacimientoKg(), c.condicionCorporalActual(), c.fotoPrincipalPath(),
-                c.observaciones(), 0, c.pesoIngresoKg(), c.pesoIngresoKg() == null ? null : c.pesoIngresoEstimado());
+                c.observaciones(), 0, c.pesoIngresoKg(), c.pesoIngresoKg() == null ? null : c.pesoIngresoEstimado(),
+                c.edadDeclaradaValor(), c.edadDeclaradaUnidad(), c.fechaReferenciaEdad(), c.fuenteEdad(),
+                c.observacionEstimacion());
         Animal saved = animals.create(a, u.userId());
+        registrarHistorialCategoria(saved.id(), null, categoria,
+                categoriaResuelta.manual() ? HistorialCategoriaAnimal.MANUAL : HistorialCategoriaAnimal.AUTOMATICO,
+                motivoCategoria(c.categoriaManualMotivo(), categoriaResuelta.manual(), saved.fechaNacimiento() == null),
+                u.userId(), saved.fechaNacimiento(), saved.fechaNacimiento() != null && !saved.fechaNacimientoEstimada(),
+                categoriaResuelta.manual() ? null : categoria);
         TipoEventoAnimal tipo = switch (a.origen()) {
             case NACIDO -> TipoEventoAnimal.NACIMIENTO_REGISTRADO;
             case COMPRADO -> TipoEventoAnimal.COMPRA_REGISTRADA;
@@ -136,6 +161,7 @@ public class AnimalService {
         context.requirePropertyAccess(u, old.propiedadActualId());
         boolean corregirPeso = Boolean.TRUE.equals(c.corregirPesoCompra());
         boolean quitarNacimiento = Boolean.TRUE.equals(c.quitarFechaNacimiento());
+        boolean confirmarNacimiento = Boolean.TRUE.equals(c.confirmarFechaNacimiento());
         if (corregirPeso && (old.origen() != OrigenAnimal.COMPRADO || old.pesoNacimientoKg() == null
                 || old.pesoIngresoKg() != null)) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Este animal no tiene un peso de compra pendiente de revisión.");
@@ -152,19 +178,28 @@ public class AnimalService {
         if (moves && old.estado() != EstadoAnimal.ACTIVO) throw new BusinessException(ErrorCode.ANIMAL_NOT_ACTIVE);
         SexoAnimal sex = c.sexo() == null ? old.sexo() : c.sexo();
         UUID breed = c.razaPrincipalId() == null ? old.razaPrincipalId() : c.razaPrincipalId();
-        UUID category = c.categoriaActualId() == null ? old.categoriaActualId() : c.categoriaActualId();
+        LocalDate nacimiento = quitarNacimiento ? null : c.fechaNacimiento() == null ? old.fechaNacimiento() : c.fechaNacimiento();
+        UUID categoriaSolicitada = c.categoriaActualId() == null ? old.categoriaActualId() : c.categoriaActualId();
+        CategoriaResuelta categoriaResuelta = categoriaSegunEdad(sex, nacimiento, categoriaSolicitada, u);
+        UUID category = categoriaResuelta.id();
+        LocalDate fechaIngreso = fechaIngresoSegunOrigen(old.origen(), nacimiento,
+                c.fechaIngreso() == null ? old.fechaIngreso() : c.fechaIngreso());
         validateReferences(breed, category, sex, property, paddock, u);
         String codigo = codigos.paraActualizacion(u, TipoCodigo.ANIMAL, null, null, old.codigo(), c.codigo());
+        boolean limpiarEstimacion = quitarNacimiento || confirmarNacimiento;
         Animal value = new Animal(id, u.empresaId(), codigo, c.nombre(), sex, c.fechaNacimiento(),
                 !quitarNacimiento && (c.fechaNacimiento() != null || old.fechaNacimiento() != null)
                         && (c.fechaNacimientoEstimada() == null ? old.fechaNacimientoEstimada() : c.fechaNacimientoEstimada()),
                 breed, category, c.color(), c.proposito() == null ? old.proposito() : c.proposito(), old.origen(),
-                property, paddock, old.loteActualId(), old.estado(), c.fechaIngreso(), c.precioAdquisicion(),
+                property, paddock, old.loteActualId(), old.estado(), fechaIngreso, c.precioAdquisicion(),
                 c.pesoNacimientoKg(), c.condicionCorporalActual(), c.fotoPrincipalPath(), c.observaciones(),
-                Objects.requireNonNull(c.version()), pesoIngreso, pesoIngreso == null ? null : pesoEstimado);
-        Animal saved = quitarNacimiento || corregirPeso
-                ? animals.update(value, u.userId(), quitarNacimiento, corregirPeso)
+                Objects.requireNonNull(c.version()), pesoIngreso, pesoIngreso == null ? null : pesoEstimado,
+                c.edadDeclaradaValor(), c.edadDeclaradaUnidad(), c.fechaReferenciaEdad(), c.fuenteEdad(),
+                c.observacionEstimacion());
+        Animal saved = (quitarNacimiento || corregirPeso || limpiarEstimacion)
+                ? animals.update(value, u.userId(), quitarNacimiento, corregirPeso, limpiarEstimacion)
                 : animals.update(value, u.userId());
+        registrarCambioCategoria(old, saved, categoriaResuelta, c.categoriaManualMotivo(), u.userId());
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("codigo", saved.codigo());
         metadata.put("version", saved.version());
@@ -180,6 +215,25 @@ public class AnimalService {
                 u.userId(), Instant.now(), "ANIMAL_ACTUALIZADO|" + id + "|" + saved.version()));
         audit(u, "ACTUALIZAR", id);
         return saved;
+    }
+
+    private LocalDate fechaIngresoSegunOrigen(OrigenAnimal origen, LocalDate nacimiento, LocalDate ingresoSolicitado) {
+        if (origen == null) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "El origen del animal es obligatorio.");
+        LocalDate hoy = LocalDate.now(BOLIVIA);
+        if (origen == OrigenAnimal.NACIDO) {
+            if (nacimiento == null) throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "Un animal nacido en la finca debe tener fecha de nacimiento; esa misma fecha será su ingreso.");
+            if (nacimiento.isAfter(hoy)) throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "La fecha de nacimiento no puede estar en el futuro.");
+            return nacimiento;
+        }
+        if (ingresoSolicitado == null) throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                "La fecha de recepción es obligatoria para animales comprados o transferidos.");
+        if (ingresoSolicitado.isAfter(hoy)) throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                "La fecha de recepción no puede estar en el futuro.");
+        if (nacimiento != null && ingresoSolicitado.isBefore(nacimiento)) throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                "La fecha de recepción no puede ser anterior al nacimiento.");
+        return ingresoSolicitado;
     }
 
     private void validateEntryWeight(java.math.BigDecimal peso, Boolean estimado) {
@@ -249,6 +303,63 @@ public class AnimalService {
         if (!animals.validLocation(u.empresaId(), property, paddock)) {
             throw new BusinessException(ErrorCode.INVALID_ANIMAL_LOCATION);
         }
+    }
+
+    /** Resultado de resolver la categoría: si vino del cálculo automático por edad o de una elección manual/excepción. */
+    private record CategoriaResuelta(UUID id, boolean manual) {}
+
+    private CategoriaResuelta categoriaSegunEdad(SexoAnimal sexo, LocalDate nacimiento, UUID categoriaSolicitada, CurrentUser u) {
+        if (nacimiento == null) {
+            // Edad desconocida: nunca se infiere; la categoría queda como elección manual explícita.
+            if (categoriaSolicitada == null) throw new BusinessException(ErrorCode.ANIMAL_CATEGORY_NOT_FOUND);
+            return new CategoriaResuelta(categoriaSolicitada, true);
+        }
+        LocalDate hoy = LocalDate.now(BOLIVIA);
+        if (categoriaSolicitada != null) {
+            Optional<CategoriaAnimal> manual = categories.findById(categoriaSolicitada, u.empresaId());
+            if (manual.isPresent() && !manual.get().clasificacionAutomatica()
+                    && manual.get().appliesTo(sexo, nacimiento, hoy)) return new CategoriaResuelta(categoriaSolicitada, true);
+        }
+        List<CategoriaAnimal> candidatas = categories.findActive(u.empresaId()).stream()
+                .filter(CategoriaAnimal::clasificacionAutomatica)
+                .filter(categoria -> categoria.appliesTo(sexo, nacimiento, hoy))
+                .toList();
+        if (candidatas.size() == 1) return new CategoriaResuelta(candidatas.getFirst().id(), false);
+        // Compatibilidad con catálogos simulados/antiguos: la validación posterior sigue verificando sexo.
+        if (candidatas.isEmpty() && categoriaSolicitada != null) return new CategoriaResuelta(categoriaSolicitada, true);
+        throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                "No existe una categoría automática única para el sexo y la edad del animal. Revisa los rangos del catálogo.");
+    }
+
+    private String motivoCategoria(String motivoDeclarado, boolean manual, boolean edadDesconocida) {
+        if (motivoDeclarado != null && !motivoDeclarado.isBlank()) return motivoDeclarado.trim();
+        if (!manual) return "Asignación automática inicial por sexo y edad.";
+        return edadDesconocida ? "Edad desconocida: categoría seleccionada manualmente." : "Categoría manual asignada al registrar el animal.";
+    }
+
+    private void registrarCambioCategoria(Animal old, Animal saved, CategoriaResuelta categoriaResuelta,
+                                          String motivoDeclarado, UUID actor) {
+        boolean nacimientoCambio = !Objects.equals(saved.fechaNacimiento(), old.fechaNacimiento());
+        boolean eraDesconocida = old.fechaNacimiento() == null;
+        boolean esCorreccion = nacimientoCambio || (eraDesconocida && saved.fechaNacimiento() != null);
+        String tipo = esCorreccion ? HistorialCategoriaAnimal.CORRECCION
+                : categoriaResuelta.manual() ? HistorialCategoriaAnimal.MANUAL : HistorialCategoriaAnimal.AUTOMATICO;
+        boolean categoriaCambio = !Objects.equals(old.categoriaActualId(), saved.categoriaActualId());
+        if (!categoriaCambio && !esCorreccion) return;
+        String motivo = motivoDeclarado != null && !motivoDeclarado.isBlank() ? motivoDeclarado.trim()
+                : esCorreccion ? "Corrección de fecha de nacimiento o edad declarada."
+                : categoriaResuelta.manual() ? "Categoría asignada manualmente." : "Reclasificación automática por sexo y edad.";
+        registrarHistorialCategoria(saved.id(), old.categoriaActualId(), saved.categoriaActualId(), tipo, motivo,
+                actor, saved.fechaNacimiento(), saved.fechaNacimiento() != null && !saved.fechaNacimientoEstimada(),
+                categoriaResuelta.manual() ? null : saved.categoriaActualId());
+    }
+
+    private void registrarHistorialCategoria(UUID animalId, UUID categoriaAnterior, UUID categoriaNueva, String tipo,
+                                             String motivo, UUID usuarioId, LocalDate nacimiento, boolean confirmada,
+                                             UUID categoriaConfigId) {
+        Long edadDias = nacimiento == null ? null : ChronoUnit.DAYS.between(nacimiento, LocalDate.now(BOLIVIA));
+        historial.crear(new HistorialCategoriaAnimal(UUID.randomUUID(), animalId, categoriaAnterior, categoriaNueva,
+                Instant.now(), tipo, motivo, usuarioId, edadDias, confirmada, categoriaConfigId));
     }
 
     private Animal require(UUID id, UUID e) {

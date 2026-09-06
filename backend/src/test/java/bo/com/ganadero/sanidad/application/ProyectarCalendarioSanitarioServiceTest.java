@@ -134,7 +134,7 @@ class ProyectarCalendarioSanitarioServiceTest {
 
     private Fixture fixture(Path tempDir) {
         DataSource dataSource = sqliteDataSource(tempDir);
-        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
+        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").mixed(true).load().migrate();
         JdbcClient jdbc = JdbcClient.create(dataSource);
         MotorAlertas alertas = new MotorAlertasService(new JdbcAlertaRepository(jdbc, JsonMapper.builder().build()));
         ProyectarCalendarioSanitarioService service = new ProyectarCalendarioSanitarioService(jdbc, alertas);
@@ -151,7 +151,7 @@ class ProyectarCalendarioSanitarioServiceTest {
 
         /** Item de brucelosis: ventana 90-240 dias, alerta con 7 dias de anticipacion. */
         UUID crearItemVacunacionBrucelosis() {
-            JdbcSanidadRepository planes = new JdbcSanidadRepository(jdbc);
+            JdbcSanidadRepository planes = new JdbcSanidadRepository(jdbc, new tools.jackson.databind.ObjectMapper());
             UUID actor = UUID.randomUUID();
             PlanSanitario plan = planes.crearPlan(new PlanSanitario(UUID.randomUUID(), null, "Plan 2026", null,
                     LocalDate.now(), null, EstadoPlanSanitario.ACTIVO, null, null, 0), actor);
@@ -193,7 +193,7 @@ class ProyectarCalendarioSanitarioServiceTest {
 
         void declararAplicacion(UUID animalId, UUID planItemId, LocalDate fechaAplicacion) {
             jdbc.sql("insert into aplicacion_sanitaria(id,jornada_id,plan_item_id,animal_id,fecha_aplicacion,idempotency_key,estado,origen_registro) "
-                    + "values(:id,null,:item,:animal,:fecha,:key,'APLICADA',:origen)")
+                    + "values(:id,null,:item,:animal,:fecha,:key,'APLICADO',:origen)")
                     .param("id", UUID.randomUUID().toString()).param("item", planItemId.toString())
                     .param("animal", animalId.toString()).param("fecha", fechaAplicacion.toString())
                     .param("key", UUID.randomUUID().toString()).param("origen", OrigenRegistroAplicacion.DECLARADA_PROVEEDOR.name())

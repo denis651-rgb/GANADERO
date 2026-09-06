@@ -65,6 +65,11 @@ public class AnimalController {
         return ok(service.history(id).stream().map(AnimalEventResponse::from).toList(), r);
     }
 
+    @GetMapping("/animales/{id}/historial-categorias")
+    ApiResponse<List<HistorialCategoriaAnimalResponse>> historialCategorias(@PathVariable UUID id, HttpServletRequest r) {
+        return ok(service.historialCategorias(id).stream().map(HistorialCategoriaAnimalResponse::from).toList(), r);
+    }
+
     @GetMapping("/animales/{id}/timeline")
     ApiResponse<TimelinePageResponse> timeline(@PathVariable UUID id,
                                                @RequestParam(required = false) String tipo,

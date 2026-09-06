@@ -103,8 +103,9 @@ public class PesajeService {
             Animal animal = requireAnimal(user, animalId);
             UUID id = UUID.randomUUID();
             Pesaje value = new Pesaje(id, user.empresaId(), animalId, fecha, command.pesoKg(),
-                    TipoPesaje.RUTINA, null, null, user.userId(),
-                    lote.propiedadId(), animal.potreroActualId(), lote.id(), command.dispositivo(), id,
+                    TipoPesaje.RUTINA, command.tipoPeso() == null ? TipoPeso.MEDIDO : command.tipoPeso(), null, null, user.userId(),
+                    lote.propiedadId(), animal.potreroActualId(), lote.id(), command.dispositivo(),
+                    null, null, null, id,
                     command.idempotencyKey(), EstadoPesaje.ACTIVO, null, null, null,
                     command.observaciones(), null, null, null, null, null, null, 0);
             Pesaje saved = pesajes.create(value, user.userId());
@@ -125,9 +126,9 @@ public class PesajeService {
                 PesajeCommand individual = new PesajeCommand(
                         item.id(), item.animalId(),
                         item.fecha() != null ? item.fecha() : command.fecha(),
-                        item.pesoKg(), item.tipo(), item.condicionCorporal(), item.bascula(), null,
+                        item.pesoKg(), item.tipo(), item.tipoPeso(), item.condicionCorporal(), item.bascula(), null,
                         item.propiedadId(), item.potreroId(), item.loteId(), command.dispositivo(),
-                        item.id(), idempotency,
+                        null, null, null, item.id(), idempotency,
                         item.observaciones() != null ? item.observaciones() : command.observaciones());
                 Pesaje saved = registrarIndividual(user, individual);
                 resultados.add(PesajeMasivoResultado.exito(saved));
@@ -160,6 +161,7 @@ public class PesajeService {
         LocalDate fecha = validarFecha(command.fecha());
         Animal animal = requireAnimal(user, command.animalId());
         validarAnimalActivo(animal);
+        validarFechaContraNacimiento(animal, fecha);
 
         UUID property = command.propiedadId() != null ? command.propiedadId() : animal.propiedadActualId();
         if (!property.equals(animal.propiedadActualId())) {
@@ -176,9 +178,11 @@ public class PesajeService {
         UUID clienteUuid = command.clienteUuid() != null ? command.clienteUuid() : id;
         Pesaje value = new Pesaje(id, user.empresaId(), command.animalId(), fecha, command.pesoKg(),
                 command.tipo() == null ? TipoPesaje.RUTINA : command.tipo(),
+                command.tipoPeso() == null ? TipoPeso.MEDIDO : command.tipoPeso(),
                 command.condicionCorporal(), command.bascula(),
                 command.responsableId() != null ? command.responsableId() : user.userId(),
-                property, potreroId, loteId, command.dispositivo(), clienteUuid,
+                property, potreroId, loteId, command.dispositivo(),
+                command.compraId(), command.ventaId(), command.movimientoId(), clienteUuid,
                 command.idempotencyKey(), EstadoPesaje.ACTIVO, null, null, null,
                 command.observaciones(), null, null, null, null, null, null, 0);
         Pesaje saved = pesajes.create(value, user.userId());
@@ -196,6 +200,14 @@ public class PesajeService {
         LocalDate value = fecha == null ? LocalDate.now() : fecha;
         if (value.isAfter(LocalDate.now())) throw new BusinessException(ErrorCode.PESAJE_FECHA_INVALIDA);
         return value;
+    }
+
+    /** Solo se exige contra una fecha de nacimiento CONFIRMADA; una estimada puede ser imprecisa. */
+    private void validarFechaContraNacimiento(Animal animal, LocalDate fecha) {
+        if (animal.fechaNacimiento() != null && !animal.fechaNacimientoEstimada()
+                && fecha.isBefore(animal.fechaNacimiento())) {
+            throw new BusinessException(ErrorCode.PESAJE_FECHA_ANTERIOR_NACIMIENTO);
+        }
     }
 
     private void validarAnimalActivo(Animal animal) {

@@ -28,7 +28,7 @@ class GestacionServiceTest {
  ReproduccionRepository registros;Animal animal;
  @BeforeEach void setup(){
   var ds=new SQLiteDataSource();ds.setUrl("jdbc:sqlite:"+dir.resolve("test.db"));
-  Flyway.configure().dataSource(ds).locations("classpath:db/migration").load().migrate();
+  Flyway.configure().dataSource(ds).locations("classpath:db/migration").mixed(true).load().migrate();
   var config=new SQLiteConfig();config.enforceForeignKeys(true);
   var db=new SQLiteDataSource(config);db.setUrl(ds.getUrl());jdbc=JdbcClient.create(db);tx=new TransactionTemplate(new DataSourceTransactionManager(db));
   UUID potrero=UUID.randomUUID();

@@ -13,6 +13,7 @@ public record AnimalElegibilidad(
         SexoAnimal sexo,
         EstadoAnimal estado,
         Long edadDias,
+        boolean edadEstimada,
         boolean elegible,
         List<String> motivos
 ) {

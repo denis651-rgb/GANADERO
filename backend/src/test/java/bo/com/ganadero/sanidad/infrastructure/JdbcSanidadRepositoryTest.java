@@ -30,19 +30,19 @@ class JdbcSanidadRepositoryTest {
     @Test
     void persisteUnItemDeVigilanciaEpidemiologicaConSuClasificacionRegulatoria(@TempDir Path tempDir) {
         DataSource dataSource = sqliteDataSource(tempDir);
-        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
-        JdbcSanidadRepository repo = new JdbcSanidadRepository(JdbcClient.create(dataSource));
+        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").mixed(true).load().migrate();
+        JdbcSanidadRepository repo = new JdbcSanidadRepository(JdbcClient.create(dataSource), new tools.jackson.databind.ObjectMapper());
         UUID actor = UUID.randomUUID();
 
         PlanSanitario plan = repo.crearPlan(new PlanSanitario(UUID.randomUUID(), null, "Plan sanitario 2026", null,
                 LocalDate.now(), null, EstadoPlanSanitario.ACTIVO, null, null, 0), actor);
 
         PlanSanitarioItem aftosa = repo.crearItem(new PlanSanitarioItem(UUID.randomUUID(), null, plan.id(),
-                TipoActividadSanitaria.VIGILANCIA_EPIDEMIOLOGICA, null, "Notificacion de sospecha de aftosa",
+                TipoActividadSanitaria.VIGILANCIA, null, "Notificacion de sospecha de aftosa",
                 null, null, null, null, null, null, null, 0, null, false, true, 0,
                 OrigenRegulatorioActividad.CAMPANA_RIESGO, "BOVINO"), actor);
 
-        assertThat(aftosa.tipoActividad()).isEqualTo(TipoActividadSanitaria.VIGILANCIA_EPIDEMIOLOGICA);
+        assertThat(aftosa.tipoActividad()).isEqualTo(TipoActividadSanitaria.VIGILANCIA);
         assertThat(aftosa.origenRegulatorio()).isEqualTo(OrigenRegulatorioActividad.CAMPANA_RIESGO);
         assertThat(aftosa.especieAplicable()).isEqualTo("BOVINO");
         assertThat(aftosa.frecuenciaDias()).isNull();
@@ -56,8 +56,8 @@ class JdbcSanidadRepositoryTest {
     @Test
     void unItemSinClasificacionExplicitaCaeEnConfigurableEstablecimiento(@TempDir Path tempDir) {
         DataSource dataSource = sqliteDataSource(tempDir);
-        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
-        JdbcSanidadRepository repo = new JdbcSanidadRepository(JdbcClient.create(dataSource));
+        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").mixed(true).load().migrate();
+        JdbcSanidadRepository repo = new JdbcSanidadRepository(JdbcClient.create(dataSource), new tools.jackson.databind.ObjectMapper());
         UUID actor = UUID.randomUUID();
 
         PlanSanitario plan = repo.crearPlan(new PlanSanitario(UUID.randomUUID(), null, "Plan sanitario 2026", null,

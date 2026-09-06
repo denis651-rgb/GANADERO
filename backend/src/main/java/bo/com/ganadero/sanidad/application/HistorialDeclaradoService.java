@@ -43,6 +43,39 @@ public class HistorialDeclaradoService {
     @Transactional
     public AplicacionSanitaria registrar(RegistrarAplicacionDeclaradaCommand c) {
         CurrentUser u = context.requirePermission("SANIDAD_JORNADA_CONFIRMAR");
+        return registrar(c, u);
+    }
+
+    @Transactional
+    public List<AplicacionSanitaria> registrarLote(RegistrarHistorialDeclaradoLoteCommand command) {
+        CurrentUser u = context.requirePermission("SANIDAD_JORNADA_CONFIRMAR");
+        List<UUID> animalIds = command.animalIds();
+        List<RegistrarHistorialDeclaradoLoteCommand.Actividad> actividades = command.actividades();
+        if (new HashSet<>(animalIds).size() != animalIds.size()) {
+            throw new BusinessException(ErrorCode.DUPLICATE_ANIMAL_IN_REQUEST);
+        }
+        Set<String> actividadesUnicas = new HashSet<>();
+        for (var actividad : actividades) {
+            String clave = actividad.tipoActividad() + "|" + actividad.planItemId() + "|"
+                    + actividad.fechaAplicacion() + "|" + Objects.toString(actividad.productoTexto(), "");
+            if (!actividadesUnicas.add(clave)) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "La declaración contiene actividades sanitarias duplicadas.");
+            }
+        }
+        List<AplicacionSanitaria> resultado = new ArrayList<>(animalIds.size() * actividades.size());
+        for (UUID animalId : animalIds) {
+            for (var actividad : actividades) {
+                resultado.add(registrar(new RegistrarAplicacionDeclaradaCommand(animalId,
+                        actividad.tipoActividad(), actividad.planItemId(), actividad.fechaAplicacion(),
+                        actividad.dosis(), actividad.unidadDosis(), actividad.productoTexto(),
+                        actividad.observaciones()), u));
+            }
+        }
+        return List.copyOf(resultado);
+    }
+
+    private AplicacionSanitaria registrar(RegistrarAplicacionDeclaradaCommand c, CurrentUser u) {
         Animal animal = animales.findById(c.animalId(), u.empresaId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.ANIMAL_NOT_FOUND));
         context.requirePropertyAccess(u, animal.propiedadActualId());
@@ -51,13 +84,16 @@ public class HistorialDeclaradoService {
                 "El antecedente del proveedor no puede ser posterior al ingreso del animal.");
         PlanSanitarioItem item = c.planItemId() == null ? null
                 : requireItemCompatible(c.planItemId(), u.empresaId(), c.tipoActividad());
-        if (item != null) ReglasSanitarias.intervaloVacuna(repo, u.empresaId(), animal.id(), item, item.productoId(), c.fechaAplicacion());
+        if (item != null) ReglasSanitarias.intervaloMinimoEntreAplicaciones(repo, u.empresaId(), animal.id(), item, item.productoId(), c.fechaAplicacion());
         LocalDate proxima = item != null && item.frecuenciaDias() != null
                 ? c.fechaAplicacion().plusDays(item.frecuenciaDias()) : null;
         AplicacionSanitaria value = new AplicacionSanitaria(UUID.randomUUID(), u.empresaId(), null,
-                c.planItemId(), c.animalId(), null, null, c.dosis(), c.unidadDosis(), null, c.fechaAplicacion(),
-                proxima, null, null, u.userId(), null, componerObservaciones(c), UUID.randomUUID().toString(),
-                "APLICADA", 0, OrigenRegistroAplicacion.DECLARADA_PROVEEDOR);
+                c.planItemId(), c.animalId(), null, null, c.dosis(), c.unidadDosis(), c.dosis(), c.dosis(),
+                null, null, null, c.productoTexto(), null, null, null, null,
+                item == null ? null : item.id(), item == null ? null : item.instruccionesVeterinario(), null,
+                c.fechaAplicacion(), proxima, null, null, u.userId(), null, componerObservaciones(c),
+                UUID.randomUUID().toString(), EstadoAplicacionSanitaria.APLICADO, 0,
+                OrigenRegistroAplicacion.DECLARADA_PROVEEDOR);
         AplicacionSanitaria saved = repo.crearAplicacion(value, u.userId());
         if (item != null) programarAlerta(u, saved, item, animal);
         audit(u, "REGISTRAR_HISTORIAL_DECLARADO", saved.id());
@@ -76,15 +112,13 @@ public class HistorialDeclaradoService {
     }
 
     /**
-     * AplicacionSanitaria no tiene columna propia para el tipo de actividad ni para un
-     * producto en texto libre (a diferencia de PlanSanitarioItem.productoRecomendadoTexto);
-     * se componen en observaciones para no perder lo declarado ni ampliar el esquema más
-     * allá de lo que pide esta fase.
+     * AplicacionSanitaria no tiene columna propia para el tipo de actividad (a diferencia del
+     * producto, que ya se guarda en productoAplicadoTexto); el tipo se deja en observaciones
+     * para no perder lo declarado ni ampliar el esquema más allá de lo que pide esta fase.
      */
     private String componerObservaciones(RegistrarAplicacionDeclaradaCommand c) {
         List<String> partes = new ArrayList<>();
         partes.add("Historial declarado por el proveedor (" + c.tipoActividad().name() + ")");
-        if (c.productoTexto() != null && !c.productoTexto().isBlank()) partes.add("producto: " + c.productoTexto());
         if (c.observaciones() != null && !c.observaciones().isBlank()) partes.add(c.observaciones());
         return String.join(" — ", partes);
     }

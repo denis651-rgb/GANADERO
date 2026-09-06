@@ -1,5 +1,6 @@
 package bo.com.ganadero.animales.api;
 import bo.com.ganadero.animales.application.AnimalCommand;
+import bo.com.ganadero.animales.application.EstimacionEdadAnimal;
 import bo.com.ganadero.animales.domain.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
@@ -27,21 +28,42 @@ public record CrearAnimalesLoteRequest(
             @Size(max = 60) String codigo,
             @Size(max = 160) String nombre,
             @NotNull SexoAnimal sexo,
-            @NotNull UUID categoriaActualId,
+            UUID categoriaActualId,
             String color,
             LocalDate fechaNacimiento,
             Boolean fechaNacimientoEstimada,
             @Positive BigDecimal pesoIngresoKg,
             Boolean pesoIngresoEstimado,
             @DecimalMin("1.0") @DecimalMax("5.0") BigDecimal condicionCorporalActual,
-            String observaciones) {
+            String observaciones,
+            @Positive Integer edadDeclaradaValor,
+            UnidadEdadDeclarada edadDeclaradaUnidad,
+            LocalDate fechaReferenciaEdad,
+            FuenteEdadDeclarada fuenteEdad,
+            String observacionEstimacion,
+            String categoriaManualMotivo) {
 
         AnimalCommand command(CrearAnimalesLoteRequest lote) {
-            return new AnimalCommand(null, codigo, nombre, sexo, fechaNacimiento, fechaNacimientoEstimada,
+            var edad = EstimacionEdadAnimal.resolver(fechaNacimiento, fechaNacimientoEstimada,
+                    edadDeclaradaValor, edadDeclaradaUnidad,
+                    fechaReferenciaEdad == null ? lote.fechaIngreso() : fechaReferenciaEdad,
+                    fuenteEdad, observacionEstimacion);
+            return new AnimalCommand(null, codigo, nombre, sexo, edad.fechaNacimiento(), edad.estimada(),
                     lote.razaPrincipalId(), categoriaActualId, color, lote.proposito(), OrigenAnimal.COMPRADO,
                     lote.propiedadActualId(), lote.potreroActualId(), null, lote.fechaIngreso(),
                     lote.precioAdquisicion(), null, condicionCorporalActual, null, observaciones, 0L,
-                    pesoIngresoKg, pesoIngresoEstimado, false, false);
+                    pesoIngresoKg, pesoIngresoEstimado, false, false,
+                    edad.valorDeclarado(), edad.unidad(), edad.fechaReferencia(), edad.fuente(), edad.detalle(),
+                    categoriaManualMotivo, false);
+        }
+
+        public AnimalLoteItemRequest(String codigo, String nombre, SexoAnimal sexo, UUID categoriaActualId,
+                                    String color, LocalDate fechaNacimiento, Boolean fechaNacimientoEstimada,
+                                    BigDecimal pesoIngresoKg, Boolean pesoIngresoEstimado,
+                                    BigDecimal condicionCorporalActual, String observaciones) {
+            this(codigo, nombre, sexo, categoriaActualId, color, fechaNacimiento, fechaNacimientoEstimada,
+                    pesoIngresoKg, pesoIngresoEstimado, condicionCorporalActual, observaciones,
+                    null, null, null, null, null, null);
         }
     }
 

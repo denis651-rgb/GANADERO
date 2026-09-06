@@ -79,11 +79,11 @@ public class JdbcPesajeRepository implements PesajeRepository {
         int inserted;
         try {
             inserted = jdbc.sql("""
-                    insert into pesaje(id,animal_id,fecha,peso_kg,tipo,condicion_corporal,bascula,
-                    responsable_id,potrero_id,lote_id,dispositivo,cliente_uuid,idempotency_key,estado,observaciones,
-                    created_by,updated_by)
-                    values(:id,:animal,:fecha,:peso,:tipo,:condicion,:bascula,:responsable,:potrero,:lote,
-                    :dispositivo,:cliente,:idempotency,:estado,:observaciones,:actor,:actor)
+                    insert into pesaje(id,animal_id,fecha,peso_kg,tipo,tipo_peso,condicion_corporal,bascula,
+                    responsable_id,potrero_id,lote_id,dispositivo,compra_id,venta_id,movimiento_id,
+                    cliente_uuid,idempotency_key,estado,observaciones,created_by,updated_by)
+                    values(:id,:animal,:fecha,:peso,:tipo,:tipoPeso,:condicion,:bascula,:responsable,:potrero,:lote,
+                    :dispositivo,:compra,:venta,:movimiento,:cliente,:idempotency,:estado,:observaciones,:actor,:actor)
                     on conflict (id) do nothing
                     """).params(params(p, actor)).update();
         } catch (DataIntegrityViolationException ex) {
@@ -127,12 +127,16 @@ public class JdbcPesajeRepository implements PesajeRepository {
         map.put("fecha", p.fecha() == null ? null : p.fecha().toString());
         map.put("peso", p.pesoKg());
         map.put("tipo", p.tipo().name());
+        map.put("tipoPeso", p.tipoPeso() == null ? null : p.tipoPeso().name());
         map.put("condicion", p.condicionCorporal());
         map.put("bascula", p.bascula());
         map.put("responsable", p.responsableId() == null ? null : p.responsableId().toString());
         map.put("potrero", p.potreroId() == null ? null : p.potreroId().toString());
         map.put("lote", p.loteId() == null ? null : p.loteId().toString());
         map.put("dispositivo", p.dispositivo());
+        map.put("compra", p.compraId() == null ? null : p.compraId().toString());
+        map.put("venta", p.ventaId() == null ? null : p.ventaId().toString());
+        map.put("movimiento", p.movimientoId() == null ? null : p.movimientoId().toString());
         map.put("cliente", p.clienteUuid() == null ? null : p.clienteUuid().toString());
         map.put("idempotency", p.idempotencyKey());
         map.put("estado", p.estado().name());
@@ -144,13 +148,16 @@ public class JdbcPesajeRepository implements PesajeRepository {
     private Pesaje map(ResultSet r, int row) throws SQLException {
         String estado = r.getString("estado");
         String tipo = r.getString("tipo");
+        String tipoPeso = r.getString("tipo_peso");
         return new Pesaje(Rows.uuid(r, "id"), null,
                 Rows.uuid(r, "animal_id"), r.getString("fecha") == null ? null : LocalDate.parse(r.getString("fecha")),
                 r.getBigDecimal("peso_kg"), tipo == null ? null : TipoPesaje.valueOf(tipo),
+                tipoPeso == null ? null : TipoPeso.valueOf(tipoPeso),
                 r.getBigDecimal("condicion_corporal"), r.getString("bascula"),
                 Rows.uuid(r, "responsable_id"), null,
                 Rows.uuid(r, "potrero_id"), Rows.uuid(r, "lote_id"),
-                r.getString("dispositivo"), Rows.uuid(r, "cliente_uuid"),
+                r.getString("dispositivo"), Rows.uuid(r, "compra_id"), Rows.uuid(r, "venta_id"),
+                Rows.uuid(r, "movimiento_id"), Rows.uuid(r, "cliente_uuid"),
                 r.getString("idempotency_key"), estado == null ? null : EstadoPesaje.valueOf(estado),
                 r.getString("motivo_anulacion"), Rows.uuid(r, "anulado_por"),
                 Rows.instant(r, "fecha_anulacion"),

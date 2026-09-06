@@ -202,7 +202,9 @@ public class LoteService {
         MembresiaLote membresia = lotes.openMembership(lote.id(), lote.codigo(), animalId, user.empresaId(),
                 motivo, observacion, modo.name(), fechaIngreso, user.userId());
         animales.updateLote(animalId, user.empresaId(), lote.id(), user.userId());
+        lotes.recomputarUbicacionOperativa(lote.id(), user.userId());
         if (cambio) {
+            lotes.recomputarUbicacionOperativa(actual.get().loteId(), user.userId());
             Map<String, Object> metadata = new HashMap<>();
             metadata.put("loteAnteriorId", actual.get().loteId().toString());
             metadata.put("loteNuevoId", lote.id().toString());
@@ -229,6 +231,7 @@ public class LoteService {
         if (fechaSalida.isBefore(actual.fechaIngreso())) throw new BusinessException(ErrorCode.INVALID_MEMBERSHIP_DATE);
         lotes.closeMembership(lote.id(), lote.codigo(), animalId, user.empresaId(), motivo, fechaSalida, user.userId());
         animales.updateLote(animalId, user.empresaId(), null, user.userId());
+        lotes.recomputarUbicacionOperativa(lote.id(), user.userId());
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("loteId", lote.id().toString());
         metadata.put("loteCodigo", lote.codigo());

@@ -4,6 +4,7 @@ import type { ApiResponse } from '@/shared/api/types'
 export interface ConfiguracionSanitaria {
   edadMinMachoMeses: number | null
   edadMinHembraMeses: number | null
+  horizonteProyeccionMeses: number
   version: number
 }
 export async function getConfiguracionSanitaria() {
@@ -13,8 +14,34 @@ export async function guardarConfiguracionSanitaria(input: ConfiguracionSanitari
   return (await http.put<ApiResponse<ConfiguracionSanitaria>>('/api/v1/sanidad/configuracion', input)).data.data
 }
 
-export type TipoActividad = 'VACUNACION' | 'DESPARASITACION' | 'VITAMINIZACION' | 'CONTROL' | 'PRUEBA_DIAGNOSTICA' | 'OTRO' | 'VIGILANCIA_EPIDEMIOLOGICA'
+export type TipoActividad = 'VACUNACION' | 'DESPARASITACION' | 'VITAMINIZACION' | 'PRUEBA_DIAGNOSTICA' | 'CONTROL_ECTOPARASITARIO' | 'VIGILANCIA' | 'TRATAMIENTO_PREVENTIVO' | 'OTRA'
 export type OrigenRegulatorio = 'OBLIGATORIO_SENASAG' | 'CAMPANA_RIESGO' | 'RECOMENDADO_VETERINARIO' | 'CONFIGURABLE_ESTABLECIMIENTO'
+
+/** Cómo se genera el calendario y quién resulta elegible para una actividad. */
+export type ModalidadActividad = 'POR_EDAD' | 'PERIODICA' | 'FECHA_PROGRAMADA' | 'POR_HALLAZGO' | 'MANUAL'
+export type UnidadEdadActividad = 'DIAS' | 'MESES' | 'ANIOS'
+export type UnidadFrecuencia = 'DIAS' | 'SEMANAS' | 'MESES' | 'ANIOS'
+export type PoliticaEdadEstimada = 'PERMITIR' | 'EXCLUIR'
+export type PoliticaEdadDesconocida = 'EXCLUIR' | 'INCLUIR_MANUAL'
+export type ReferenciaCalculoPeriodica = 'FECHA_DE_INGRESO' | 'FECHA_DE_NACIMIENTO' | 'ULTIMA_APLICACION' | 'FECHA_INICIAL_DEL_PLAN' | 'FECHA_CONFIGURADA'
+export type TipoCalculoDosis = 'FIJA_POR_ANIMAL' | 'POR_PESO' | 'SEGUN_INDICACION' | 'NO_APLICA'
+export type UnidadDosis = 'ML' | 'MG' | 'G' | 'TABLETA' | 'DOSIS' | 'GOTA' | 'APLICACION' | 'ML_POR_KG' | 'ML_POR_10KG' | 'ML_POR_50KG' | 'MG_POR_KG' | 'OTRA'
+export type ViaAdministracion = 'SUBCUTANEA' | 'INTRAMUSCULAR' | 'INTRAVENOSA' | 'ORAL' | 'TOPICA' | 'POUR_ON' | 'INTRANASAL' | 'OTRA' | 'NO_APLICA'
+export type LugarAplicacion = 'CUELLO' | 'TABLA_DEL_CUELLO' | 'REGION_ESCAPULAR' | 'LOMO' | 'LINEA_DORSAL' | 'BOCA' | 'FOSA_NASAL' | 'TODO_EL_CUERPO' | 'OTRO' | 'NO_APLICA'
+export type EstadoEventoCalendario = 'PROYECTADO' | 'PROGRAMADO' | 'EN_PREPARACION' | 'REALIZADO' | 'VENCIDO' | 'OMITIDO' | 'CANCELADO'
+export type EstadoAplicacionSanitaria = 'APLICADO' | 'NO_APLICADO' | 'APLICADO_PARCIAL' | 'RECHAZADO' | 'POSPUESTO' | 'ANULADO'
+
+/**
+ * Forma de `modalidadConfig` según la modalidad. El backend NO incluye un discriminador dentro
+ * del propio JSON (el tipo concreto se decide por el campo hermano `modalidad`, igual que en el
+ * dominio Java) — al leerlo, castea según `item.modalidad`, no busques una propiedad "tipo" aquí.
+ */
+export interface PorEdadConfig { edadObjetivoValor: number; edadUnidad: UnidadEdadActividad; ventanaAnticipadaDias: number; ventanaPosteriorDias: number; politicaEdadEstimada: PoliticaEdadEstimada; politicaEdadDesconocida: PoliticaEdadDesconocida; unaVezEnLaVida: boolean }
+export interface PeriodicaConfig { frecuenciaValor: number; frecuenciaUnidad: UnidadFrecuencia; referenciaCalculo: ReferenciaCalculoPeriodica; toleranciaAnticipadaDias: number; toleranciaPosteriorDias: number }
+export interface FechaProgramadaConfig { fechaProgramada: string; unicaVez: boolean; reglaRepeticion?: string; zonaHoraria?: string; ventanaEjecucionHoras?: number }
+export interface PorHallazgoConfig { tiposHallazgo: string[]; severidadMinima?: string; accionRecomendada?: string; plazoDias?: number; requiereValidacionVeterinaria: boolean }
+export type ManualConfig = Record<string, never>
+export type ModalidadConfig = PorEdadConfig | PeriodicaConfig | FechaProgramadaConfig | PorHallazgoConfig | ManualConfig
 export type EstadoPlan = 'BORRADOR' | 'ACTIVO' | 'FINALIZADO' | 'ANULADO'
 export type EstadoJornada = 'BORRADOR' | 'EN_PROCESO' | 'CONFIRMADA' | 'ANULADA'
 export type EstadoCaso = 'ABIERTO' | 'EN_OBSERVACION' | 'EN_TRATAMIENTO' | 'CERRADO' | 'ANULADO'
@@ -52,21 +79,52 @@ export interface PlanSanitarioItem {
   id: string
   empresaId: string
   planId: string
+  identidadLogicaId: string
+  numeroVersion: number
+  versionAnteriorId?: string
+  vigenteDesde: string
+  vigenteHasta?: string
+  motivoVersion?: string
+  codigoInterno?: string
+  nombre: string
+  descripcion?: string
   tipoActividad: TipoActividad
+  modalidad: ModalidadActividad
+  modalidadConfig: ModalidadConfig
   productoId?: string
   productoRecomendadoTexto?: string
+  principioActivo?: string
+  instruccionesVeterinario?: string
+  observaciones?: string
   categoriaAnimalId?: string
   sexoAplicable?: SexoAplicable
   edadMinDias?: number
   edadMaxDias?: number
+  edadUnidad: UnidadEdadActividad
   dosis?: number
   unidadDosis?: string
+  dosisCantidad?: number
+  dosisUnidad?: UnidadDosis
+  dosisUnidadDetalle?: string
+  dosisTipoCalculo: TipoCalculoDosis
+  dosisPesoReferenciaKg?: number
+  dosisMinima?: number
+  dosisMaxima?: number
   frecuenciaDias?: number
   diasAlerta: number
   viaAdministracion?: string
+  viaAdministracionCodigo?: ViaAdministracion
+  viaAdministracionDetalle?: string
+  lugarAplicacion?: LugarAplicacion
+  lugarAplicacionDetalle?: string
+  categoriasAplicables: string[]
   obligatorio: boolean
   origenRegulatorio: OrigenRegulatorio
   especieAplicable: string
+  permiteEdadDesconocida: boolean
+  requiereRevision: boolean
+  horaEjecucion: string
+  horariosAviso: string[]
   activo: boolean
   version: number
 }
@@ -149,7 +207,19 @@ export interface AplicacionSanitaria {
   loteProductoId?: string
   dosis?: number
   unidadDosis?: string
+  dosisRecomendada?: number
+  dosisAplicada?: number
+  pesoUtilizadoKg?: number
+  pesoTipo?: 'MEDIDO' | 'ESTIMADO'
+  pesoFecha?: string
+  productoAplicadoTexto?: string
+  motivoCambioProducto?: string
+  motivoAjusteDosis?: string
   viaAdministracion?: string
+  lugarAplicacion?: LugarAplicacion
+  versionActividadId?: string
+  instruccionesAplicadasTexto?: string
+  eventoCalendarioId?: string
   fechaAplicacion: string
   proximaAplicacion?: string
   retiroCarneHasta?: string
@@ -158,7 +228,25 @@ export interface AplicacionSanitaria {
   resultado?: string
   observaciones?: string
   idempotencyKey: string
-  estado: string
+  estado: EstadoAplicacionSanitaria
+  version: number
+}
+
+export interface EventoCalendarioSanitario {
+  id: string
+  actividadId: string
+  animalId: string
+  cicloClave: string
+  fechaPrevista: string
+  ventanaDesde?: string
+  ventanaHasta?: string
+  estado: EstadoEventoCalendario
+  origenModalidad: ModalidadActividad
+  hallazgoOrigenTipo?: string
+  hallazgoOrigenId?: string
+  jornadaId?: string
+  prioridad: string
+  createdAt: string
   version: number
 }
 
@@ -190,6 +278,11 @@ export interface RegistrarAplicacionDeclaradaInput {
   observaciones?: string
 }
 
+export interface RegistrarHistorialDeclaradoLoteInput {
+  animalIds: string[]
+  actividades: Omit<RegistrarAplicacionDeclaradaInput, 'animalId'>[]
+}
+
 export interface ConfirmacionJornadaResult {
   jornada: JornadaSanitaria
   aplicaciones: AplicacionSanitaria[]
@@ -203,6 +296,7 @@ export interface AnimalElegibilidad {
   sexo: 'MACHO' | 'HEMBRA'
   estado: string
   edadDias?: number | null
+  edadEstimada: boolean
   elegible: boolean
   motivos: string[]
 }
@@ -220,21 +314,41 @@ export interface CrearPlanInput {
 }
 
 export interface CrearItemInput {
+  codigoInterno?: string
+  nombre: string
+  descripcion?: string
   tipoActividad: TipoActividad
-  productoId?: string
+  modalidad: ModalidadActividad
+  modalidadConfig: ModalidadConfig
   productoRecomendadoTexto?: string
-  categoriaAnimalId?: string
+  principioActivo?: string
+  instruccionesVeterinario?: string
+  observaciones?: string
+  dosisCantidad?: number
+  dosisUnidad?: UnidadDosis
+  dosisUnidadDetalle?: string
+  dosisTipoCalculo: TipoCalculoDosis
+  dosisPesoReferenciaKg?: number
+  dosisMinima?: number
+  dosisMaxima?: number
+  viaAdministracionCodigo?: ViaAdministracion
+  viaAdministracionDetalle?: string
+  lugarAplicacion?: LugarAplicacion
+  lugarAplicacionDetalle?: string
+  categoriasAplicables?: string[]
   sexoAplicable?: SexoAplicable
   edadMinDias?: number
   edadMaxDias?: number
-  dosis?: number
-  unidadDosis?: string
-  frecuenciaDias?: number
+  edadUnidad?: UnidadEdadActividad
+  permiteEdadDesconocida?: boolean
   diasAlerta: number
-  viaAdministracion?: string
   obligatorio: boolean
   origenRegulatorio: OrigenRegulatorio
   especieAplicable?: string
+  motivoVersion?: string
+  fechaVigencia?: string
+  horaEjecucion?: string
+  horariosAviso?: string[]
 }
 
 export interface CrearJornadaInput {
@@ -248,18 +362,31 @@ export interface CrearJornadaInput {
   observaciones?: string
 }
 
+export interface ActualizarJornadaInput extends CrearJornadaInput {
+  version: number
+}
+
+export interface AnularJornadaInput {
+  motivo: string
+  version: number
+}
+
 export interface ConfirmarJornadaInput {
   operationId: string
   version: number
-  planItemId?: string
-  productoId?: string
-  loteProductoId?: string
-  dosis?: number
+  planItemId: string
+  dosisAplicada?: number
+  motivoAjusteDosis?: string
   unidadDosis?: string
+  productoAplicadoTexto?: string
+  motivoCambioProducto?: string
   viaAdministracion?: string
+  lugarAplicacion?: LugarAplicacion
   fechaAplicacion: string
   resultado?: string
   observaciones?: string
+  retiroCarneDias?: number
+  retiroLecheDias?: number
 }
 
 export interface CrearCasoInput {
@@ -415,10 +542,80 @@ export const TIPO_ACTIVIDAD_LABELS: Record<TipoActividad, string> = {
   VACUNACION: 'Vacunación',
   DESPARASITACION: 'Desparasitación',
   VITAMINIZACION: 'Vitaminización',
-  CONTROL: 'Control',
   PRUEBA_DIAGNOSTICA: 'Prueba diagnóstica',
-  OTRO: 'Otro',
-  VIGILANCIA_EPIDEMIOLOGICA: 'Vigilancia epidemiológica',
+  CONTROL_ECTOPARASITARIO: 'Control ectoparasitario',
+  VIGILANCIA: 'Vigilancia epidemiológica',
+  TRATAMIENTO_PREVENTIVO: 'Tratamiento preventivo',
+  OTRA: 'Otra actividad',
+}
+
+/** Verbo de acción específico por tipo (sección 3: nunca usar "aplicar vacuna" para otro tipo). */
+export const TIPO_ACTIVIDAD_ACCION_LABELS: Record<TipoActividad, string> = {
+  VACUNACION: 'Aplicar vacuna',
+  DESPARASITACION: 'Realizar desparasitación',
+  VITAMINIZACION: 'Administrar vitaminas',
+  PRUEBA_DIAGNOSTICA: 'Tomar muestra diagnóstica',
+  CONTROL_ECTOPARASITARIO: 'Revisar presencia de ectoparásitos',
+  VIGILANCIA: 'Ejecutar vigilancia sanitaria',
+  TRATAMIENTO_PREVENTIVO: 'Aplicar tratamiento preventivo',
+  OTRA: 'Ejecutar actividad',
+}
+
+export const MODALIDAD_ACTIVIDAD_LABELS: Record<ModalidadActividad, string> = {
+  POR_EDAD: 'Por edad',
+  PERIODICA: 'Periódica',
+  FECHA_PROGRAMADA: 'Fecha programada',
+  POR_HALLAZGO: 'Por hallazgo',
+  MANUAL: 'Manual',
+}
+
+export const UNIDAD_EDAD_ACTIVIDAD_LABELS: Record<UnidadEdadActividad, string> = {
+  DIAS: 'días', MESES: 'meses', ANIOS: 'años',
+}
+
+export const UNIDAD_FRECUENCIA_LABELS: Record<UnidadFrecuencia, string> = {
+  DIAS: 'días', SEMANAS: 'semanas', MESES: 'meses', ANIOS: 'años',
+}
+
+export const REFERENCIA_CALCULO_PERIODICA_LABELS: Record<ReferenciaCalculoPeriodica, string> = {
+  FECHA_DE_INGRESO: 'Fecha de ingreso',
+  FECHA_DE_NACIMIENTO: 'Fecha de nacimiento',
+  ULTIMA_APLICACION: 'Última aplicación',
+  FECHA_INICIAL_DEL_PLAN: 'Fecha inicial del plan',
+  FECHA_CONFIGURADA: 'Fecha configurada',
+}
+
+export const TIPO_CALCULO_DOSIS_LABELS: Record<TipoCalculoDosis, string> = {
+  FIJA_POR_ANIMAL: 'Fija por animal',
+  POR_PESO: 'Por peso',
+  SEGUN_INDICACION: 'Según indicación',
+  NO_APLICA: 'No aplica (sin medicamento)',
+}
+
+export const UNIDAD_DOSIS_LABELS: Record<UnidadDosis, string> = {
+  ML: 'ml', MG: 'mg', G: 'g', TABLETA: 'tableta', DOSIS: 'dosis', GOTA: 'gota', APLICACION: 'aplicación',
+  ML_POR_KG: 'ml por kg', ML_POR_10KG: 'ml por 10 kg', ML_POR_50KG: 'ml por 50 kg', MG_POR_KG: 'mg por kg', OTRA: 'otra',
+}
+
+export const VIA_ADMINISTRACION_LABELS: Record<ViaAdministracion, string> = {
+  SUBCUTANEA: 'Subcutánea', INTRAMUSCULAR: 'Intramuscular', INTRAVENOSA: 'Intravenosa', ORAL: 'Oral',
+  TOPICA: 'Tópica', POUR_ON: 'Pour-on', INTRANASAL: 'Intranasal', OTRA: 'Otra', NO_APLICA: 'No aplica',
+}
+
+export const LUGAR_APLICACION_LABELS: Record<LugarAplicacion, string> = {
+  CUELLO: 'Cuello', TABLA_DEL_CUELLO: 'Tabla del cuello', REGION_ESCAPULAR: 'Región escapular', LOMO: 'Lomo',
+  LINEA_DORSAL: 'Línea dorsal', BOCA: 'Boca', FOSA_NASAL: 'Fosa nasal', TODO_EL_CUERPO: 'Todo el cuerpo',
+  OTRO: 'Otro', NO_APLICA: 'No aplica',
+}
+
+export const ESTADO_EVENTO_CALENDARIO_LABELS: Record<EstadoEventoCalendario, string> = {
+  PROYECTADO: 'Proyectado', PROGRAMADO: 'Programado', EN_PREPARACION: 'En preparación', REALIZADO: 'Realizado',
+  VENCIDO: 'Vencido', OMITIDO: 'Omitido', CANCELADO: 'Cancelado',
+}
+
+export const ESTADO_APLICACION_SANITARIA_LABELS: Record<EstadoAplicacionSanitaria, string> = {
+  APLICADO: 'Aplicado', NO_APLICADO: 'No aplicado', APLICADO_PARCIAL: 'Aplicado parcial', RECHAZADO: 'Rechazado',
+  POSPUESTO: 'Pospuesto', ANULADO: 'Anulado',
 }
 
 /**
@@ -595,9 +792,34 @@ export async function calcularProxima(planId: string, itemId: string, fechaAplic
   return (await http.get<ApiResponse<ProximaActividad>>(`/api/v1/sanidad/planes/${planId}/items/${itemId}/proxima`, { params: { fechaAplicacion } })).data.data
 }
 
+export async function actualizarPlanItem(planId: string, itemId: string, version: number, input: CrearItemInput) {
+  return (await http.put<ApiResponse<PlanSanitarioItem>>(`/api/v1/sanidad/planes/${planId}/items/${itemId}`, input, {
+    params: { version }, headers: { 'Idempotency-Key': crypto.randomUUID() },
+  })).data.data
+}
+
+export async function listVersionesItem(planId: string, itemId: string) {
+  return (await http.get<ApiResponse<PlanSanitarioItem[]>>(`/api/v1/sanidad/planes/${planId}/items/${itemId}/versiones`)).data.data
+}
+
+export async function listConflictosActivacion(planId: string) {
+  return (await http.get<ApiResponse<PlanSanitario[]>>(`/api/v1/sanidad/planes/${planId}/conflictos`)).data.data
+}
+
+export async function listCalendarioSanitario(params?: { estado?: EstadoEventoCalendario; animalId?: string }) {
+  return (await http.get<ApiResponse<EventoCalendarioSanitario[]>>('/api/v1/sanidad/calendario', { params })).data.data
+}
+
 /** Registra lo que el vendedor certifica sobre un animal comprado, sin pasar por una jornada. */
 export async function registrarAplicacionDeclarada(input: RegistrarAplicacionDeclaradaInput) {
   return (await http.post<ApiResponse<AplicacionDeclarada>>('/api/v1/sanidad/aplicaciones/declaradas', input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
+}
+
+/** Registra uno o varios antecedentes comunes para varios animales en una sola transacción. */
+export async function registrarHistorialDeclaradoLote(input: RegistrarHistorialDeclaradoLoteInput) {
+  return (await http.post<ApiResponse<AplicacionDeclarada[]>>('/api/v1/sanidad/aplicaciones/declaradas/lote', input, {
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  })).data.data
 }
 
 export async function listJornadas() {
@@ -606,6 +828,14 @@ export async function listJornadas() {
 
 export async function crearJornada(input: CrearJornadaInput) {
   return (await http.post<ApiResponse<JornadaSanitaria>>('/api/v1/jornadas-sanitarias', input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
+}
+
+export async function actualizarJornada(jornadaId: string, input: ActualizarJornadaInput) {
+  return (await http.put<ApiResponse<JornadaSanitaria>>(`/api/v1/jornadas-sanitarias/${jornadaId}`, input)).data.data
+}
+
+export async function anularJornada(jornadaId: string, input: AnularJornadaInput) {
+  return (await http.post<ApiResponse<JornadaSanitaria>>(`/api/v1/jornadas-sanitarias/${jornadaId}/anular`, input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
 }
 
 export async function listAnimalesElegibles(params: { propiedadId: string; loteId?: string; categoriaId?: string; sexo?: string }) {

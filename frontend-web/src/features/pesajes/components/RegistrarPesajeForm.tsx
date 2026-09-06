@@ -19,12 +19,15 @@ import { normalizeApiError } from '@/shared/api/errors'
 import type { Pesaje } from '@/features/pesajes/types'
 
 const tipos = [
-  { value: 'RUTINA', label: 'Rutina' },
+  { value: 'RUTINA', label: 'Rutina / control periódico' },
   { value: 'NACIMIENTO', label: 'Nacimiento' },
   { value: 'DESTETE', label: 'Destete' },
-  { value: 'ENTRADA', label: 'Entrada' },
+  { value: 'ENTRADA', label: 'Entrada de lote' },
+  { value: 'SALIDA_LOTE', label: 'Salida de lote' },
   { value: 'VENTA', label: 'Venta' },
+  { value: 'COMPRA', label: 'Compra' },
   { value: 'PESADA_ESPECIAL', label: 'Pesada especial' },
+  { value: 'OTRO', label: 'Otro' },
 ] as const
 
 interface RegistrarPesajeFormProps {
@@ -39,7 +42,7 @@ export function RegistrarPesajeForm({ onSaved, onCancel }: RegistrarPesajeFormPr
   const { register, handleSubmit, control, setValue, reset, formState: { errors, isSubmitting } } = useForm<RegistrarPesajeFormInput, unknown, RegistrarPesajeForm>({
     resolver: zodResolver(registrarPesajeSchema),
     shouldFocusError: true,
-    defaultValues: { animalId: '', tipo: 'RUTINA' },
+    defaultValues: { animalId: '', tipo: 'RUTINA', tipoPeso: 'MEDIDO' },
   })
   const propertyId = useWatch({ control, name: 'propiedadId' })
   const catalogs = useQuery({
@@ -88,7 +91,7 @@ export function RegistrarPesajeForm({ onSaved, onCancel }: RegistrarPesajeFormPr
       const created = await registrarPesaje(input)
       void queryClient.invalidateQueries({ queryKey: ['pesajes'] })
       setMessage({ tone: 'success', text: `Pesaje de ${created.pesoKg} kg registrado para ${created.codigoAnimal ?? created.animalId}.` })
-      reset({ animalId: '', tipo: 'RUTINA' })
+      reset({ animalId: '', tipo: 'RUTINA', tipoPeso: 'MEDIDO' })
       setSelected(null)
       onSaved?.(created)
     } catch (reason) {
@@ -117,8 +120,11 @@ export function RegistrarPesajeForm({ onSaved, onCancel }: RegistrarPesajeFormPr
         <Field label="Peso (kg)" error={errors.pesoKg?.message}>
           <input type="number" inputMode="decimal" min="1" step="0.1" {...register('pesoKg')} placeholder="250" />
         </Field>
-        <Field label="Tipo" error={errors.tipo?.message}>
+        <Field label="Tipo / motivo" error={errors.tipo?.message}>
           <select {...register('tipo')}>{tipos.map((tipo) => <option key={tipo.value} value={tipo.value}>{tipo.label}</option>)}</select>
+        </Field>
+        <Field label="Tipo de peso" error={errors.tipoPeso?.message} hint="Distingue si el peso fue medido en báscula o estimado.">
+          <select {...register('tipoPeso')}><option value="MEDIDO">Medido</option><option value="ESTIMADO">Estimado</option></select>
         </Field>
         <Field label="Condición corporal" error={errors.condicionCorporal?.message} hint="Escala del 1 al 9.">
           <input type="number" inputMode="decimal" min="1" max="9" step="0.25" {...register('condicionCorporal')} placeholder="3.5" />

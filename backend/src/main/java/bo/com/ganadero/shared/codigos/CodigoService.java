@@ -86,6 +86,7 @@ public class CodigoService {
             case LOTE -> "^LOT-" + anio + "-(\\d+)$";
             case SECTOR -> "^.+-SEC-(\\d+)$";
             case POTRERO -> "^.+-POT-(\\d+)$";
+            case COMPRA -> "^COM-(\\d+)$";
         };
         Matcher matcher = Pattern.compile(expresion).matcher(codigo);
         return matcher.matches() ? Long.parseLong(matcher.group(1)) : 0;
@@ -96,14 +97,25 @@ public class CodigoService {
             case PROPIEDAD -> "PRP-" + rellenar(numero, 3);
             case ANIMAL -> "ANI-" + rellenar(numero, 6);
             case LOTE -> "LOT-" + anio + "-" + rellenar(numero, 4);
-            case SECTOR -> codigoConPropiedad("SEC", numero);
-            case POTRERO -> codigoConPropiedad("POT", numero);
+            case SECTOR -> codigoConPropiedad(ambitoId, "SEC", numero);
+            case POTRERO -> codigoConPropiedad(ambitoId, "POT", numero);
+            case COMPRA -> "COM-" + rellenar(numero, 6);
         };
     }
 
-    private String codigoConPropiedad(String tipo, long numero) {
+    /**
+     * El contador en secuencia_codigo ya está aislado por ambito_id (propiedad), pero el texto
+     * del código debe reflejar esa misma propiedad: de lo contrario, dos propiedades distintas
+     * generan literalmente el mismo texto (p. ej. "FINCA-POT-001" en ambas) y chocan contra la
+     * restricción UNIQUE global de la tabla.
+     */
+    private String codigoConPropiedad(UUID propiedadId, String tipo, long numero) {
         String sufijo = "-" + tipo + "-" + rellenar(numero, 3);
-        return "FINCA" + sufijo;
+        String prefijo = propiedadId == null ? null
+                : jdbc.sql("select codigo from propiedad where id=:id")
+                        .param("id", propiedadId.toString())
+                        .query(String.class).optional().orElse(null);
+        return (prefijo == null ? "FINCA" : prefijo) + sufijo;
     }
 
     public String normalizarManual(String codigo) {

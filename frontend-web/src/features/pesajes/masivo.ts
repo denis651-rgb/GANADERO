@@ -5,6 +5,7 @@ export interface PesajeLoteMasivoParams {
   loteId: string
   animalIds: string[]
   pesoKg: number
+  tipoPeso?: 'MEDIDO' | 'ESTIMADO'
   fecha?: string
   observaciones?: string
 }
@@ -20,6 +21,7 @@ export function buildMasivoInput(params: PesajeLoteMasivoParams): PesajeMasivoIn
       fecha: params.fecha,
       pesoKg: params.pesoKg,
       tipo: 'RUTINA',
+      tipoPeso: params.tipoPeso,
       loteId: params.loteId,
       observaciones: params.observaciones,
     })),

@@ -13,6 +13,7 @@ import {
   Scale,
   ShoppingCart,
   Sprout,
+  Truck,
 } from 'lucide-react'
 
 export type ModuleStatus = 'LISTO' | 'EN_DESARROLLO' | 'PROXIMAMENTE'
@@ -32,6 +33,7 @@ export const appModules: AppModuleDefinition[] = [
   { key: 'propiedades', label: 'Mi finca', path: '/propiedades', icon: MapPinned, phase: 0, status: 'LISTO' },
   { key: 'potreros', label: 'Potreros', path: '/potreros', icon: Sprout, phase: 0, status: 'LISTO' },
   { key: 'animales', label: 'Animales', path: '/animales', icon: Beef, phase: 0, status: 'LISTO' },
+  { key: 'compras', label: 'Compras', path: '/compras', icon: Truck, phase: 0, status: 'LISTO' },
   { key: 'lotes', label: 'Lotes ganaderos', path: '/lotes', icon: Boxes, phase: 0, status: 'LISTO' },
   { key: 'movimientos', label: 'Movimientos', path: '/movimientos', icon: Route, phase: 0, status: 'LISTO' },
   { key: 'auditoria', label: 'Auditoría', path: '/auditoria', icon: ClipboardList, phase: 0, status: 'LISTO' },

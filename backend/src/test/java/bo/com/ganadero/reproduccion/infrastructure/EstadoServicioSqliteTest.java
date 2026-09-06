@@ -15,7 +15,7 @@ class EstadoServicioSqliteTest {
  @Test void actualizaResultadosDeDiagnosticoSinNowYRespetaAnulados(@TempDir Path dir) {
   var ds = new SQLiteDataSource();
   ds.setUrl("jdbc:sqlite:" + dir.resolve("test.db"));
-  Flyway.configure().dataSource(ds).locations("classpath:db/migration").load().migrate();
+  Flyway.configure().dataSource(ds).locations("classpath:db/migration").mixed(true).load().migrate();
   var jdbc = JdbcClient.create(ds);
   UUID id = UUID.randomUUID(), actor = UUID.randomUUID();
   jdbc.sql("insert into servicio(id,hembra_id,fecha_servicio,tipo_servicio,fecha_diagnostico_recomendada) values(:id,:hembra,'2026-09-04T13:55:00Z','INSEMINACION_ARTIFICIAL','2026-10-04T13:55:00Z')")

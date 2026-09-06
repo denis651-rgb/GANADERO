@@ -15,7 +15,7 @@ class DiagnosticoSqliteTest {
  @Test void guardaYRecuperaDiagnosticosConDiasNulosOCargados(@TempDir Path dir) {
   var ds = new SQLiteDataSource();
   ds.setUrl("jdbc:sqlite:" + dir.resolve("test.db"));
-  Flyway.configure().dataSource(ds).locations("classpath:db/migration").load().migrate();
+  Flyway.configure().dataSource(ds).locations("classpath:db/migration").mixed(true).load().migrate();
   var repo = new JdbcReproduccionRepository(JdbcClient.create(ds));
   UUID actor = UUID.randomUUID(), animal = UUID.randomUUID();
   for (Integer dias : new Integer[] { null, 0, 60 }) {

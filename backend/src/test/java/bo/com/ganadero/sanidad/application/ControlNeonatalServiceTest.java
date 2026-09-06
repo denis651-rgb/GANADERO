@@ -12,6 +12,8 @@ import bo.com.ganadero.animales.domain.SexoAnimal;
 import bo.com.ganadero.sanidad.domain.ControlNeonatal;
 import bo.com.ganadero.sanidad.domain.EstadoCalostrado;
 import bo.com.ganadero.sanidad.domain.MomentoControlNeonatal;
+import bo.com.ganadero.sanidad.domain.EventoCalendarioSanitarioRepository;
+import bo.com.ganadero.sanidad.domain.SanidadRepository;
 import bo.com.ganadero.sanidad.infrastructure.JdbcClinicaRepository;
 import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
@@ -62,7 +64,7 @@ class ControlNeonatalServiceTest {
         Animal animal = sembrarAnimal(jdbc);
         AnimalRepository animales = mockAnimalRepository(animal);
         MotorAlertas motorAlertas = mock(MotorAlertas.class);
-        ClinicaService service = new ClinicaService(repo, animales, userContext(), mock(ObjectProvider.class),
+        ClinicaService service = new ClinicaService(repo, animales, userContext(), mock(SanidadRepository.class), mock(EventoCalendarioSanitarioRepository.class),
                 alertasProvider(motorAlertas), mock(bo.com.ganadero.timeline.application.TimelineEventPublisher.class),
                 mock(ApplicationEventPublisher.class), mock(ConfiguracionSanitariaService.class));
 
@@ -84,7 +86,7 @@ class ControlNeonatalServiceTest {
         Animal animal = sembrarAnimal(jdbc);
         AnimalRepository animales = mockAnimalRepository(animal);
         MotorAlertas motorAlertas = mock(MotorAlertas.class);
-        ClinicaService service = new ClinicaService(repo, animales, userContext(), mock(ObjectProvider.class),
+        ClinicaService service = new ClinicaService(repo, animales, userContext(), mock(SanidadRepository.class), mock(EventoCalendarioSanitarioRepository.class),
                 alertasProvider(motorAlertas), mock(bo.com.ganadero.timeline.application.TimelineEventPublisher.class),
                 mock(ApplicationEventPublisher.class), mock(ConfiguracionSanitariaService.class));
 
@@ -106,7 +108,7 @@ class ControlNeonatalServiceTest {
         Animal animal = sembrarAnimal(jdbc);
         AnimalRepository animales = mockAnimalRepository(animal);
         MotorAlertas motorAlertas = mock(MotorAlertas.class);
-        ClinicaService service = new ClinicaService(repo, animales, userContext(), mock(ObjectProvider.class),
+        ClinicaService service = new ClinicaService(repo, animales, userContext(), mock(SanidadRepository.class), mock(EventoCalendarioSanitarioRepository.class),
                 alertasProvider(motorAlertas), mock(bo.com.ganadero.timeline.application.TimelineEventPublisher.class),
                 mock(ApplicationEventPublisher.class), mock(ConfiguracionSanitariaService.class));
 
@@ -128,7 +130,7 @@ class ControlNeonatalServiceTest {
         Animal animal = sembrarAnimal(jdbc);
         AnimalRepository animales = mockAnimalRepository(animal);
         MotorAlertas motorAlertas = mock(MotorAlertas.class);
-        ClinicaService service = new ClinicaService(repo, animales, userContext(), mock(ObjectProvider.class),
+        ClinicaService service = new ClinicaService(repo, animales, userContext(), mock(SanidadRepository.class), mock(EventoCalendarioSanitarioRepository.class),
                 alertasProvider(motorAlertas), mock(bo.com.ganadero.timeline.application.TimelineEventPublisher.class),
                 mock(ApplicationEventPublisher.class), mock(ConfiguracionSanitariaService.class));
 
@@ -159,7 +161,7 @@ class ControlNeonatalServiceTest {
                 animal.condicionCorporalActual(), animal.fotoPrincipalPath(), animal.observaciones(), animal.version());
         AnimalRepository animales = mockAnimalRepository(muerto);
         MotorAlertas motorAlertas = mock(MotorAlertas.class);
-        ClinicaService service = new ClinicaService(repo, animales, userContext(), mock(ObjectProvider.class),
+        ClinicaService service = new ClinicaService(repo, animales, userContext(), mock(SanidadRepository.class), mock(EventoCalendarioSanitarioRepository.class),
                 alertasProvider(motorAlertas), mock(bo.com.ganadero.timeline.application.TimelineEventPublisher.class),
                 mock(ApplicationEventPublisher.class), mock(ConfiguracionSanitariaService.class));
 
@@ -213,7 +215,7 @@ class ControlNeonatalServiceTest {
     }
 
     private void migrar(DataSource dataSource) {
-        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
+        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").mixed(true).load().migrate();
     }
 
     private DataSource sqliteDataSource(Path tempDir) {

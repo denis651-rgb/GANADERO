@@ -17,6 +17,7 @@ export interface Lote {
   fechaCierre?: string
   motivoCierre?: string
   version: number
+  potreroActualId?: string
 }
 
 export interface Membresia {
