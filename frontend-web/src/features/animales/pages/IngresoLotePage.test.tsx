@@ -42,7 +42,9 @@ function renderPage() {
 
 function registrarProveedorNuevo(nombre: string) {
   fireEvent.click(screen.getByRole('button', { name: 'Registrar proveedor nuevo' }))
-  fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: nombre } })
+  const modal = screen.getByRole('dialog', { name: 'Registrar proveedor nuevo' })
+  fireEvent.change(within(modal).getByLabelText(/^Nombre/), { target: { value: nombre } })
+  fireEvent.click(within(modal).getByRole('button', { name: 'Guardar proveedor' }))
 }
 
 describe('IngresoLotePage', () => {
@@ -50,8 +52,8 @@ describe('IngresoLotePage', () => {
     renderPage()
     await screen.findByText('Brahman')
     expect(screen.getByRole('button', { name: 'Quitar fila 1' })).toBeDisabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar fila' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar fila' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar animal' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar animal' }))
     const tabla = screen.getByRole('table', { name: 'Animales del lote' })
     expect(screen.getAllByRole('table')).toHaveLength(1)
     expect(within(tabla).getAllByRole('row')).toHaveLength(4)
@@ -94,7 +96,7 @@ describe('IngresoLotePage', () => {
     fireEvent.change(screen.getByLabelText(/^Potrero/), { target: { value: 'pot-1' } })
     registrarProveedorNuevo('Estancia El Roble')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar fila' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar animal' }))
     const categorias = screen.getAllByLabelText(/^Categoría/)
     expect(categorias).toHaveLength(2)
     fireEvent.change(categorias[0], { target: { value: 'cat-1' } })
@@ -133,6 +135,7 @@ describe('IngresoLotePage', () => {
     await waitFor(() => expect(confirmarCompra).toHaveBeenCalledWith('compra-1', 0))
     expect(await screen.findByText('2 animal(es) registrado(s)')).toBeInTheDocument()
     expect(createMovimiento).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Declarar historial grupal' })).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Declarar historial sanitario' })).toHaveLength(2)
   })
 

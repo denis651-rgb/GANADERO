@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 import { NuevoAnimalPage } from './NuevoAnimalPage'
@@ -27,7 +27,9 @@ vi.mock('@/features/proveedores/api', () => ({ buscarProveedores: vi.fn().mockRe
 
 function registrarProveedorNuevo(nombre: string) {
   fireEvent.click(screen.getByRole('button', { name: 'Registrar proveedor nuevo' }))
-  fireEvent.change(screen.getByLabelText('Nombre', { selector: 'input' }), { target: { value: nombre } })
+  const modal = screen.getByRole('dialog', { name: 'Registrar proveedor nuevo' })
+  fireEvent.change(within(modal).getByLabelText(/^Nombre/, { selector: 'input' }), { target: { value: nombre } })
+  fireEvent.click(within(modal).getByRole('button', { name: 'Guardar proveedor' }))
 }
 
 describe('NuevoAnimalPage', () => {

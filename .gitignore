@@ -98,3 +98,4 @@ replay_pid*
 # Archivos locales del proyecto
 # =========================================================
 git-status-antes-normalizacion.txt
+electron/google-oauth-client.json

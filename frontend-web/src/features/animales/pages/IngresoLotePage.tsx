@@ -6,6 +6,7 @@ import { getAnimal, listCategorias, listRazas } from '@/features/animales/api'
 import { calcularNacimientoEstimado, categoriaSugerida } from '@/features/animales/edad'
 import type { AnimalSummary, CategoriaAnimal, UnidadEdadDeclarada } from '@/features/animales/types'
 import { DeclararHistorialModal } from '@/features/animales/components/DeclararHistorialModal'
+import { DeclararHistorialLoteModal } from '@/features/animales/components/DeclararHistorialLoteModal'
 import { listPropiedades } from '@/features/propiedades/api'
 import { listPotreros } from '@/features/potreros/api'
 import { createMovimiento, confirmarMovimiento } from '@/features/movimientos/api'
@@ -71,7 +72,9 @@ export function IngresoLotePage() {
   const [filas, setFilas] = useState<AnimalRow[]>(() => [filaVacia()])
   const [creados, setCreados] = useState<AnimalSummary[] | null>(null)
   const [declarandoPara, setDeclarandoPara] = useState<AnimalSummary | null>(null)
+  const [declarandoLote, setDeclarandoLote] = useState(false)
   const [declarados, setDeclarados] = useState<Set<string>>(new Set())
+  const [declaracionExitosa, setDeclaracionExitosa] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
 
   const catalogs = useQuery({
@@ -187,10 +190,10 @@ export function IngresoLotePage() {
             : <Field label="Precio total del lote" hint="Se reparte entre todos los animales; puedes ajustar el precio por fila."><input type="number" inputMode="decimal" min="0" step="0.01" value={precioTotal} onChange={(event) => setPrecioTotal(event.target.value)} /></Field>}
           <Field label="Total calculado"><input value={totalCalculado.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} readOnly /></Field>
 
-          <div className="form-full"><div className="section-heading"><h3>Animales del lote ({filas.length})</h3><Button type="button" variant="secondary" onClick={() => setFilas((prev) => [...prev, filaVacia()])}><Plus size={16} aria-hidden="true" />Agregar fila</Button></div></div>
+          <div className="form-full"><div className="section-heading ingreso-lote-heading"><div><h3>Animales del lote <span className="count-badge">{filas.length}</span></h3><p className="muted">Completa los datos particulares de cada animal. La raza, propiedad y potrero se toman de los datos comunes.</p></div><Button type="button" variant="secondary" onClick={() => setFilas((prev) => [...prev, filaVacia()])}><Plus size={16} aria-hidden="true" />Agregar animal</Button></div></div>
 
           <div className="form-full ingreso-lote-editor">
-            <p className="muted">Si el proveedor informa una edad aproximada, regístrala como tal. El sistema calculará una fecha estimada usando la fecha de recepción y conservará el dato declarado.</p>
+            <div className="ingreso-lote-tip"><strong>Edad del animal</strong><span>Si el proveedor informa una edad aproximada, regístrala como tal. El sistema calculará el nacimiento estimado desde la fecha de recepción y conservará el dato declarado.</span></div>
             <div className="table-wrapper ingreso-lote-table-wrapper" role="region" aria-label="Tabla editable de animales" tabIndex={0}>
               <table className="ingreso-lote-table">
                 <caption className="visually-hidden">Animales del lote</caption>
@@ -202,20 +205,20 @@ export function IngresoLotePage() {
                 <tbody>{filas.map((fila, index) => {
                   const categoriaAutomatica = categoriaDeFila(fila, catalogs.data?.categories, fechaIngreso)
                   return <tr key={fila.key}>
-                  <th scope="row">{index + 1}</th>
-                  <td><input aria-label={`Nombre del animal ${index + 1}`} value={fila.nombre} onChange={(event) => actualizarFila(fila.key, 'nombre', event.target.value)} maxLength={160} /></td>
-                  <td><select aria-label={`Sexo del animal ${index + 1}`} required value={fila.sexo} onChange={(event) => actualizarFila(fila.key, 'sexo', event.target.value)}><option value="HEMBRA">Hembra</option><option value="MACHO">Macho</option></select></td>
-                  <td>{categoriaAutomatica
+                  <th scope="row"><span className="row-number">{index + 1}</span></th>
+                  <td className="animal-name-cell"><input aria-label={`Nombre del animal ${index + 1}`} placeholder="Nombre o identificación…" value={fila.nombre} onChange={(event) => actualizarFila(fila.key, 'nombre', event.target.value)} maxLength={160} /></td>
+                  <td className="animal-sex-cell"><select aria-label={`Sexo del animal ${index + 1}`} required value={fila.sexo} onChange={(event) => actualizarFila(fila.key, 'sexo', event.target.value)}><option value="HEMBRA">Hembra</option><option value="MACHO">Macho</option></select></td>
+                  <td className="animal-category-cell">{categoriaAutomatica
                     ? <><input aria-label={`Categoría del animal ${index + 1}`} value={categoriaAutomatica.nombre} readOnly /><small>Automática por sexo y edad</small></>
                     : <><select aria-label={`Categoría del animal ${index + 1}`} required value={fila.categoriaActualId} onChange={(event) => actualizarFila(fila.key, 'categoriaActualId', event.target.value)}><option value="">Selecciona…</option>{catalogs.data?.categories.filter((item) => item.activo && (item.sexoAplicable === 'AMBOS' || item.sexoAplicable === fila.sexo)).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select><input aria-label={`Motivo de la categoría manual del animal ${index + 1}`} placeholder="Motivo de la categoría manual" value={fila.categoriaManualMotivo} onChange={(event) => actualizarFila(fila.key, 'categoriaManualMotivo', event.target.value)} /></>}</td>
-                  <td><input aria-label={`Peso al ingreso (kg) del animal ${index + 1}`} type="number" inputMode="decimal" min="0.1" step="0.1" value={fila.pesoIngresoKg} onChange={(event) => actualizarFila(fila.key, 'pesoIngresoKg', event.target.value)} /><select aria-label={`Tipo de peso del animal ${index + 1}`} value={fila.tipoPeso} onChange={(event) => actualizarFila(fila.key, 'tipoPeso', event.target.value)}><option value="ESTIMADO">Estimado</option><option value="MEDIDO">Medido</option></select></td>
-                  <td><select aria-label={`Nacimiento del animal ${index + 1}`} value={fila.tipoNacimiento} onChange={(event) => actualizarFila(fila.key, 'tipoNacimiento', event.target.value)}><option value="DESCONOCIDA">Totalmente desconocido</option><option value="EDAD_APROXIMADA">Edad aproximada</option><option value="CONOCIDA">Fecha conocida</option></select>
+                  <td className="animal-weight-cell"><input aria-label={`Peso al ingreso (kg) del animal ${index + 1}`} placeholder="0,0" type="number" inputMode="decimal" min="0.1" step="0.1" value={fila.pesoIngresoKg} onChange={(event) => actualizarFila(fila.key, 'pesoIngresoKg', event.target.value)} /><select aria-label={`Tipo de peso del animal ${index + 1}`} value={fila.tipoPeso} onChange={(event) => actualizarFila(fila.key, 'tipoPeso', event.target.value)}><option value="ESTIMADO">Estimado</option><option value="MEDIDO">Medido</option></select></td>
+                  <td className="animal-age-cell"><select aria-label={`Nacimiento del animal ${index + 1}`} value={fila.tipoNacimiento} onChange={(event) => actualizarFila(fila.key, 'tipoNacimiento', event.target.value)}><option value="DESCONOCIDA">Totalmente desconocido</option><option value="EDAD_APROXIMADA">Edad aproximada</option><option value="CONOCIDA">Fecha conocida</option></select>
                     {fila.tipoNacimiento === 'CONOCIDA' && <input required aria-label={`Fecha de nacimiento del animal ${index + 1}`} type="date" max={fechaIngreso || hoy} value={fila.fechaNacimiento} onChange={(event) => actualizarFila(fila.key, 'fechaNacimiento', event.target.value)} />}
                     {fila.tipoNacimiento === 'EDAD_APROXIMADA' && <><input required aria-label={`Edad aproximada del animal ${index + 1}`} type="number" min="1" step="1" placeholder="Ej. 18" value={fila.edadDeclaradaValor} onChange={(event) => actualizarFila(fila.key, 'edadDeclaradaValor', event.target.value)} /><select aria-label={`Unidad de edad del animal ${index + 1}`} value={fila.edadDeclaradaUnidad} onChange={(event) => actualizarFila(fila.key, 'edadDeclaradaUnidad', event.target.value)}><option value="DIAS">Días</option><option value="MESES">Meses</option><option value="ANIOS">Años</option></select><small>Nacimiento estimado: {calcularNacimientoEstimado(fechaIngreso, fila.edadDeclaradaValor, fila.edadDeclaradaUnidad) ?? '—'}</small></>}
                   </td>
-                  <td><input aria-label={`Precio del animal ${index + 1}`} type="number" inputMode="decimal" min="0" step="0.01" placeholder={distribucionPorTropa ? distribucionPorTropa[index]?.toFixed(2) : undefined} value={fila.precioOverride} onChange={(event) => actualizarFila(fila.key, 'precioOverride', event.target.value)} /></td>
-                  <td><input aria-label={`Observaciones del animal ${index + 1}`} value={fila.observaciones} onChange={(event) => actualizarFila(fila.key, 'observaciones', event.target.value)} maxLength={500} /></td>
-                  <td><Button type="button" variant="ghost" aria-label={`Quitar fila ${index + 1}`} title="Quitar fila" disabled={filas.length === 1} onClick={() => setFilas((prev) => prev.filter((item) => item.key !== fila.key))}><Trash2 size={16} aria-hidden="true" /></Button></td>
+                  <td className="animal-price-cell"><input aria-label={`Precio del animal ${index + 1}`} type="number" inputMode="decimal" min="0" step="0.01" placeholder={distribucionPorTropa ? distribucionPorTropa[index]?.toFixed(2) : 'Sin ajuste'} value={fila.precioOverride} onChange={(event) => actualizarFila(fila.key, 'precioOverride', event.target.value)} /><small>{moneda || 'BOB'} · opcional</small></td>
+                  <td className="animal-notes-cell"><input aria-label={`Observaciones del animal ${index + 1}`} placeholder="Observación opcional…" value={fila.observaciones} onChange={(event) => actualizarFila(fila.key, 'observaciones', event.target.value)} maxLength={500} /></td>
+                  <td className="animal-actions-cell"><Button type="button" variant="ghost" aria-label={`Quitar fila ${index + 1}`} title="Quitar animal" disabled={filas.length === 1} onClick={() => setFilas((prev) => prev.filter((item) => item.key !== fila.key))}><Trash2 size={18} aria-hidden="true" /></Button></td>
                 </tr>})}</tbody>
               </table>
             </div>
@@ -234,7 +237,8 @@ export function IngresoLotePage() {
     </>}
 
     {creados && <Card>
-      <div className="section-heading"><CheckCircle2 size={20} aria-hidden="true" /><h2>{creados.length} animal(es) registrado(s)</h2></div>
+      <div className="section-heading"><div className="title-with-icon"><CheckCircle2 size={20} aria-hidden="true" /><h2>{creados.length} animal(es) registrado(s)</h2></div>{creados.length > 0 ? <Button variant="secondary" onClick={() => { setDeclaracionExitosa(null); setDeclarandoLote(true) }}><ClipboardPlus size={17} aria-hidden="true" />Declarar historial grupal</Button> : null}</div>
+      {declaracionExitosa ? <Alert tone="success">{declaracionExitosa}</Alert> : null}
       {creados.length === 0
         ? <EmptyState title="Sin animales" description="El lote no generó animales." />
         : <div className="table-wrapper"><table><caption className="visually-hidden">Animales recién registrados</caption><thead><tr><th scope="col">Código</th><th scope="col">Nombre</th><th scope="col">Historial sanitario</th></tr></thead><tbody>{creados.map((animal) => <tr key={animal.id}>
@@ -252,6 +256,15 @@ export function IngresoLotePage() {
       animalLabel={declarandoPara.nombre ? `${declarandoPara.codigo} · ${declarandoPara.nombre}` : declarandoPara.codigo}
       onClose={() => setDeclarandoPara(null)}
       onSuccess={() => { setDeclarados((prev) => new Set(prev).add(declarandoPara.id)); setDeclarandoPara(null) }}
+    />}
+    {declarandoLote && creados && <DeclararHistorialLoteModal
+      animales={creados}
+      onClose={() => setDeclarandoLote(false)}
+      onSuccess={(animalIds, aplicaciones) => {
+        setDeclarados((actuales) => new Set([...actuales, ...animalIds]))
+        setDeclaracionExitosa(`${aplicaciones} antecedente(s) sanitario(s) declarado(s) correctamente.`)
+        setDeclarandoLote(false)
+      }}
     />}
   </div>
 }

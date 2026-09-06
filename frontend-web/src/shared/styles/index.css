@@ -261,15 +261,58 @@ button.text-link { background: none; border: 0; padding: 0; cursor: pointer; fon
 .search-box input { border: 0; outline: 0; flex: 1; min-width: 0; }
 .search-box:focus-within { border-color: var(--green-600); box-shadow: 0 0 0 3px rgba(40,123,82,.12); }
 .table-wrapper { overflow-x: auto; }
-.ingreso-lote-editor { min-width: 0; }
-.ingreso-lote-table-wrapper { max-width: 100%; max-height: 440px; overflow: auto; border: 1px solid var(--border); border-radius: 12px; }
-.ingreso-lote-table { min-width: 1000px; }
-.ingreso-lote-table th, .ingreso-lote-table td { padding: 8px; }
-.ingreso-lote-table thead th { position: sticky; top: 0; z-index: 1; background: var(--green-50, #f1f7f3); white-space: nowrap; }
-.ingreso-lote-table input, .ingreso-lote-table select { width: 100%; min-width: 110px; min-height: 40px; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: white; color: var(--ink); }
-.ingreso-lote-table input[type="number"] { min-width: 80px; }
-.ingreso-lote-table input[type="date"] { min-width: 150px; }
+.ingreso-lote-editor { min-width: 0; display: grid; gap: 14px; }
+.ingreso-lote-heading { align-items: flex-start; }
+.ingreso-lote-heading h3 { display: flex; align-items: center; gap: 9px; margin-bottom: 4px; }
+.count-badge { display: inline-grid; min-width: 26px; min-height: 26px; place-items: center; padding: 0 7px; border-radius: 999px; color: var(--green-800); background: var(--green-50); font-size: .78rem; font-variant-numeric: tabular-nums; }
+.ingreso-lote-tip { display: flex; align-items: baseline; gap: 10px; padding: 12px 14px; border: 1px solid #cfe3d6; border-radius: 10px; color: var(--muted); background: #f6faf7; font-size: .84rem; line-height: 1.45; }
+.ingreso-lote-tip strong { flex: 0 0 auto; color: var(--green-800); }
+.ingreso-lote-table-wrapper { max-width: 100%; max-height: 620px; overflow: auto; border: 1px solid var(--border); border-radius: 14px; background: white; box-shadow: 0 8px 24px rgba(24,58,38,.05); overscroll-behavior: contain; }
+.ingreso-lote-table { min-width: 1420px; table-layout: fixed; }
+.ingreso-lote-table th, .ingreso-lote-table td { padding: 14px 10px; }
+.ingreso-lote-table thead th { position: sticky; top: 0; z-index: 2; height: 46px; background: #edf6f0; color: #52675a; white-space: nowrap; box-shadow: inset 0 -1px 0 var(--border); }
+.ingreso-lote-table tbody tr:nth-child(even) { background: #fbfdfb; }
+.ingreso-lote-table tbody tr:hover { background: #f5faf6; }
+.ingreso-lote-table tbody td, .ingreso-lote-table tbody th { vertical-align: top; }
+.ingreso-lote-table th:nth-child(1) { width: 42px; text-align: center; }
+.ingreso-lote-table th:nth-child(2) { width: 155px; }
+.ingreso-lote-table th:nth-child(3) { width: 135px; }
+.ingreso-lote-table th:nth-child(4) { width: 180px; }
+.ingreso-lote-table th:nth-child(5) { width: 190px; }
+.ingreso-lote-table th:nth-child(6) { width: 240px; }
+.ingreso-lote-table th:nth-child(7) { width: 150px; }
+.ingreso-lote-table th:nth-child(8) { width: 175px; }
+.ingreso-lote-table th:nth-child(9) { width: 70px; text-align: center; }
+.row-number { display: inline-grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; color: var(--green-800); background: var(--green-50); font-size: .76rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ingreso-lote-table input, .ingreso-lote-table select { width: 100%; min-width: 0; min-height: 42px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; background: white; color: var(--ink); }
+.ingreso-lote-table td > input + input, .ingreso-lote-table td > input + select, .ingreso-lote-table td > select + input, .ingreso-lote-table td > select + select { margin-top: 8px; }
+.ingreso-lote-table td small { display: block; margin-top: 7px; color: var(--muted); font-size: .72rem; line-height: 1.35; overflow-wrap: anywhere; }
+.ingreso-lote-table input[type="number"] { font-variant-numeric: tabular-nums; }
+.ingreso-lote-table input[type="date"] { min-width: 0; }
+.animal-actions-cell { text-align: center; }
+.animal-actions-cell .button { width: 42px; min-width: 42px; height: 42px; padding: 0; }
+.title-with-icon { display: flex; align-items: center; gap: 9px; }
+.bulk-history-section { display: grid; gap: 12px; }
+.bulk-animal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; max-height: 210px; overflow-y: auto; padding: 4px; }
+.bulk-animal-option { display: flex; align-items: center; gap: 10px; min-height: 54px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; background: white; }
+.bulk-animal-option:has(input:checked) { border-color: var(--green-600); background: var(--green-50); }
+.bulk-animal-option input { width: 18px; height: 18px; accent-color: var(--green-700); }
+.bulk-animal-option span { display: grid; min-width: 0; }
+.bulk-animal-option small { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bulk-activity-list { display: grid; gap: 10px; }
+.bulk-activity-card { display: grid; grid-template-columns: 90px minmax(150px, 1fr) minmax(145px, .8fr) minmax(180px, 1.2fr) minmax(190px, 1.4fr) 44px; align-items: end; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #fbfdfb; }
+.bulk-activity-card .field { margin: 0; }
+.bulk-activity-card .button { width: 42px; height: 42px; padding: 0; }
+.bulk-activity-number { align-self: center; color: var(--green-800); font-size: .78rem; font-weight: 800; }
+.bulk-history-summary { display: flex; justify-content: center; align-items: center; gap: 10px; padding: 12px; border-radius: 10px; color: var(--green-800); background: var(--green-50); font-variant-numeric: tabular-nums; }
 .ingreso-lote-table input:focus-visible, .ingreso-lote-table select:focus-visible { outline: 2px solid var(--green-600); outline-offset: 1px; }
+@media (max-width: 760px) {
+  .ingreso-lote-heading, .ingreso-lote-tip { align-items: stretch; flex-direction: column; }
+  .ingreso-lote-heading .button { width: 100%; }
+  .bulk-activity-card { grid-template-columns: 1fr; }
+  .bulk-activity-card .button { width: 100%; }
+  .bulk-history-summary { flex-wrap: wrap; }
+}
 /* Cifras clave en tablas: alineadas a la derecha y con tabular-nums para que se puedan comparar en vertical. */
 table td.numeric, table th.numeric { text-align: right; font-variant-numeric: tabular-nums; }
 .mobile-only { display: none; }

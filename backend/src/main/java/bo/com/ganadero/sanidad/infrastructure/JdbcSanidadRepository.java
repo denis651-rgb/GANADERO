@@ -14,6 +14,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -133,14 +134,15 @@ public class JdbcSanidadRepository implements SanidadRepository {
                     lugar_aplicacion_detalle, categoria_animal_id, categorias_aplicables, sexo_aplicable,
                     edad_min_dias, edad_max_dias, edad_unidad, permite_edad_desconocida, frecuencia_dias,
                     dias_alerta, obligatorio, origen_regulatorio, especie_aplicable, requiere_revision, activo,
-                    created_by, updated_by)
+                    hora_ejecucion, horarios_aviso, created_by, updated_by)
                 values(
                     :id, :p, :identidad, :numVersion, :versionAnterior, :vigenteDesde, :vigenteHasta, :motivoVersion,
                     :codigoInterno, :nombre, :descripcion, :tipo, :modalidad, :modalidadConfig, :prod, :texto,
                     :principioActivo, :instrucciones, :observaciones, :dosis, :unidad, :dosisCantidad, :dosisUnidad,
                     :dosisUnidadDetalle, :dosisTipoCalculo, :dosisPesoRef, :dosisMin, :dosisMax, :via, :viaCodigo,
                     :viaDetalle, :lugar, :lugarDetalle, :cat, :categoriasAplicables, :sexo, :emin, :emax, :edadUnidad,
-                    :permiteDesconocida, :freq, :alerta, :obl, :origen, :especie, :requiereRevision, :activo, :a, :a)
+                    :permiteDesconocida, :freq, :alerta, :obl, :origen, :especie, :requiereRevision, :activo,
+                    :horaEjecucion, :horariosAviso, :a, :a)
                 """)
                 .params(params(v, a)).update();
         return item(v.id(), v.empresaId()).orElseThrow();
@@ -166,6 +168,7 @@ public class JdbcSanidadRepository implements SanidadRepository {
                     edad_max_dias=:emax, edad_unidad=:edadUnidad, permite_edad_desconocida=:permiteDesconocida,
                     frecuencia_dias=:freq, dias_alerta=:alerta, obligatorio=:obl, origen_regulatorio=:origen,
                     especie_aplicable=:especie, requiere_revision=:requiereRevision, activo=:activo,
+                    hora_ejecucion=:horaEjecucion, horarios_aviso=:horariosAviso,
                     updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'), updated_by=:a, version=version+1
                 where id=:id and version=:v
                 """)
@@ -257,6 +260,9 @@ public class JdbcSanidadRepository implements SanidadRepository {
         p.put("especie", v.especieAplicable());
         p.put("requiereRevision", v.requiereRevision());
         p.put("activo", v.activo());
+        p.put("horaEjecucion", v.horaEjecucion().toString());
+        p.put("horariosAviso", json.writeValueAsString(
+                v.horariosAviso() == null ? List.of() : v.horariosAviso().stream().map(LocalTime::toString).toList()));
         p.put("a", a.toString());
         return p;
     }
@@ -282,6 +288,10 @@ public class JdbcSanidadRepository implements SanidadRepository {
         List<UUID> categorias = json.readValue(
                 r.getString("categorias_aplicables") == null ? "[]" : r.getString("categorias_aplicables"),
                 new TypeReference<>() {});
+        List<String> horariosAvisoRaw = json.readValue(
+                r.getString("horarios_aviso") == null ? "[]" : r.getString("horarios_aviso"),
+                new TypeReference<>() {});
+        List<LocalTime> horariosAviso = horariosAvisoRaw.stream().map(LocalTime::parse).toList();
         return new PlanSanitarioItem(
                 Rows.uuid(r, "id"), null, Rows.uuid(r, "plan_id"), TipoActividadSanitaria.valueOf(r.getString("tipo_actividad")),
                 Rows.uuid(r, "producto_id"), r.getString("producto_recomendado_texto"), Rows.uuid(r, "categoria_animal_id"),
@@ -303,7 +313,7 @@ public class JdbcSanidadRepository implements SanidadRepository {
                 categorias, UnidadEdadActividad.valueOf(r.getString("edad_unidad")),
                 ModalidadActividad.valueOf(r.getString("modalidad")),
                 deserializarModalidadConfig(ModalidadActividad.valueOf(r.getString("modalidad")), r.getString("modalidad_config")),
-                r.getBoolean("requiere_revision"));
+                r.getBoolean("requiere_revision"), Rows.localTime(r, "hora_ejecucion"), horariosAviso);
     }
 
     private ModalidadConfig deserializarModalidadConfig(ModalidadActividad modalidad, String raw) {

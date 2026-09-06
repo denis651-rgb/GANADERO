@@ -1,14 +1,25 @@
 package bo.com.ganadero.sanidad.domain;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+
 import java.time.Instant;
 import java.util.List;
 
 /**
  * Configuración específica de la modalidad de una actividad sanitaria (secciones 10-14). Se
- * persiste como JSON en {@code plan_sanitario_item.modalidad_config}; el subtipo concreto se
- * decide por la columna hermana {@code modalidad}, no por información de tipo embebida en el
- * propio JSON (evita depender de polimorfismo Jackson para algo que ya es sabido por columna).
+ * persiste como JSON en {@code plan_sanitario_item.modalidad_config}. Para las solicitudes HTTP,
+ * Jackson deduce el subtipo por sus campos exclusivos sin exigir un discriminador adicional en
+ * el contrato; al leer desde la base, el repositorio continúa usando la columna {@code modalidad}.
  */
+@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
+@JsonSubTypes({
+        @JsonSubTypes.Type(ModalidadConfig.PorEdadConfig.class),
+        @JsonSubTypes.Type(ModalidadConfig.PeriodicaConfig.class),
+        @JsonSubTypes.Type(ModalidadConfig.FechaProgramadaConfig.class),
+        @JsonSubTypes.Type(ModalidadConfig.PorHallazgoConfig.class),
+        @JsonSubTypes.Type(ModalidadConfig.ManualConfig.class)
+})
 public sealed interface ModalidadConfig {
 
     record PorEdadConfig(int edadObjetivoValor, UnidadEdadActividad edadUnidad, int ventanaAnticipadaDias,

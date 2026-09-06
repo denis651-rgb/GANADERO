@@ -7,6 +7,6 @@ import java.util.UUID;
 public record EventoCalendarioSanitario(
         UUID id, UUID empresaId, UUID actividadId, UUID animalId, String cicloClave, Instant fechaPrevista,
         Instant ventanaDesde, Instant ventanaHasta, EstadoEventoCalendario estado, ModalidadActividad origenModalidad,
-        String hallazgoOrigenTipo, UUID hallazgoOrigenId, UUID jornadaId, String prioridad, Instant createdAt,
-        long version) {
+        String hallazgoOrigenTipo, UUID hallazgoOrigenId, UUID jornadaId, UUID ocurrenciaId, String prioridad,
+        Instant createdAt, long version) {
 }

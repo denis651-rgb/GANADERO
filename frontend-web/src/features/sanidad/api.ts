@@ -4,6 +4,7 @@ import type { ApiResponse } from '@/shared/api/types'
 export interface ConfiguracionSanitaria {
   edadMinMachoMeses: number | null
   edadMinHembraMeses: number | null
+  horizonteProyeccionMeses: number
   version: number
 }
 export async function getConfiguracionSanitaria() {
@@ -122,6 +123,8 @@ export interface PlanSanitarioItem {
   especieAplicable: string
   permiteEdadDesconocida: boolean
   requiereRevision: boolean
+  horaEjecucion: string
+  horariosAviso: string[]
   activo: boolean
   version: number
 }
@@ -275,6 +278,11 @@ export interface RegistrarAplicacionDeclaradaInput {
   observaciones?: string
 }
 
+export interface RegistrarHistorialDeclaradoLoteInput {
+  animalIds: string[]
+  actividades: Omit<RegistrarAplicacionDeclaradaInput, 'animalId'>[]
+}
+
 export interface ConfirmacionJornadaResult {
   jornada: JornadaSanitaria
   aplicaciones: AplicacionSanitaria[]
@@ -339,6 +347,8 @@ export interface CrearItemInput {
   especieAplicable?: string
   motivoVersion?: string
   fechaVigencia?: string
+  horaEjecucion?: string
+  horariosAviso?: string[]
 }
 
 export interface CrearJornadaInput {
@@ -803,6 +813,13 @@ export async function listCalendarioSanitario(params?: { estado?: EstadoEventoCa
 /** Registra lo que el vendedor certifica sobre un animal comprado, sin pasar por una jornada. */
 export async function registrarAplicacionDeclarada(input: RegistrarAplicacionDeclaradaInput) {
   return (await http.post<ApiResponse<AplicacionDeclarada>>('/api/v1/sanidad/aplicaciones/declaradas', input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
+}
+
+/** Registra uno o varios antecedentes comunes para varios animales en una sola transacción. */
+export async function registrarHistorialDeclaradoLote(input: RegistrarHistorialDeclaradoLoteInput) {
+  return (await http.post<ApiResponse<AplicacionDeclarada[]>>('/api/v1/sanidad/aplicaciones/declaradas/lote', input, {
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  })).data.data
 }
 
 export async function listJornadas() {

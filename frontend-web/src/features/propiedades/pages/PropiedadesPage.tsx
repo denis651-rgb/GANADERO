@@ -8,6 +8,7 @@ import { SectorEditModal } from '@/features/propiedades/components/SectorEditMod
 import { createPropiedad, createSector, listPropiedades, listSectores, updatePropiedad, updateSector, type Propiedad, type Sector } from '@/features/propiedades/api'
 import { getConfiguracion, updateConfiguracion } from '@/features/configuracion/api'
 import { CategoriasEdadPanel } from '@/features/configuracion/components/CategoriasEdadPanel'
+import { GoogleCalendarPanel } from '@/features/configuracion/components/GoogleCalendarPanel'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
@@ -140,6 +141,7 @@ export function PropiedadesPage() {
       </Card>}
 
       <CategoriasEdadPanel />
+      <GoogleCalendarPanel />
 
       {canEditConfig && config.data && <Card>
         <h3><KeyRound size={17} aria-hidden="true" /> Bloqueo con PIN</h3>

@@ -4,6 +4,7 @@ import bo.com.ganadero.animales.domain.SexoAnimal;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,7 +26,37 @@ public record PlanSanitarioItem(
         BigDecimal dosisPesoReferenciaKg, BigDecimal dosisMinima, BigDecimal dosisMaxima,
         ViaAdministracion viaAdministracionCodigo, String viaAdministracionDetalle, LugarAplicacion lugarAplicacion,
         String lugarAplicacionDetalle, List<UUID> categoriasAplicables, UnidadEdadActividad edadUnidad,
-        ModalidadActividad modalidad, ModalidadConfig modalidadConfig, boolean requiereRevision) {
+        ModalidadActividad modalidad, ModalidadConfig modalidadConfig, boolean requiereRevision,
+        LocalTime horaEjecucion, List<LocalTime> horariosAviso) {
+
+    /** Compatibilidad con constructores de la primera versión del modelo sanitario genérico. */
+    public PlanSanitarioItem(
+            UUID id, UUID empresaId, UUID planId, TipoActividadSanitaria tipoActividad, UUID productoId,
+            String productoRecomendadoTexto, UUID categoriaAnimalId, SexoAnimal sexoAplicable,
+            Integer edadMinDias, Integer edadMaxDias, BigDecimal dosis, String unidadDosis,
+            Integer frecuenciaDias, int diasAlerta, String viaAdministracion, boolean obligatorio,
+            boolean activo, long version, OrigenRegulatorioActividad origenRegulatorio,
+            String especieAplicable, boolean permiteEdadDesconocida, UUID identidadLogicaId,
+            int numeroVersion, UUID versionAnteriorId, Instant vigenteDesde, Instant vigenteHasta,
+            String motivoVersion, String codigoInterno, String nombre, String descripcion,
+            String principioActivo, String instruccionesVeterinario, String observaciones,
+            BigDecimal dosisCantidad, UnidadDosis dosisUnidad, String dosisUnidadDetalle,
+            TipoCalculoDosis dosisTipoCalculo, BigDecimal dosisPesoReferenciaKg, BigDecimal dosisMinima,
+            BigDecimal dosisMaxima, ViaAdministracion viaAdministracionCodigo,
+            String viaAdministracionDetalle, LugarAplicacion lugarAplicacion,
+            String lugarAplicacionDetalle, List<UUID> categoriasAplicables, UnidadEdadActividad edadUnidad,
+            ModalidadActividad modalidad, ModalidadConfig modalidadConfig, boolean requiereRevision) {
+        this(id, empresaId, planId, tipoActividad, productoId, productoRecomendadoTexto, categoriaAnimalId,
+                sexoAplicable, edadMinDias, edadMaxDias, dosis, unidadDosis, frecuenciaDias, diasAlerta,
+                viaAdministracion, obligatorio, activo, version, origenRegulatorio, especieAplicable,
+                permiteEdadDesconocida, identidadLogicaId, numeroVersion, versionAnteriorId, vigenteDesde,
+                vigenteHasta, motivoVersion, codigoInterno, nombre, descripcion, principioActivo,
+                instruccionesVeterinario, observaciones, dosisCantidad, dosisUnidad, dosisUnidadDetalle,
+                dosisTipoCalculo, dosisPesoReferenciaKg, dosisMinima, dosisMaxima, viaAdministracionCodigo,
+                viaAdministracionDetalle, lugarAplicacion, lugarAplicacionDetalle, categoriasAplicables,
+                edadUnidad, modalidad, modalidadConfig, requiereRevision, LocalTime.of(8, 0),
+                List.of(LocalTime.of(8, 0)));
+    }
 
     /** Constructor legado (pre-versionado/pre-dosis-estructurada): usado por tests existentes. */
     public PlanSanitarioItem(UUID id, UUID empresaId, UUID planId, TipoActividadSanitaria tipoActividad,
@@ -45,7 +76,8 @@ public record PlanSanitarioItem(
                 dosis != null ? TipoCalculoDosis.FIJA_POR_ANIMAL : TipoCalculoDosis.NO_APLICA,
                 null, null, null, null, null, null, null,
                 categoriaAnimalId != null ? List.of(categoriaAnimalId) : List.of(),
-                UnidadEdadActividad.DIAS, ModalidadActividad.MANUAL, new ModalidadConfig.ManualConfig(), false);
+                UnidadEdadActividad.DIAS, ModalidadActividad.MANUAL, new ModalidadConfig.ManualConfig(), false,
+                LocalTime.of(8, 0), List.of(LocalTime.of(8, 0)));
     }
 
     /** Constructor legado más antiguo, sin permiteEdadDesconocida. */

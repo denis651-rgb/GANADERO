@@ -43,6 +43,39 @@ public class HistorialDeclaradoService {
     @Transactional
     public AplicacionSanitaria registrar(RegistrarAplicacionDeclaradaCommand c) {
         CurrentUser u = context.requirePermission("SANIDAD_JORNADA_CONFIRMAR");
+        return registrar(c, u);
+    }
+
+    @Transactional
+    public List<AplicacionSanitaria> registrarLote(RegistrarHistorialDeclaradoLoteCommand command) {
+        CurrentUser u = context.requirePermission("SANIDAD_JORNADA_CONFIRMAR");
+        List<UUID> animalIds = command.animalIds();
+        List<RegistrarHistorialDeclaradoLoteCommand.Actividad> actividades = command.actividades();
+        if (new HashSet<>(animalIds).size() != animalIds.size()) {
+            throw new BusinessException(ErrorCode.DUPLICATE_ANIMAL_IN_REQUEST);
+        }
+        Set<String> actividadesUnicas = new HashSet<>();
+        for (var actividad : actividades) {
+            String clave = actividad.tipoActividad() + "|" + actividad.planItemId() + "|"
+                    + actividad.fechaAplicacion() + "|" + Objects.toString(actividad.productoTexto(), "");
+            if (!actividadesUnicas.add(clave)) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "La declaración contiene actividades sanitarias duplicadas.");
+            }
+        }
+        List<AplicacionSanitaria> resultado = new ArrayList<>(animalIds.size() * actividades.size());
+        for (UUID animalId : animalIds) {
+            for (var actividad : actividades) {
+                resultado.add(registrar(new RegistrarAplicacionDeclaradaCommand(animalId,
+                        actividad.tipoActividad(), actividad.planItemId(), actividad.fechaAplicacion(),
+                        actividad.dosis(), actividad.unidadDosis(), actividad.productoTexto(),
+                        actividad.observaciones()), u));
+            }
+        }
+        return List.copyOf(resultado);
+    }
+
+    private AplicacionSanitaria registrar(RegistrarAplicacionDeclaradaCommand c, CurrentUser u) {
         Animal animal = animales.findById(c.animalId(), u.empresaId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.ANIMAL_NOT_FOUND));
         context.requirePropertyAccess(u, animal.propiedadActualId());

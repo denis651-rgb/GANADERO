@@ -179,6 +179,11 @@ export function PlanesPanel({ planes, isLoading, error, catalogs, refresh }: Pla
         edadUnidad: unidadEdad,
         permiteEdadDesconocida: data.get('permiteEdadDesconocida') === 'on',
         diasAlerta: Number(data.get('diasAlerta')) || 0,
+        horaEjecucion: String(data.get('horaEjecucion') || '08:00'),
+        horariosAviso: String(data.get('horariosAviso') || '')
+          .split(',')
+          .map((value) => value.trim())
+          .filter(Boolean),
         obligatorio: data.get('obligatorio') === 'on',
         origenRegulatorio: String(data.get('origenRegulatorio')) as CrearItemInput['origenRegulatorio'],
         especieAplicable: String(data.get('especieAplicable') || '') || undefined,
@@ -276,7 +281,7 @@ export function PlanesPanel({ planes, isLoading, error, catalogs, refresh }: Pla
         <td>{item.productoRecomendadoTexto ?? '—'}{item.principioActivo ? ` (${item.principioActivo})` : ''}</td>
         <td>{item.dosisTipoCalculo === 'NO_APLICA' ? '—' : `${item.dosisCantidad ?? ''} ${item.dosisUnidad ? UNIDAD_DOSIS_LABELS[item.dosisUnidad] : ''}`.trim()}</td>
         <td>{[item.viaAdministracionCodigo ? VIA_ADMINISTRACION_LABELS[item.viaAdministracionCodigo] : null, item.lugarAplicacion ? LUGAR_APLICACION_LABELS[item.lugarAplicacion] : null].filter(Boolean).join(' · ') || '—'}</td>
-        <td>{item.diasAlerta > 0 ? `Desde ${item.diasAlerta} días antes` : '—'}</td>
+        <td>{item.horariosAviso?.length ? `${item.diasAlerta} día(s) antes · ${item.horariosAviso.join(', ')}` : '—'}</td>
         <td>v{item.numeroVersion}</td>
         <td><span className="status-badge">{item.activo ? 'ACTIVO' : 'INACTIVO'}</span></td>
         {canAdmin && <td className="inline-actions">
@@ -410,7 +415,13 @@ export function PlanesPanel({ planes, isLoading, error, catalogs, refresh }: Pla
         </div>}
 
         <h4 className="form-full">Alertas</h4>
+        <Field label="Hora prevista de ejecución" hint="Hora de la actividad en America/La_Paz." required>
+          <input name="horaEjecucion" type="time" required defaultValue={editingItem?.horaEjecucion ?? '08:00'} />
+        </Field>
         <Field label="Días de alerta"><input name="diasAlerta" type="number" inputMode="numeric" min="0" defaultValue={editingItem?.diasAlerta ?? 0} /></Field>
+        <Field label="Horarios de aviso" hint="Hasta cinco horas, separadas por coma. Ejemplo: 06:00, 07:00, 08:00" required>
+          <input name="horariosAviso" required placeholder="06:00, 07:00, 08:00" defaultValue={editingItem?.horariosAviso?.join(', ') ?? '08:00'} />
+        </Field>
         <label className="checkbox-line"><input name="obligatorio" type="checkbox" defaultChecked={editingItem?.obligatorio} /> Actividad obligatoria</label>
 
         {editingItem && <div className="form-full">

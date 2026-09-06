@@ -42,10 +42,11 @@ class CalendarioSanitarioServiceTest {
     }
 
     @Test
-    void noGeneraEventoPorEdadTodaviaFueraDeLaVentana(@TempDir Path tempDir) {
+    void noGeneraEventoPorEdadFueraDelHorizonteDeProyeccion(@TempDir Path tempDir) {
         Fixture f = fixture(tempDir);
         f.crearActividadPorEdad(90, 5, 15);
-        f.crearAnimal("N-002", LocalDate.now().minusDays(10), false);
+        // La fecha objetivo queda después del horizonte predeterminado de 12 meses.
+        f.crearAnimal("N-002", LocalDate.now().plusMonths(13).minusDays(90), false);
 
         int generados = f.service.procesar();
 
@@ -77,7 +78,7 @@ class CalendarioSanitarioServiceTest {
     }
 
     @Test
-    void generaUnEventoPeriodicaDesdeLaUltimaAplicacionConfirmada(@TempDir Path tempDir) {
+    void proyectaLosCiclosPeriodicosDentroDelHorizonteDesdeLaUltimaAplicacion(@TempDir Path tempDir) {
         Fixture f = fixture(tempDir);
         UUID itemId = f.crearActividadPeriodica(90, 5, 0);
         UUID animalId = f.crearAnimal("N-004", LocalDate.now().minusYears(2), false);
@@ -85,8 +86,8 @@ class CalendarioSanitarioServiceTest {
 
         int generados = f.service.procesar();
 
-        assertThat(generados).isEqualTo(1);
-        assertThat(f.contarEventos()).isEqualTo(1);
+        assertThat(generados).isGreaterThan(1);
+        assertThat(f.contarEventos()).isEqualTo(generados);
     }
 
     @Test
@@ -109,7 +110,9 @@ class CalendarioSanitarioServiceTest {
         @SuppressWarnings("unchecked")
         ObjectProvider<bo.com.ganadero.alertas.application.MotorAlertas> sinAlertas = mock(ObjectProvider.class);
         CalendarioSanitarioService service = new CalendarioSanitarioService(planes, jdbc,
-                new bo.com.ganadero.sanidad.infrastructure.JdbcEventoCalendarioSanitarioRepository(jdbc), sinAlertas);
+                new bo.com.ganadero.sanidad.infrastructure.JdbcEventoCalendarioSanitarioRepository(jdbc),
+                new bo.com.ganadero.sanidad.infrastructure.JdbcOcurrenciaCalendarioSanitarioRepository(jdbc),
+                sinAlertas);
         return new Fixture(jdbc, planes, service);
     }
 

@@ -45,7 +45,7 @@ import java.time.*;import java.util.*;
     Instant plazo=cfg.plazoDias()==null?null:ahora.plus(Duration.ofDays(cfg.plazoDias()));
     eventos.crearSiNoExiste(new EventoCalendarioSanitario(UUID.randomUUID(),u.empresaId(),item.id(),animalId,
      origenTipo+":"+origenId,ahora,ahora,plazo,EstadoEventoCalendario.PROGRAMADO,ModalidadActividad.POR_HALLAZGO,
-     origenTipo,origenId,null,"NORMAL",ahora,0));
+     origenTipo,origenId,null,null,"NORMAL",ahora,0));
    }
   }
  }

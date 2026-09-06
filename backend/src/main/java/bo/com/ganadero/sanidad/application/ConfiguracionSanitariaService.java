@@ -13,7 +13,8 @@ import java.time.Instant;
 
 @Service
 public class ConfiguracionSanitariaService {
-    public record Configuracion(Integer edadMinMachoMeses, Integer edadMinHembraMeses, long version) {}
+    public record Configuracion(Integer edadMinMachoMeses, Integer edadMinHembraMeses,
+                               Integer horizonteProyeccionMeses, long version) {}
     private final JdbcClient jdbc;
     private final UserContext context;
     private final ApplicationEventPublisher events;
@@ -24,8 +25,9 @@ public class ConfiguracionSanitariaService {
     private Configuracion leer(CurrentUser u) {
         return jdbc.sql("select * from configuracion_sanitaria where ambito=:a").param("a", ambito(u))
                 .query((r,n) -> new Configuracion((Integer)r.getObject("edad_min_macho_meses"),
-                        (Integer)r.getObject("edad_min_hembra_meses"),r.getLong("version")))
-                .optional().orElse(new Configuracion(null,null,0));
+                        (Integer)r.getObject("edad_min_hembra_meses"),
+                        (Integer)r.getObject("horizonte_proyeccion_meses"),r.getLong("version")))
+                .optional().orElse(new Configuracion(null,null,12,0));
     }
     @Transactional(readOnly=true)
     public Configuracion consultar() { return leer(context.requirePermission("SANIDAD_VER")); }
@@ -36,9 +38,12 @@ public class ConfiguracionSanitariaService {
         ReglasSanitarias.exigir(c.edadMinMachoMeses()!=null && c.edadMinMachoMeses()>=1 && c.edadMinMachoMeses()<=120
                 && c.edadMinHembraMeses()!=null && c.edadMinHembraMeses()>=1 && c.edadMinHembraMeses()<=120,
                 "Configure las dos edades mínimas en meses enteros, entre 1 y 120.");
+        ReglasSanitarias.exigir(c.horizonteProyeccionMeses()!=null && c.horizonteProyeccionMeses()>=1
+                && c.horizonteProyeccionMeses()<=24, "El horizonte de proyección del calendario debe estar entre 1 y 24 meses.");
         jdbc.sql("insert into configuracion_sanitaria(ambito) values(:a) on conflict do nothing").param("a",ambito(u)).update();
-        int n=jdbc.sql("update configuracion_sanitaria set edad_min_macho_meses=:m,edad_min_hembra_meses=:h,version=version+1,actualizado_por=:u,actualizado_en=:f where ambito=:a and version=:v")
-                .param("m",c.edadMinMachoMeses()).param("h",c.edadMinHembraMeses()).param("u",u.userId().toString())
+        int n=jdbc.sql("update configuracion_sanitaria set edad_min_macho_meses=:m,edad_min_hembra_meses=:h,horizonte_proyeccion_meses=:hp,version=version+1,actualizado_por=:u,actualizado_en=:f where ambito=:a and version=:v")
+                .param("m",c.edadMinMachoMeses()).param("h",c.edadMinHembraMeses()).param("hp",c.horizonteProyeccionMeses())
+                .param("u",u.userId().toString())
                 .param("f",Instant.now().toString()).param("a",ambito(u)).param("v",c.version()).update();
         if(n!=1) throw new BusinessException(ErrorCode.VERSION_CONFLICT);
         events.publishEvent(new SanidadAuditEvent(u.empresaId(),u.userId(),"CONFIGURAR_EDADES_EXAMEN","CONFIGURACION_SANITARIA",u.userId(),Instant.now()));

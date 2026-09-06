@@ -32,8 +32,10 @@ public class JdbcEventoCalendarioSanitarioRepository implements EventoCalendario
         jdbc.sql("""
                 insert into evento_calendario_sanitario
                     (id, empresa_id, actividad_id, animal_id, ciclo_clave, fecha_prevista, ventana_desde,
-                     ventana_hasta, estado, origen_modalidad, hallazgo_origen_tipo, hallazgo_origen_id, prioridad)
-                values (:id, :empresa, :act, :animal, :ciclo, :fecha, :vd, :vh, :estado, :modalidad, :hOrigen, :hId, :prioridad)
+                     ventana_hasta, estado, origen_modalidad, hallazgo_origen_tipo, hallazgo_origen_id,
+                     ocurrencia_id, prioridad)
+                values (:id, :empresa, :act, :animal, :ciclo, :fecha, :vd, :vh, :estado, :modalidad, :hOrigen, :hId,
+                     :ocurrencia, :prioridad)
                 on conflict do nothing
                 """)
                 .param("id", evento.id().toString())
@@ -48,6 +50,7 @@ public class JdbcEventoCalendarioSanitarioRepository implements EventoCalendario
                 .param("modalidad", evento.origenModalidad().name())
                 .param("hOrigen", evento.hallazgoOrigenTipo())
                 .param("hId", evento.hallazgoOrigenId() == null ? null : evento.hallazgoOrigenId().toString())
+                .param("ocurrencia", evento.ocurrenciaId() == null ? null : evento.ocurrenciaId().toString())
                 .param("prioridad", evento.prioridad())
                 .update();
     }
@@ -103,7 +106,7 @@ public class JdbcEventoCalendarioSanitarioRepository implements EventoCalendario
                 EstadoEventoCalendario.valueOf(r.getString("estado")),
                 ModalidadActividad.valueOf(r.getString("origen_modalidad")),
                 r.getString("hallazgo_origen_tipo"), Rows.uuid(r, "hallazgo_origen_id"),
-                Rows.uuid(r, "jornada_id"), r.getString("prioridad"), Rows.instant(r, "created_at"),
-                r.getLong("version"));
+                Rows.uuid(r, "jornada_id"), Rows.uuid(r, "ocurrencia_id"), r.getString("prioridad"),
+                Rows.instant(r, "created_at"), r.getLong("version"));
     }
 }

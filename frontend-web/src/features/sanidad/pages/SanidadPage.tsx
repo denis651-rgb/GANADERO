@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Activity, ClipboardList, HeartPulse, LayoutDashboard, ShieldCheck, Stethoscope, Syringe } from 'lucide-react'
+import { Activity, CalendarDays, ClipboardList, HeartPulse, LayoutDashboard, ShieldCheck, Stethoscope, Syringe } from 'lucide-react'
 import { useAuth } from '@/auth/auth-context'
 import { listCasos, listJornadas, listPlanes, listTratamientos, type TipoActividad } from '@/features/sanidad/api'
 import { useSanidadCatalogs } from '@/features/sanidad/catalogs'
@@ -13,24 +13,26 @@ import { JornadasPanel } from '@/features/sanidad/components/JornadasPanel'
 import { PlanesPanel } from '@/features/sanidad/components/PlanesPanel'
 import { ResumenPanel } from '@/features/sanidad/components/ResumenPanel'
 import { TratamientosPanel } from '@/features/sanidad/components/TratamientosPanel'
+import { CalendarioExternoPanel } from '@/features/sanidad/components/CalendarioExternoPanel'
 import { Alert } from '@/shared/components/Alert'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { normalizeApiError } from '@/shared/api/errors'
 
-export type Seccion = 'resumen' | 'planes' | 'jornadas' | 'controles' | 'casos' | 'tratamientos'
+export type Seccion = 'resumen' | 'planes' | 'calendario' | 'jornadas' | 'controles' | 'casos' | 'tratamientos'
 type SubSeccion = 'planes' | 'enfermedades'
 
 const SECCIONES: Array<{ key: Seccion; label: string; icon: typeof LayoutDashboard; permisos: string[] }> = [
   { key: 'resumen', label: 'Resumen', icon: LayoutDashboard, permisos: [] },
   { key: 'planes', label: 'Planes sanitarios', icon: ClipboardList, permisos: ['SANIDAD_VER'] },
+  { key: 'calendario', label: 'Calendario', icon: CalendarDays, permisos: ['SANIDAD_VER'] },
   { key: 'jornadas', label: 'Jornadas', icon: Syringe, permisos: ['SANIDAD_VER'] },
   { key: 'controles', label: 'Controles', icon: ShieldCheck, permisos: ['SANIDAD_VER'] },
   { key: 'casos', label: 'Casos clínicos', icon: Stethoscope, permisos: ['SANIDAD_VER'] },
   { key: 'tratamientos', label: 'Tratamientos', icon: HeartPulse, permisos: ['SANIDAD_VER'] },
 ]
 
-const SECCIONES_VALIDAS = new Set<string>(['resumen', 'planes', 'jornadas', 'controles', 'casos', 'tratamientos'])
+const SECCIONES_VALIDAS = new Set<string>(['resumen', 'planes', 'calendario', 'jornadas', 'controles', 'casos', 'tratamientos'])
 
 export function SanidadPage() {
   const client = useQueryClient()
@@ -84,6 +86,7 @@ export function SanidadPage() {
       {subSeccion === 'enfermedades' && <EnfermedadesPanel />}
     </>}
     {!loading && seccion === 'jornadas' && <JornadasPanel jornadas={jornadas.data!} isLoading={jornadas.isPending} error={jornadas.error} catalogs={catalogs.data} refresh={refresh} tipoJornadaSugerida={tipoJornadaSugerida} />}
+    {!loading && seccion === 'calendario' && <CalendarioExternoPanel />}
     {!loading && seccion === 'controles' && <ControlesPanel catalogs={catalogs.data} initialAnimalId={animalIdSugerido} />}
     {!loading && seccion === 'casos' && <CasosPanel casos={casos.data!} isLoading={casos.isPending} error={casos.error} catalogs={catalogs.data} refresh={refresh} />}
     {!loading && seccion === 'tratamientos' && <TratamientosPanel tratamientos={tratamientos.data!} isLoading={tratamientos.isPending} error={tratamientos.error} catalogs={catalogs.data} refresh={refresh} />}

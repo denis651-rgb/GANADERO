@@ -6,6 +6,7 @@ import bo.com.ganadero.shared.web.CorrelationIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 /**
  * Sibling de ClinicaController bajo el mismo prefijo /api/v1/sanidad: no vive ahí porque
@@ -23,6 +24,12 @@ public class HistorialDeclaradoController {
     @PostMapping("/aplicaciones/declaradas")
     ApiResponse<AplicacionSanitaria> registrar(@Valid @RequestBody RegistrarAplicacionDeclaradaRequest body, HttpServletRequest r) {
         return ok(service.registrar(body.command()), r);
+    }
+
+    @PostMapping("/aplicaciones/declaradas/lote")
+    ApiResponse<List<AplicacionSanitaria>> registrarLote(
+            @Valid @RequestBody RegistrarHistorialDeclaradoLoteRequest body, HttpServletRequest r) {
+        return ok(service.registrarLote(body.command()), r);
     }
 
     private <T> ApiResponse<T> ok(T d, HttpServletRequest r) {

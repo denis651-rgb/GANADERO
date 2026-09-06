@@ -188,6 +188,15 @@ public class PlanSanitarioService {
         validarModalidad(c.modalidad(), c.modalidadConfig());
         validarViaLugar(c.viaAdministracionCodigo(), c.viaAdministracionDetalle(), c.lugarAplicacion(), c.lugarAplicacionDetalle());
         validarDosis(c.dosisTipoCalculo(), c.dosisCantidad(), c.dosisPesoReferenciaKg(), c.dosisMinima(), c.dosisMaxima());
+        if (c.horaEjecucion() == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "La hora prevista de ejecución es obligatoria.");
+        }
+        if (c.horariosAviso() == null || c.horariosAviso().isEmpty() || c.horariosAviso().size() > 5
+                || c.horariosAviso().stream().anyMatch(java.util.Objects::isNull)
+                || c.horariosAviso().stream().distinct().count() != c.horariosAviso().size()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "Configure entre uno y cinco horarios de aviso diferentes.");
+        }
     }
 
     private void validarModalidad(ModalidadActividad modalidad, ModalidadConfig config) {
@@ -254,7 +263,7 @@ public class PlanSanitarioService {
                 c.dosisPesoReferenciaKg(), c.dosisMinima(), c.dosisMaxima(), c.viaAdministracionCodigo(),
                 c.viaAdministracionDetalle(), c.lugarAplicacion(), c.lugarAplicacionDetalle(),
                 c.categoriasAplicables() == null ? List.of() : c.categoriasAplicables(), c.edadUnidad(),
-                c.modalidad(), c.modalidadConfig(), false);
+                c.modalidad(), c.modalidadConfig(), false, c.horaEjecucion(), c.horariosAviso());
     }
 
     private Integer diasDesde(int valor, UnidadFrecuencia unidad) {
@@ -272,7 +281,8 @@ public class PlanSanitarioService {
                           BigDecimal dosisCantidad, UnidadDosis dosisUnidad, TipoCalculoDosis dosisTipoCalculo,
                           BigDecimal dosisMinima, BigDecimal dosisMaxima, ViaAdministracion via, LugarAplicacion lugar,
                           Integer edadMin, Integer edadMax, bo.com.ganadero.animales.domain.SexoAnimal sexo,
-                          List<UUID> categorias, String instrucciones, int diasAlerta) {
+                          List<UUID> categorias, String instrucciones, int diasAlerta,
+                          java.time.LocalTime horaEjecucion, List<java.time.LocalTime> horariosAviso) {
     }
 
     private Huella huella(PlanSanitarioItem i) {
@@ -280,7 +290,7 @@ public class PlanSanitarioService {
                 i.productoRecomendadoTexto(), i.principioActivo(), i.dosisCantidad(), i.dosisUnidad(),
                 i.dosisTipoCalculo(), i.dosisMinima(), i.dosisMaxima(), i.viaAdministracionCodigo(), i.lugarAplicacion(),
                 i.edadMinDias(), i.edadMaxDias(), i.sexoAplicable(), i.categoriasAplicables(),
-                i.instruccionesVeterinario(), i.diasAlerta());
+                i.instruccionesVeterinario(), i.diasAlerta(), i.horaEjecucion(), i.horariosAviso());
     }
 
     @Transactional(readOnly = true)

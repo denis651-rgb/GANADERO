@@ -196,6 +196,10 @@ public enum ErrorCode {
             "Uno o más animales tienen una restricción sanitaria bloqueante para el traslado."),
     RESTRICCION_SANITARIA_AUTORIZACION_REQUERIDA(HttpStatus.UNPROCESSABLE_CONTENT,
             "Hay advertencias sanitarias sin autorizar; indica el motivo para continuar."),
+    COLA_CALENDARIO_TRABAJO_NOT_FOUND(HttpStatus.NOT_FOUND,
+            "El trabajo de sincronización de calendario no existe."),
+    COLA_CALENDARIO_ESTADO_INVALIDO(HttpStatus.CONFLICT,
+            "El trabajo de sincronización no está reservado para procesamiento."),
     PREPARACION_LOTE_ANULACION_BLOQUEADA(HttpStatus.CONFLICT,
             "No se puede anular: hay eventos posteriores que dependen de este movimiento."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Ocurrió un error interno.");

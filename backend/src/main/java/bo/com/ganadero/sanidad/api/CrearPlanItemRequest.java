@@ -7,6 +7,7 @@ import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,7 +25,8 @@ public record CrearPlanItemRequest(
         @PositiveOrZero Integer edadMinDias, @PositiveOrZero Integer edadMaxDias, UnidadEdadActividad edadUnidad,
         Boolean permiteEdadDesconocida, @PositiveOrZero int diasAlerta, boolean obligatorio,
         @NotNull OrigenRegulatorioActividad origenRegulatorio, @Size(max = 60) String especieAplicable,
-        @Size(max = 500) String motivoVersion, Instant fechaVigencia) {
+        @Size(max = 500) String motivoVersion, Instant fechaVigencia, LocalTime horaEjecucion,
+        List<LocalTime> horariosAviso) {
 
     CrearPlanItemCommand command() {
         return new CrearPlanItemCommand(codigoInterno, nombre, descripcion, tipoActividad, modalidad, modalidadConfig,
@@ -35,6 +37,7 @@ public record CrearPlanItemRequest(
                 edadMaxDias, edadUnidad == null ? UnidadEdadActividad.DIAS : edadUnidad,
                 Boolean.TRUE.equals(permiteEdadDesconocida), diasAlerta, obligatorio, origenRegulatorio,
                 especieAplicable == null || especieAplicable.isBlank() ? "BOVINO" : especieAplicable,
-                motivoVersion, fechaVigencia);
+                motivoVersion, fechaVigencia, horaEjecucion == null ? LocalTime.of(8, 0) : horaEjecucion,
+                horariosAviso == null || horariosAviso.isEmpty() ? List.of(LocalTime.of(8, 0)) : horariosAviso);
     }
 }

@@ -47,6 +47,39 @@ import static org.mockito.Mockito.when;
 class HistorialDeclaradoServiceTest {
 
     @Test
+    void registraVariasActividadesParaVariosAnimalesEnUnaOperacion(@TempDir Path tempDir) {
+        DataSource dataSource = sqliteDataSource(tempDir);
+        migrar(dataSource);
+        JdbcClient jdbc = JdbcClient.create(dataSource);
+        JdbcSanidadRepository planes = new JdbcSanidadRepository(jdbc, new tools.jackson.databind.ObjectMapper());
+        JdbcJornadaSanitariaRepository jornadas = new JdbcJornadaSanitariaRepository(jdbc);
+        Animal primero = sembrarAnimal(jdbc);
+        Animal segundo = sembrarAnimal(jdbc);
+        AnimalRepository animales = mock(AnimalRepository.class);
+        when(animales.findById(primero.id(), null)).thenReturn(java.util.Optional.of(primero));
+        when(animales.findById(segundo.id(), null)).thenReturn(java.util.Optional.of(segundo));
+        ObjectProvider<MotorAlertas> alertasProvider = mock(ObjectProvider.class);
+        when(alertasProvider.getIfAvailable()).thenReturn(null);
+        HistorialDeclaradoService service = new HistorialDeclaradoService(jornadas, planes, animales,
+                userContext(), alertasProvider, mock(ApplicationEventPublisher.class));
+
+        LocalDate fecha = LocalDate.now();
+        var command = new RegistrarHistorialDeclaradoLoteCommand(List.of(primero.id(), segundo.id()), List.of(
+                new RegistrarHistorialDeclaradoLoteCommand.Actividad(TipoActividadSanitaria.VACUNACION,
+                        null, fecha, null, null, "Vacuna declarada", "Certificado 123"),
+                new RegistrarHistorialDeclaradoLoteCommand.Actividad(TipoActividadSanitaria.DESPARASITACION,
+                        null, fecha, null, null, "Ivermectina", "Declarado por el proveedor")
+        ));
+
+        List<AplicacionSanitaria> resultado = service.registrarLote(command);
+
+        assertThat(resultado).hasSize(4);
+        assertThat(resultado).extracting(AplicacionSanitaria::animalId)
+                .containsOnly(primero.id(), segundo.id());
+        assertThat(resultado).allMatch(a -> a.origenRegistro() == OrigenRegistroAplicacion.DECLARADA_PROVEEDOR);
+    }
+
+    @Test
     void conPlanItemCalculaProximaAplicacionYProgramaLaAlerta(@TempDir Path tempDir) {
         DataSource dataSource = sqliteDataSource(tempDir);
         migrar(dataSource);

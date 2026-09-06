@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 interface ModalProps {
@@ -62,7 +63,7 @@ export function Modal({ open, title, onClose, children, wide, description, varia
   }, [open])
 
   if (!open) return null
-  return (
+  return createPortal(
     <div className={variant === 'drawer' ? 'mobile-drawer-overlay' : 'modal-overlay'} onClick={onClose}>
       <div
         ref={dialogRef}
@@ -83,6 +84,7 @@ export function Modal({ open, title, onClose, children, wide, description, varia
         {description && <p id={descriptionId} className="visually-hidden">{description}</p>}
         <div className={variant === 'drawer' ? 'mobile-drawer-body' : 'modal-body'}>{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
