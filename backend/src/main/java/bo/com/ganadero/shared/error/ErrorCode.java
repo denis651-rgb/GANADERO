@@ -204,6 +204,13 @@ public enum ErrorCode {
             "El trabajo de sincronización no está reservado para procesamiento."),
     PREPARACION_LOTE_ANULACION_BLOQUEADA(HttpStatus.CONFLICT,
             "No se puede anular: hay eventos posteriores que dependen de este movimiento."),
+    RESPALDO_NOT_FOUND(HttpStatus.NOT_FOUND, "El respaldo no existe."),
+    RESPALDO_NOMBRE_INVALIDO(HttpStatus.BAD_REQUEST, "El nombre de respaldo no es válido."),
+    RESPALDO_YA_EXISTE(HttpStatus.CONFLICT, "Ya existe un respaldo con ese nombre."),
+    RESPALDO_INTEGRIDAD_INVALIDA(HttpStatus.UNPROCESSABLE_CONTENT, "El respaldo no pasó la verificación de integridad."),
+    RESPALDO_ES_EL_UNICO_VALIDO(HttpStatus.CONFLICT, "No se puede eliminar: es el único respaldo con integridad válida."),
+    RESPALDO_OPERACION_EN_CURSO(HttpStatus.CONFLICT, "Ya hay una operación de respaldo en curso; intenta de nuevo en un momento."),
+    RESPALDO_CREACION_FALLIDA(HttpStatus.INTERNAL_SERVER_ERROR, "No se pudo crear el respaldo."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Ocurrió un error interno.");
 
     private final HttpStatus status;

@@ -27,6 +27,15 @@ export function calcularEdadMeses(fechaNacimiento?: string, referencia?: string)
   return Math.max(0, meses)
 }
 
+export function formatearEdadMeses(edadMeses: number): string {
+  if (edadMeses >= 12) {
+    const anios = Math.floor(edadMeses / 12)
+    const m = edadMeses % 12
+    return `${anios} año${anios > 1 ? 's' : ''}${m ? ` ${m} m` : ''}`
+  }
+  return `${edadMeses} mes${edadMeses === 1 ? '' : 'es'}`
+}
+
 export function categoriaSugerida<T extends { sexoAplicable: 'MACHO' | 'HEMBRA' | 'AMBOS'; clasificacionAutomatica: boolean; activo?: boolean; edadMinMeses?: number; edadMaxMeses?: number }>(
   categorias: T[] | undefined,
   sexo: 'MACHO' | 'HEMBRA',

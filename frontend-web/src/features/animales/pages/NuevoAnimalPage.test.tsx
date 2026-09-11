@@ -17,7 +17,7 @@ vi.mock('@/features/animales/api', () => ({
   listCategorias: vi.fn().mockResolvedValue([{ id: '00000000-0000-0000-0000-000000000001', codigo: 'VAQUILLA', nombre: 'Vaquilla', sexoAplicable: 'HEMBRA', edadMinMeses: 13, edadMaxMeses: 35, activo: true, clasificacionAutomatica: true, ordenEvaluacion: 0 }]),
 }))
 vi.mock('@/features/propiedades/api', () => ({ listPropiedades: vi.fn().mockResolvedValue([{ id: '00000000-0000-0000-0000-000000000001', nombre: 'Finca', activo: true }]) }))
-vi.mock('@/features/potreros/api', () => ({ listPotreros: vi.fn().mockResolvedValue([{ id: '00000000-0000-0000-0000-000000000001', propiedadId: '00000000-0000-0000-0000-000000000001', nombre: 'Corral', activo: true }]) }))
+vi.mock('@/features/potreros/api', () => ({ listAllPotreros: vi.fn().mockResolvedValue([{ id: '00000000-0000-0000-0000-000000000001', propiedadId: '00000000-0000-0000-0000-000000000001', nombre: 'Corral', activo: true }]) }))
 vi.mock('@/features/compras/api', () => ({
   crearCompra: (...args: unknown[]) => crearCompra(...args),
   confirmarCompra: (...args: unknown[]) => confirmarCompra(...args),

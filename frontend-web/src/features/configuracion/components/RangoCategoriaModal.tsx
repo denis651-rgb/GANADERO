@@ -41,7 +41,6 @@ export function RangoCategoriaModal({ open, categoria, onClose, onSaved }: Rango
   function leerFormulario(form: HTMLFormElement): RangoCategoriaInput {
     const data = new FormData(form)
     return {
-      codigo: String(data.get('codigo') ?? categoria?.codigo ?? '').toUpperCase(),
       nombre: String(data.get('nombre') ?? ''),
       sexoAplicable: data.get('sexoAplicable') as RangoCategoriaInput['sexoAplicable'],
       edadMinMeses: data.get('edadMinMeses') ? Number(data.get('edadMinMeses')) : undefined,
@@ -80,7 +79,6 @@ export function RangoCategoriaModal({ open, categoria, onClose, onSaved }: Rango
         </div>
       </Alert>}
       <div className="form-grid">
-        <Field label="Código" required hint="Identificador corto, en mayúsculas."><input name="codigo" required maxLength={30} defaultValue={categoria?.codigo} disabled={editando} style={{ textTransform: 'uppercase' }} /></Field>
         <Field label="Nombre" required><input name="nombre" required maxLength={80} defaultValue={categoria?.nombre} /></Field>
         <Field label="Sexo aplicable" required><select name="sexoAplicable" required defaultValue={categoria?.sexoAplicable ?? 'AMBOS'}><option value="MACHO">Macho</option><option value="HEMBRA">Hembra</option><option value="AMBOS">Ambos</option></select></Field>
         <Field label="Edad mínima (meses)"><input name="edadMinMeses" type="number" min="0" step="1" defaultValue={categoria?.edadMinMeses ?? 0} /></Field>

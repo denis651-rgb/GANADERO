@@ -22,7 +22,7 @@ vi.mock('@/features/propiedades/api', () => ({
   listPropiedades: vi.fn().mockResolvedValue([{ id: 'p-1', nombre: 'Finca La Esperanza', activo: true }]),
 }))
 vi.mock('@/features/potreros/api', () => ({
-  listPotreros: vi.fn().mockResolvedValue([
+  listAllPotreros: vi.fn().mockResolvedValue([
     { id: 'pt-1', propiedadId: 'p-1', nombre: 'Corral', activo: true },
     { id: 'pt-2', propiedadId: 'p-1', nombre: 'Potrero Norte', activo: true },
   ]),

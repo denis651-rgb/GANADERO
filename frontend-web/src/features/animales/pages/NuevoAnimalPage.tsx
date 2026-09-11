@@ -4,12 +4,12 @@ import { useNavigate } from 'react-router'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useWatch } from 'react-hook-form'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Save } from 'lucide-react'
+import { ArrowLeft, FileText, Info, ListChecks, Save } from 'lucide-react'
 import { createAnimalSchema } from '@/features/animales/schema'
 import { calcularNacimientoEstimado, categoriaSugerida } from '@/features/animales/edad'
 import { createAnimal, listCategorias, listRazas } from '@/features/animales/api'
 import { listPropiedades } from '@/features/propiedades/api'
-import { listPotreros } from '@/features/potreros/api'
+import { listAllPotreros } from '@/features/potreros/api'
 import type { AnimalSummary, CreateAnimalInput } from '@/features/animales/types'
 import type { Page } from '@/shared/api/types'
 import { crearCompra, confirmarCompra, getCompraDetalles } from '@/features/compras/api'
@@ -24,6 +24,26 @@ import { Alert } from '@/shared/components/Alert'
 import { normalizeApiError } from '@/shared/api/errors'
 import { useUnsavedChanges } from '@/shared/hooks/useUnsavedChanges'
 import { UnsavedChangesDialog } from '@/shared/components/UnsavedChangesDialog'
+
+const PROPOSITO_LABEL: Record<CreateAnimalInput['proposito'], string> = {
+  CARNE: 'Carne',
+  LECHE: 'Leche',
+  REPRODUCCION: 'Reproducción',
+  DOBLE_PROPOSITO: 'Doble propósito',
+}
+
+const ORIGEN_LABEL: Record<CreateAnimalInput['origen'], string> = {
+  NACIDO: 'Nacido',
+  COMPRADO: 'Comprado',
+  TRANSFERIDO: 'Transferido',
+}
+
+function formatFecha(value?: string) {
+  if (!value) return '—'
+  const date = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })
+}
 
 export function NuevoAnimalPage() {
   const navigate = useNavigate()
@@ -49,10 +69,15 @@ export function NuevoAnimalPage() {
   const propertyId = useWatch({ control, name: 'propiedadActualId' })
   const sexo = useWatch({ control, name: 'sexo' })
   const origen = useWatch({ control, name: 'origen' })
+  const nombre = useWatch({ control, name: 'nombre' })
+  const proposito = useWatch({ control, name: 'proposito' })
+  const razaPrincipalId = useWatch({ control, name: 'razaPrincipalId' })
+  const potreroActualId = useWatch({ control, name: 'potreroActualId' })
   const fechaNacimiento = useWatch({ control, name: 'fechaNacimiento' })
   const fechaIngreso = useWatch({ control, name: 'fechaIngreso' })
   const edadDeclaradaValor = useWatch({ control, name: 'edadDeclaradaValor' })
   const edadDeclaradaUnidad = useWatch({ control, name: 'edadDeclaradaUnidad' })
+  const categoriaActualId = useWatch({ control, name: 'categoriaActualId' })
   const referenciaEdad = origen === 'NACIDO' ? todayInBolivia() : fechaIngreso
   const nacimientoCalculado = calcularNacimientoEstimado(referenciaEdad, edadDeclaradaValor, edadDeclaradaUnidad)
   useEffect(() => {
@@ -65,7 +90,7 @@ export function NuevoAnimalPage() {
     setValue('fuenteEdad', origen === 'COMPRADO' ? 'PROVEEDOR' : 'ESTIMACION_CAMPO')
   }, [origen, referenciaEdad, setValue, tipoNacimiento])
   const catalogs = useQuery({ queryKey: ['animal-form-catalogs'], queryFn: async () => {
-    const [breeds, categories, properties, paddocks] = await Promise.all([listRazas(), listCategorias(), listPropiedades(), listPotreros()])
+    const [breeds, categories, properties, paddocks] = await Promise.all([listRazas(), listCategorias(), listPropiedades(), listAllPotreros()])
     return { breeds, categories, properties, paddocks }
   } })
   const nacimientoClasificacion = tipoNacimiento === 'CONOCIDA' ? fechaNacimiento : nacimientoCalculado
@@ -74,6 +99,22 @@ export function NuevoAnimalPage() {
   useEffect(() => {
     if (categoriaAutomaticaId) setValue('categoriaActualId', categoriaAutomaticaId, { shouldValidate: true })
   }, [categoriaAutomaticaId, setValue])
+
+  const razaNombre = catalogs.data?.breeds.find((item) => item.id === razaPrincipalId)?.nombre
+  const propiedadNombre = catalogs.data?.properties.find((item) => item.id === propertyId)?.nombre
+  const potreroNombre = catalogs.data?.paddocks.find((item) => item.id === potreroActualId)?.nombre
+
+  const proveedorDefinido = Boolean(proveedorSeleccion.proveedorId || proveedorSeleccion.proveedorNuevo?.nombre)
+  const camposObligatorios = 7 + (origen === 'COMPRADO' ? 2 : 0)
+  const camposCompletos = [
+    sexo, origen, proposito, razaPrincipalId, categoriaActualId, propertyId, potreroActualId,
+    fechaNacimiento || edadDeclaradaValor,
+    ...(origen === 'COMPRADO' ? [fechaIngreso, proveedorDefinido] : []),
+  ].filter(Boolean).length
+  const progreso = Math.min(100, Math.round((camposCompletos / camposObligatorios) * 100))
+
+  const nacimientoParaFicha = tipoNacimiento === 'CONOCIDA' ? fechaNacimiento : nacimientoCalculado
+  const nombreParaFicha = nombre?.trim() || 'Sin nombre'
 
   async function submit(values: CreateAnimalInput) {
     setMessage(null)
@@ -171,83 +212,155 @@ export function NuevoAnimalPage() {
   }
 
   return (
-    <div className="page-stack narrow-page">
+    <div className="page-stack">
       <PageHeader
         eyebrow="Animales"
         title="Registrar animal"
         description="Completa la ficha del animal y guárdala para sumarlo al hato de tu empresa."
         actions={<Button variant="ghost" onClick={() => unsaved.requestLeave(() => navigate('/animales'))}><ArrowLeft size={18} aria-hidden="true" />Volver</Button>}
       />
-      <Card>
-        <form className="form-grid" onSubmit={handleSubmit(submit)} noValidate>
-          {message && <div className="form-full"><Alert tone={message.tone}>{message.text}</Alert></div>}
-          <div className="form-section-title form-full"><h2>Información básica</h2></div>
-          <Field label="Nombre opcional" error={errors.nombre?.message}>
-            <input {...register('nombre')} placeholder="Lucera" />
-          </Field>
-          <Field label="Sexo" error={errors.sexo?.message}>
-            <select {...register('sexo')}><option value="HEMBRA">Hembra</option><option value="MACHO">Macho</option></select>
-          </Field>
-          <Field label="Nacimiento"><select value={tipoNacimiento} onChange={(event) => setTipoNacimiento(event.target.value as typeof tipoNacimiento)}><option value="CONOCIDA">Fecha conocida</option><option value="EDAD_APROXIMADA">Edad aproximada</option><option value="DESCONOCIDA" disabled={origen === 'NACIDO'}>Totalmente desconocido</option></select></Field>
-          <Field label="Fecha de nacimiento" error={errors.fechaNacimiento?.message}>
-            <input type="date" max={todayInBolivia()} disabled={tipoNacimiento !== 'CONOCIDA'} required={tipoNacimiento === 'CONOCIDA'} {...register('fechaNacimiento')} />
-          </Field>
-          {tipoNacimiento === 'EDAD_APROXIMADA' && <>
-            <Field label="Edad aproximada" error={errors.edadDeclaradaValor?.message} hint="Ejemplo: para un año y medio indica 18 meses."><input type="number" min="1" step="1" required {...register('edadDeclaradaValor', { setValueAs: (value) => value === '' ? undefined : Number(value) })} /></Field>
-            <Field label="Unidad"><select {...register('edadDeclaradaUnidad')}><option value="DIAS">Días</option><option value="MESES">Meses</option><option value="ANIOS">Años</option></select></Field>
-            <Field label="Nacimiento calculado" hint="Se guardará expresamente como fecha estimada."><input value={nacimientoCalculado ?? ''} readOnly placeholder="Se calcula con la edad" /></Field>
-            <Field label="Detalle de la estimación"><input {...register('observacionEstimacion')} placeholder={origen === 'COMPRADO' ? 'Dato informado por el proveedor' : 'Criterio usado en campo'} /></Field>
-          </>}
-          <div className="form-section-title form-full"><h2>Clasificación</h2></div>
-          <Field label="Propósito" error={errors.proposito?.message}>
-            <select {...register('proposito')}>
-              <option value="CARNE">Carne</option><option value="LECHE">Leche</option><option value="REPRODUCCION">Reproducción</option><option value="DOBLE_PROPOSITO">Doble propósito</option>
-            </select>
-          </Field>
-          <Field label="Origen" error={errors.origen?.message}>
-            <select {...register('origen', { onChange: (event) => {
-              if (event.target.value === 'NACIDO' && tipoNacimiento === 'DESCONOCIDA') setTipoNacimiento('EDAD_APROXIMADA')
-              if (event.target.value !== 'NACIDO' && !fechaNacimiento) setTipoNacimiento('DESCONOCIDA')
-            } })}><option value="NACIDO">Nacido</option><option value="COMPRADO">Comprado</option><option value="TRANSFERIDO">Transferido</option></select>
-          </Field>
-          <Field label="Raza" error={errors.razaPrincipalId?.message}>
-            <select {...register('razaPrincipalId')}><option value="">Selecciona…</option>{catalogs.data?.breeds.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
-          </Field>
-          <Field label="Categoría" error={errors.categoriaActualId?.message} hint={categoriaAutomatica ? `Asignada automáticamente por sexo y edad (${categoriaAutomatica.edadMinMeses ?? 0}${categoriaAutomatica.edadMaxMeses == null ? '+ meses' : `–${categoriaAutomatica.edadMaxMeses} meses`}).` : 'Si la edad es desconocida, selecciona la categoría manualmente.'}>
-            {categoriaAutomatica
-              ? [<input key="categoria-visible" value={categoriaAutomatica.nombre} readOnly />, <input key="categoria-valor" type="hidden" {...register('categoriaActualId')} />]
-              : <select {...register('categoriaActualId')}><option value="">Selecciona…</option>{catalogs.data?.categories.filter((item) => item.activo && (item.sexoAplicable === 'AMBOS' || item.sexoAplicable === sexo)).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>}
-          </Field>
-          {!categoriaAutomatica && <Field label="Motivo de la categoría manual" hint="Queda registrado en el historial de categorías del animal."><input {...register('categoriaManualMotivo')} placeholder="Ej. edad desconocida, criterio del encargado" /></Field>}
-          <div className="form-section-title form-full"><h2>Ubicación</h2></div>
-          <Field label="Propiedad" error={errors.propiedadActualId?.message}>
-            <select {...register('propiedadActualId')}><option value="">Selecciona…</option>{catalogs.data?.properties.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
-          </Field>
-          <Field label="Potrero" error={errors.potreroActualId?.message} hint="Debe pertenecer a la propiedad seleccionada.">
-            <select {...register('potreroActualId')}><option value="">Selecciona…</option>{catalogs.data?.paddocks.filter((item) => item.activo && item.propiedadId === propertyId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
-          </Field>
-          <div className="form-section-title form-full"><h2>Información adicional</h2></div>
-          {origen === 'NACIDO'
-            ? <Field label="Ingreso al hato" hint="En animales nacidos en la finca coincide con el nacimiento."><input value={fechaNacimiento ?? ''} readOnly /></Field>
-            : <Field label="Fecha de recepción" error={errors.fechaIngreso?.message}><input type="date" max={todayInBolivia()} defaultValue={todayInBolivia()} required {...register('fechaIngreso')} /></Field>}
-          <Field label="Peso al ingreso (kg)" hint="No corresponde al peso al nacer." error={errors.pesoIngresoKg?.message}><input type="number" min="0.001" step="0.001" {...register('pesoIngresoKg', { setValueAs: (value) => value === '' ? undefined : Number(value) })} /></Field>
-          <Field label="Tipo de peso al ingreso"><select {...register('pesoIngresoEstimado', { setValueAs: (value) => value === true || value === 'true' })}><option value="true">Estimado</option><option value="false">Medido</option></select></Field>
-          <div className="form-full">
-            <Field label="Observaciones" error={errors.observaciones?.message}>
-              <textarea rows={4} {...register('observaciones')} />
-            </Field>
+      {message && <Alert tone={message.tone}>{message.text}</Alert>}
+      <form onSubmit={handleSubmit(submit)} noValidate>
+        <div className="record-layout">
+          <div className="record-main">
+            <Card className="record-card">
+              <div className="record-card-head">
+                <span className="record-step" aria-hidden="true">01</span>
+                <div><h2>Información básica</h2><p>Nombre, sexo y datos de nacimiento del animal.</p></div>
+              </div>
+              <div className="form-grid">
+                <Field label="Nombre opcional" error={errors.nombre?.message}>
+                  <input {...register('nombre')} placeholder="Lucera" />
+                </Field>
+                <Field label="Sexo" error={errors.sexo?.message}>
+                  <select {...register('sexo')}><option value="HEMBRA">Hembra</option><option value="MACHO">Macho</option></select>
+                </Field>
+                <Field label="Nacimiento"><select value={tipoNacimiento} onChange={(event) => setTipoNacimiento(event.target.value as typeof tipoNacimiento)}><option value="CONOCIDA">Fecha conocida</option><option value="EDAD_APROXIMADA">Edad aproximada</option><option value="DESCONOCIDA" disabled={origen === 'NACIDO'}>Totalmente desconocido</option></select></Field>
+                <Field label="Fecha de nacimiento" error={errors.fechaNacimiento?.message}>
+                  <input type="date" max={todayInBolivia()} disabled={tipoNacimiento !== 'CONOCIDA'} required={tipoNacimiento === 'CONOCIDA'} {...register('fechaNacimiento')} />
+                </Field>
+                {tipoNacimiento === 'EDAD_APROXIMADA' && <>
+                  <Field label="Edad aproximada" error={errors.edadDeclaradaValor?.message} hint="Ejemplo: para un año y medio indica 18 meses."><input type="number" min="1" step="1" required {...register('edadDeclaradaValor', { setValueAs: (value) => value === '' ? undefined : Number(value) })} /></Field>
+                  <Field label="Unidad"><select {...register('edadDeclaradaUnidad')}><option value="DIAS">Días</option><option value="MESES">Meses</option><option value="ANIOS">Años</option></select></Field>
+                  <Field label="Nacimiento calculado" hint="Se guardará expresamente como fecha estimada."><input value={nacimientoCalculado ?? ''} readOnly placeholder="Se calcula con la edad" /></Field>
+                  <Field label="Detalle de la estimación"><input {...register('observacionEstimacion')} placeholder={origen === 'COMPRADO' ? 'Dato informado por el proveedor' : 'Criterio usado en campo'} /></Field>
+                </>}
+              </div>
+            </Card>
+
+            <Card className="record-card">
+              <div className="record-card-head">
+                <span className="record-step" aria-hidden="true">02</span>
+                <div><h2>Clasificación</h2><p>Propósito, origen, raza y categoría del animal.</p></div>
+              </div>
+              <div className="form-grid">
+                <Field label="Propósito" error={errors.proposito?.message}>
+                  <select {...register('proposito')}>
+                    <option value="CARNE">Carne</option><option value="LECHE">Leche</option><option value="REPRODUCCION">Reproducción</option><option value="DOBLE_PROPOSITO">Doble propósito</option>
+                  </select>
+                </Field>
+                <Field label="Origen" error={errors.origen?.message}>
+                  <select {...register('origen', { onChange: (event) => {
+                    if (event.target.value === 'NACIDO' && tipoNacimiento === 'DESCONOCIDA') setTipoNacimiento('EDAD_APROXIMADA')
+                    if (event.target.value !== 'NACIDO' && !fechaNacimiento) setTipoNacimiento('DESCONOCIDA')
+                  } })}><option value="NACIDO">Nacido</option><option value="COMPRADO">Comprado</option><option value="TRANSFERIDO">Transferido</option></select>
+                </Field>
+                <Field label="Raza" error={errors.razaPrincipalId?.message}>
+                  <select {...register('razaPrincipalId')}><option value="">Selecciona…</option>{catalogs.data?.breeds.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
+                </Field>
+                <Field label="Categoría" error={errors.categoriaActualId?.message} hint={categoriaAutomatica ? `Asignada automáticamente por sexo y edad (${categoriaAutomatica.edadMinMeses ?? 0}${categoriaAutomatica.edadMaxMeses == null ? '+ meses' : `–${categoriaAutomatica.edadMaxMeses} meses`}).` : 'Si la edad es desconocida, selecciona la categoría manualmente.'}>
+                  {categoriaAutomatica
+                    ? [<input key="categoria-visible" value={categoriaAutomatica.nombre} readOnly />, <input key="categoria-valor" type="hidden" {...register('categoriaActualId')} />]
+                    : <select {...register('categoriaActualId')}><option value="">Selecciona…</option>{catalogs.data?.categories.filter((item) => item.activo && (item.sexoAplicable === 'AMBOS' || item.sexoAplicable === sexo)).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>}
+                </Field>
+                {!categoriaAutomatica && <Field label="Motivo de la categoría manual" hint="Queda registrado en el historial de categorías del animal."><input {...register('categoriaManualMotivo')} placeholder="Ej. edad desconocida, criterio del encargado" /></Field>}
+              </div>
+            </Card>
+
+            <Card className="record-card">
+              <div className="record-card-head">
+                <span className="record-step" aria-hidden="true">03</span>
+                <div><h2>Ubicación</h2><p>Propiedad y potrero donde quedará asignado el animal.</p></div>
+              </div>
+              <div className="form-grid">
+                <Field label="Propiedad" error={errors.propiedadActualId?.message}>
+                  <select {...register('propiedadActualId')}><option value="">Selecciona…</option>{catalogs.data?.properties.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
+                </Field>
+                <Field label="Potrero" error={errors.potreroActualId?.message} hint="Debe pertenecer a la propiedad seleccionada.">
+                  <select {...register('potreroActualId')}><option value="">Selecciona…</option>{catalogs.data?.paddocks.filter((item) => item.activo && item.propiedadId === propertyId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
+                </Field>
+              </div>
+            </Card>
+
+            <Card className="record-card">
+              <div className="record-card-head">
+                <span className="record-step" aria-hidden="true">04</span>
+                <div><h2>Información adicional</h2><p>Ingreso al hato, peso y observaciones complementarias.</p></div>
+              </div>
+              <div className="form-grid">
+                {origen === 'NACIDO'
+                  ? <Field label="Ingreso al hato" hint="En animales nacidos en la finca coincide con el nacimiento."><input value={fechaNacimiento ?? ''} readOnly /></Field>
+                  : <Field label="Fecha de recepción" error={errors.fechaIngreso?.message}><input type="date" max={todayInBolivia()} defaultValue={todayInBolivia()} required {...register('fechaIngreso')} /></Field>}
+                <Field label="Peso al ingreso (kg)" hint="No corresponde al peso al nacer." error={errors.pesoIngresoKg?.message}><input type="number" min="0.001" step="0.001" {...register('pesoIngresoKg', { setValueAs: (value) => value === '' ? undefined : Number(value) })} /></Field>
+                <Field label="Tipo de peso al ingreso"><select {...register('pesoIngresoEstimado', { setValueAs: (value) => value === true || value === 'true' })}><option value="true">Estimado</option><option value="false">Medido</option></select></Field>
+                <div className="form-full">
+                  <Field label="Observaciones" error={errors.observaciones?.message}>
+                    <textarea rows={4} {...register('observaciones')} />
+                  </Field>
+                </div>
+              </div>
+            </Card>
+
+            {origen === 'COMPRADO' && <Card className="record-card">
+              <div className="record-card-head">
+                <span className="record-step" aria-hidden="true">05</span>
+                <div><h2>Datos de la compra</h2><p>Proveedor y precio pagado por este animal.</p></div>
+              </div>
+              <div className="form-grid">
+                <div className="form-full"><ProveedorPicker value={proveedorSeleccion} onChange={setProveedorSeleccion} /></div>
+                <Field label="Precio de compra" hint="Precio pagado por este animal."><input type="number" inputMode="decimal" min="0" step="0.01" value={precioCompra} onChange={(event) => setPrecioCompra(event.target.value)} /></Field>
+                <Field label="Moneda"><input value={monedaCompra} onChange={(event) => setMonedaCompra(event.target.value)} maxLength={10} placeholder="BOB" /></Field>
+              </div>
+            </Card>}
           </div>
-          {origen === 'COMPRADO' && <>
-            <div className="form-section-title form-full"><h2>Datos de la compra</h2></div>
-            <ProveedorPicker value={proveedorSeleccion} onChange={setProveedorSeleccion} />
-            <Field label="Precio de compra" hint="Precio pagado por este animal."><input type="number" inputMode="decimal" min="0" step="0.01" value={precioCompra} onChange={(event) => setPrecioCompra(event.target.value)} /></Field>
-            <Field label="Moneda"><input value={monedaCompra} onChange={(event) => setMonedaCompra(event.target.value)} maxLength={10} placeholder="BOB" /></Field>
-          </>}
-          <div className="form-full form-actions">
+
+          <aside className="record-aside">
+            <Card className="record-aside-card">
+              <div className="record-aside-head"><span className="record-aside-icon"><FileText size={16} aria-hidden="true" /></span><div><h3>Ficha del registro</h3><p>Vista previa en vivo</p></div></div>
+              <dl className="definition-list record-summary">
+                <div><dt>Nombre</dt><dd>{nombreParaFicha}</dd></div>
+                <div><dt>Sexo</dt><dd>{sexo === 'MACHO' ? 'Macho' : 'Hembra'}</dd></div>
+                <div><dt>Origen</dt><dd>{ORIGEN_LABEL[origen ?? 'NACIDO']}</dd></div>
+                <div><dt>Propósito</dt><dd>{PROPOSITO_LABEL[proposito ?? 'CARNE']}</dd></div>
+                <div><dt>Raza</dt><dd>{razaNombre ?? '—'}</dd></div>
+                <div><dt>Categoría</dt><dd>{categoriaAutomatica?.nombre ?? 'Por definir'}</dd></div>
+                <div><dt>Nacimiento</dt><dd>{formatFecha(nacimientoParaFicha)}</dd></div>
+                <div><dt>Ubicación</dt><dd>{propiedadNombre ? `${propiedadNombre}${potreroNombre ? ` · ${potreroNombre}` : ''}` : '—'}</dd></div>
+              </dl>
+            </Card>
+
+            <Card className="record-aside-card">
+              <div className="record-aside-head"><span className="record-aside-icon"><ListChecks size={16} aria-hidden="true" /></span><div><h3>Avance del registro</h3><p>Campos obligatorios</p></div></div>
+              <div className="record-progress">
+                <div className="record-progress-track" role="progressbar" aria-valuenow={progreso} aria-valuemin={0} aria-valuemax={100}><span className="record-progress-bar" style={{ width: `${progreso}%` }} /></div>
+                <p className="record-progress-note"><strong>{camposCompletos}</strong> de {camposObligatorios} completados</p>
+              </div>
+            </Card>
+
+            <div className="record-help">
+              <span className="record-help-title"><Info size={15} aria-hidden="true" />Nota</span>
+              <p>La categoría se asigna sola según sexo y edad. Si el origen es una compra, se genera una compra confirmada al guardar.</p>
+            </div>
+          </aside>
+        </div>
+
+        <div className="save-bar">
+          <div className="save-hint"><span className="save-hint-dot" aria-hidden="true" />Los campos marcados con * son obligatorios.</div>
+          <div className="save-actions">
             <Button type="submit" loading={isSubmitting}><Save size={18} />Guardar animal</Button>
           </div>
-        </form>
-      </Card>
+        </div>
+      </form>
       <UnsavedChangesDialog open={unsaved.open} onStay={unsaved.cancelLeave} onLeave={unsaved.discardAndLeave} />
     </div>
   )

@@ -4,6 +4,7 @@ import bo.com.ganadero.animales.application.CategoriaAnimalConfigService;
 import bo.com.ganadero.animales.application.RangoCategoriaCommand;
 import bo.com.ganadero.animales.application.ResultadoReclasificacion;
 import bo.com.ganadero.animales.domain.CategoriaAnimal;
+import bo.com.ganadero.shared.codigos.CodigoService;
 import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import bo.com.ganadero.shared.security.CurrentUser;
@@ -146,7 +147,7 @@ class CategoriaAnimalConfigServiceTest {
         UserContext context = new UserContext(() -> currentUser);
         CategoriaAnimalConfigService service = new CategoriaAnimalConfigService(new JdbcCategoriaAnimalRepository(jdbc),
                 new JdbcAnimalRepository(jdbc), new JdbcHistorialCategoriaAnimalRepository(jdbc), context,
-                new DataSourceTransactionManager(dataSource));
+                new CodigoService(jdbc), new DataSourceTransactionManager(dataSource));
         return new Fixture(jdbc, service);
     }
 

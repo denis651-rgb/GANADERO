@@ -8,7 +8,7 @@ import type { AnimalSummary, CategoriaAnimal, UnidadEdadDeclarada } from '@/feat
 import { DeclararHistorialModal } from '@/features/animales/components/DeclararHistorialModal'
 import { DeclararHistorialLoteModal } from '@/features/animales/components/DeclararHistorialLoteModal'
 import { listPropiedades } from '@/features/propiedades/api'
-import { listPotreros } from '@/features/potreros/api'
+import { listAllPotreros } from '@/features/potreros/api'
 import { createMovimiento, confirmarMovimiento } from '@/features/movimientos/api'
 import { confirmarCompra, crearCompra, getCompraDetalles } from '@/features/compras/api'
 import { fechaRecepcionInstant, type ModalidadPrecio } from '@/features/compras/types'
@@ -80,7 +80,7 @@ export function IngresoLotePage() {
   const catalogs = useQuery({
     queryKey: ['animal-form-catalogs'],
     queryFn: async () => {
-      const [breeds, categories, properties, paddocks] = await Promise.all([listRazas(), listCategorias(), listPropiedades(), listPotreros()])
+      const [breeds, categories, properties, paddocks] = await Promise.all([listRazas(), listCategorias(), listPropiedades(), listAllPotreros()])
       return { breeds, categories, properties, paddocks }
     },
   })

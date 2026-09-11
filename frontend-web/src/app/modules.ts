@@ -18,6 +18,12 @@ import {
 
 export type ModuleStatus = 'LISTO' | 'EN_DESARROLLO' | 'PROXIMAMENTE'
 
+export interface AppModuleChild {
+  key: string
+  label: string
+  path: string
+}
+
 export interface AppModuleDefinition {
   key: string
   label: string
@@ -26,11 +32,21 @@ export interface AppModuleDefinition {
   phase: number
   permission?: string
   status: ModuleStatus
+  children?: AppModuleChild[]
 }
 
 export const appModules: AppModuleDefinition[] = [
   { key: 'dashboard', label: 'Panel principal', path: '/', icon: House, phase: 0, status: 'LISTO' },
-  { key: 'propiedades', label: 'Mi finca', path: '/propiedades', icon: MapPinned, phase: 0, status: 'LISTO' },
+  {
+    key: 'propiedades', label: 'Mi finca', path: '/propiedades', icon: MapPinned, phase: 0, status: 'LISTO',
+    children: [
+      { key: 'propiedades-lista', label: 'Propiedades', path: '/propiedades' },
+      { key: 'propiedades-configuracion', label: 'Configuración general', path: '/propiedades/configuracion' },
+      { key: 'propiedades-respaldos', label: 'Respaldos', path: '/propiedades/respaldos' },
+      { key: 'propiedades-categorias', label: 'Categorías por edad', path: '/propiedades/categorias-edad' },
+      { key: 'propiedades-calendario', label: 'Google Calendar', path: '/propiedades/google-calendar' },
+    ],
+  },
   { key: 'potreros', label: 'Potreros', path: '/potreros', icon: Sprout, phase: 0, status: 'LISTO' },
   { key: 'animales', label: 'Animales', path: '/animales', icon: Beef, phase: 0, status: 'LISTO' },
   { key: 'compras', label: 'Compras', path: '/compras', icon: Truck, phase: 0, status: 'LISTO' },

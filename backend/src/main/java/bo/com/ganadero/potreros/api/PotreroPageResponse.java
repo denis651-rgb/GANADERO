@@ -1,0 +1,2 @@
+package bo.com.ganadero.potreros.api; import bo.com.ganadero.potreros.domain.PotreroPage; import java.util.List;
+public record PotreroPageResponse(List<PotreroResponse> content,int page,int size,long totalElements,int totalPages){public static PotreroPageResponse from(PotreroPage p){return new PotreroPageResponse(p.content().stream().map(PotreroResponse::from).toList(),p.page(),p.size(),p.totalElements(),p.totalPages());}}

@@ -35,6 +35,21 @@ export async function createAnimalesLote(input: CrearAnimalesLoteInput) {
   return response.data.data
 }
 
+export interface AnimalResumen { total: number; activos: number; hembras: number; machos: number }
+
+export async function getAnimalesResumen(filters?: AnimalFilters) {
+  const params = {
+    search: filters?.search || undefined,
+    estado: filters?.estado || undefined,
+    propiedadId: filters?.propiedadId || undefined,
+    potreroId: filters?.potreroId || undefined,
+    categoria: filters?.categoria || undefined,
+    sexo: filters?.sexo || undefined,
+  }
+  const response = await http.get<ApiResponse<AnimalResumen>>('/api/v1/animales/resumen', { params })
+  return response.data.data
+}
+
 export async function listRazas() { return (await http.get<ApiResponse<Raza[]>>('/api/v1/razas')).data.data }
 export async function listCategorias() { return (await http.get<ApiResponse<CategoriaAnimal[]>>('/api/v1/categorias-animal')).data.data }
 

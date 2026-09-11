@@ -1,6 +1,8 @@
-import { app, BrowserWindow, Menu, Tray, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, Menu, Tray, ipcMain } from 'electron'
 import path from 'node:path'
 import { BackendManager } from './backend'
+import { BackupManager } from './backups/manager'
+import { startBackupScheduler, type BackupSchedulerHandle } from './backups/scheduler'
 import { startNotificationPolling } from './notifications'
 import { registerFrontendScheme, serveFrontend, FRONTEND_SCHEME } from './frontend-protocol'
 import { GoogleOAuthManager } from './google-oauth'
@@ -12,12 +14,15 @@ const ICON_PATH = path.join(__dirname, '..', 'build', 'icon.ico')
 registerFrontendScheme()
 
 const backend = new BackendManager()
+const backupManager = new BackupManager(backend)
 const googleOAuth = new GoogleOAuthManager(() => backend.port)
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let stopNotifications: (() => void) | null = null
 let googleCalendarSync: GoogleCalendarSyncHandle | null = null
+let backupScheduler: BackupSchedulerHandle | null = null
 let quitting = false
+let backendFailed = false
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -39,16 +44,31 @@ if (!app.requestSingleInstanceLock()) {
     try {
       await backend.start()
     } catch (error) {
-      dialog.showErrorBox('Ganadero', `No se pudo iniciar el servicio local:\n${(error as Error).message}`)
-      app.quit()
-      return
+      // No se cierra la app: se abre en modo recuperación para que el usuario pueda restaurar
+      // un respaldo sin depender de que el backend (que es justo lo que falló) esté disponible.
+      console.error('[main] el backend no pudo iniciar:', error)
+      backendFailed = true
     }
 
-    createWindow()
-    registerGoogleOAuthIpc()
+    createWindow(backendFailed)
+    registerBackupsIpc()
+    registerAppIpc()
     createTray()
-    stopNotifications = startNotificationPolling(() => backend.port, focusWindow)
-    googleCalendarSync = startGoogleCalendarSync(() => backend.port, googleOAuth)
+
+    if (!backendFailed) {
+      registerGoogleOAuthIpc()
+      stopNotifications = startNotificationPolling(() => backend.port, focusWindow)
+      googleCalendarSync = startGoogleCalendarSync(() => backend.port, googleOAuth)
+      backupScheduler = startBackupScheduler(backupManager)
+    }
+  })
+}
+
+/** Usado por la pantalla de recuperación: window.close() del renderer solo oculta la ventana a la bandeja. */
+function registerAppIpc(): void {
+  ipcMain.handle('app:quit', () => {
+    quitting = true
+    app.quit()
   })
 }
 
@@ -62,7 +82,28 @@ function registerGoogleOAuthIpc(): void {
   ipcMain.handle('google-calendar:sync-now', () => googleCalendarSync?.syncNow())
 }
 
-function createWindow(): void {
+/**
+ * Funciona con o sin backend arriba: list()/verify() de BackupManager caen a leer los archivos
+ * directamente de la carpeta local si el backend no responde — es lo que permite operar estos
+ * canales también desde la ventana de recuperación.
+ */
+function registerBackupsIpc(): void {
+  ipcMain.handle('backups:get-settings', () => backupManager.getSettings())
+  ipcMain.handle('backups:save-settings', (_event, settings) => backupManager.saveSettings(settings))
+  ipcMain.handle('backups:select-external-folder', () => backupManager.selectExternalFolder())
+  ipcMain.handle('backups:create-now', () => backupManager.createNow())
+  ipcMain.handle('backups:copy-external', (_event, nombre: string) => backupManager.copyToExternal(nombre))
+  ipcMain.handle('backups:list', () => backupManager.list())
+  ipcMain.handle('backups:verify', (_event, nombre: string) => backupManager.verify(nombre))
+  ipcMain.handle('backups:delete', (_event, nombre: string) => backupManager.deleteBackup(nombre))
+  ipcMain.handle('backups:select-restore-file', () => backupManager.selectRestoreFile())
+  ipcMain.handle('backups:inspect-restore-file', (_event, filePath: string) => backupManager.inspectRestoreFile(filePath))
+  ipcMain.handle('backups:restore', (_event, filePath: string) => backupManager.restore(filePath))
+  ipcMain.handle('backups:open-local-folder', () => backupManager.openLocalFolder())
+  ipcMain.handle('backups:open-external-folder', () => backupManager.openExternalFolder())
+}
+
+function createWindow(backendFailed: boolean): void {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -72,7 +113,10 @@ function createWindow(): void {
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
-      additionalArguments: [`--ganadero-api-base-url=http://127.0.0.1:${backend.port}`],
+      additionalArguments: [
+        `--ganadero-api-base-url=http://127.0.0.1:${backend.port}`,
+        `--ganadero-backend-status=${backendFailed ? 'failed' : 'ok'}`,
+      ],
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -121,10 +165,11 @@ app.on('before-quit', () => {
   quitting = true
   stopNotifications?.()
   googleCalendarSync?.stop()
-  backend.stop()
+  backupScheduler?.stop()
+  void backend.stop()
 })
 
 app.on('activate', () => {
-  if (!mainWindow) createWindow()
+  if (!mainWindow) createWindow(backendFailed)
   else focusWindow()
 })

@@ -8,7 +8,7 @@ import { getAnimal, listCategorias, listRazas, updateAnimal } from '@/features/a
 import { calcularNacimientoEstimado, categoriaSugerida } from '@/features/animales/edad'
 import type { AnimalSummary, UpdateAnimalInput } from '@/features/animales/types'
 import { listPropiedades } from '@/features/propiedades/api'
-import { listPotreros } from '@/features/potreros/api'
+import { listAllPotreros } from '@/features/potreros/api'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
@@ -134,4 +134,4 @@ function AnimalEditForm({ animal, catalogs }: { animal: AnimalSummary; catalogs:
 function optionalNumber(value: string | number | null | undefined) {
   return value == null || (typeof value === 'string' && value.trim() === '') ? undefined : Number(value)
 }
-async function loadCatalogShape() { const [breeds, categories, properties, paddocks] = await Promise.all([listRazas(), listCategorias(), listPropiedades(), listPotreros()]); return { breeds, categories, properties, paddocks } }
+async function loadCatalogShape() { const [breeds, categories, properties, paddocks] = await Promise.all([listRazas(), listCategorias(), listPropiedades(), listAllPotreros()]); return { breeds, categories, properties, paddocks } }

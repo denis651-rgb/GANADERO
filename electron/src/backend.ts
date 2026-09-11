@@ -78,6 +78,14 @@ export class BackendManager {
   private pidFile: string | null = null
   port = PREFERRED_PORT
 
+  get dbPath(): string {
+    return path.join(app.getPath('userData'), 'ganadero.db')
+  }
+
+  get backupsPath(): string {
+    return path.join(app.getPath('userData'), 'backups')
+  }
+
   async start(): Promise<number> {
     const userData = app.getPath('userData')
     fs.mkdirSync(userData, { recursive: true })
@@ -87,7 +95,6 @@ export class BackendManager {
     this.port = await findFreePort(PREFERRED_PORT)
     const javaBin = resolveJavaBinary()
     const jarPath = resolveJarPath()
-    const dbPath = path.join(userData, 'ganadero.db')
     const mediaPath = path.join(userData, 'media')
 
     this.child = spawn(javaBin, ['-jar', jarPath], {
@@ -95,8 +102,9 @@ export class BackendManager {
         ...process.env,
         SPRING_PROFILES_ACTIVE: 'local',
         PORT: String(this.port),
-        GANADERO_DB_PATH: dbPath,
+        GANADERO_DB_PATH: this.dbPath,
         GANADERO_MEDIA_PATH: mediaPath,
+        GANADERO_BACKUPS_PATH: this.backupsPath,
       },
       stdio: 'pipe',
       windowsHide: true,
@@ -113,10 +121,28 @@ export class BackendManager {
     return this.port
   }
 
-  stop(): void {
+  /**
+   * Espera a que el proceso realmente termine (no solo a que se le mande la señal) antes de
+   * resolver — imprescindible para restaurar: no se puede reemplazar ganadero.db mientras el
+   * backend todavía lo tiene abierto. Si no termina solo, escala a SIGKILL tras 5s.
+   */
+  async stop(): Promise<void> {
     if (this.pidFile) fs.rmSync(this.pidFile, { force: true })
-    if (!this.child) return
-    this.child.kill()
+    const child = this.child
+    if (!child) return
+    await new Promise<void>((resolve) => {
+      const timeout = setTimeout(() => child.kill('SIGKILL'), 5_000)
+      child.once('exit', () => {
+        clearTimeout(timeout)
+        resolve()
+      })
+      child.kill()
+    })
     this.child = null
+  }
+
+  async restart(): Promise<number> {
+    await this.stop()
+    return this.start()
   }
 }

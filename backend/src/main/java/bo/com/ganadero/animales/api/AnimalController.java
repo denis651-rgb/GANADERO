@@ -30,6 +30,19 @@ public class AnimalController {
         service = s;
     }
 
+    @GetMapping("/animales/resumen")
+    ApiResponse<AnimalResumenResponse> resumen(@RequestParam(required = false) EstadoAnimal estado,
+                                               @RequestParam(required = false) UUID propiedadId,
+                                               @RequestParam(required = false) UUID potreroId,
+                                               @RequestParam(required = false) UUID loteId,
+                                               @RequestParam(required = false) String categoria,
+                                               @RequestParam(required = false) SexoAnimal sexo,
+                                               @RequestParam(required = false) String search,
+                                               HttpServletRequest r) {
+        return ok(AnimalResumenResponse.from(service.resumen(new AnimalFilter(estado, propiedadId, potreroId, loteId,
+                categoria, sexo, search, 0, 1))), r);
+    }
+
     @GetMapping("/animales")
     ApiResponse<AnimalPageResponse> list(@RequestParam(required = false) EstadoAnimal estado,
                                          @RequestParam(required = false) UUID propiedadId,

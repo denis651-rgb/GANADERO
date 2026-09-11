@@ -1,0 +1,319 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Public+Sans:wght@400;500;600;700;800&display=swap">
+  <style>
+    :root {
+      --green-900: #123d2a;
+      --green-800: #195436;
+      --green-700: #1f6a45;
+      --green-600: #287b52;
+      --green-100: #dceee3;
+      --green-50: #edf7f1;
+      --ink: #1c2b22;
+      --muted: #66746b;
+      --border: #dce5de;
+      --surface: #ffffff;
+      --danger: #b33a3a;
+      --warning: #a46414;
+      --info: #28516b;
+      --bg: #f4f7f2;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    .shell { display: flex; align-items: stretch; width: 1712px; font-family: 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; color: var(--ink); }
+    .serif { font-family: 'Newsreader', Georgia, 'Times New Roman', serif; }
+    a { color: var(--green-700); text-decoration: none; }
+    a:hover { color: var(--green-900); }
+    .num { font-variant-numeric: tabular-nums; }
+
+    /* ---------- Sidebar ---------- */
+    .side { width: 272px; flex: 0 0 auto; background: var(--green-900); color: #fff; display: flex; flex-direction: column; }
+    .side-brand { display: flex; gap: 12px; align-items: center; padding: 22px 20px 18px; border-bottom: 1px solid rgba(255,255,255,.1); }
+    .side-brand-mark { width: 42px; height: 42px; border-radius: 11px; flex: 0 0 auto; }
+    .side-brand div strong { display: block; font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-size: 1.08rem; letter-spacing: .04em; }
+    .side-brand div span { display: block; color: rgba(255,255,255,.65); font-size: .78rem; margin-top: 2px; }
+    .side-collapse { margin-left: auto; width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; color: rgba(255,255,255,.7); flex: 0 0 auto; }
+    .side-nav { padding: 14px 12px; display: flex; flex-direction: column; gap: 3px; flex: 1; }
+    .side-item { display: grid; grid-template-columns: 24px 1fr; gap: 9px; align-items: center; padding: 10px 12px; border-radius: 10px; color: rgba(255,255,255,.74); font-size: .9rem; }
+    .side-item svg { width: 19px; height: 19px; }
+    .side-item.active { background: rgba(255,255,255,.1); color: #fff; font-weight: 700; box-shadow: inset 3px 0 0 #fff; }
+    .side-footer { display: flex; align-items: center; gap: 9px; padding: 14px; border-top: 1px solid rgba(255,255,255,.1); }
+    .side-avatar { width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,.16); display: grid; place-items: center; font-weight: 800; font-size: .8rem; flex: 0 0 auto; }
+    .side-footer strong { font-size: .83rem; font-weight: 700; }
+
+    /* ---------- Main column ---------- */
+    .main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg); }
+    .topbar { min-height: 58px; padding: 9px 38px; background: var(--green-900); color: #fff; border-bottom: 1px solid rgba(255,255,255,.1); display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .topbar-brand { display: flex; align-items: center; gap: 9px; color: #fff; font-size: .8rem; font-weight: 800; letter-spacing: .14em; }
+    .topbar-brand-mark { width: 18px; height: 18px; border-radius: 5px; }
+    .notification-bell { position: relative; display: grid; place-items: center; padding: 8px; border-radius: 10px; color: #fff; }
+    .notification-bell span { position: absolute; top: -2px; right: -4px; min-width: 18px; height: 18px; padding: 0 4px; display: grid; place-items: center; border-radius: 99px; background: #b42318; color: white; font-size: .65rem; font-weight: 800; }
+
+    .page-container { padding: 40px; }
+
+    .dashboard-institutional .dp-hero h1,
+    .dashboard-institutional .dp-hero-stat strong,
+    .dashboard-institutional .dp-kpi-card strong,
+    .dashboard-institutional .dp-fact-value,
+    .dashboard-institutional .dp-table td.dp-num { font-family: 'Newsreader', Georgia, 'Times New Roman', serif; }
+    .page-stack { display: grid; gap: 22px; }
+
+    .dp-hero { position: relative; overflow: hidden; border-radius: 20px; padding: 44px 42px; background: linear-gradient(135deg, var(--green-900), var(--green-600)); color: #fff; display: flex; justify-content: space-between; align-items: flex-end; gap: 32px; box-shadow: 0 12px 30px rgba(24,58,38,.08); }
+    .dp-hero::after { content: ''; position: absolute; width: 420px; height: 420px; border: 1px solid rgba(255,255,255,.14); border-radius: 50%; top: -220px; right: -110px; box-shadow: 0 0 0 60px rgba(255,255,255,.035), 0 0 0 120px rgba(255,255,255,.02); pointer-events: none; }
+    .dp-hero-text { position: relative; z-index: 1; min-width: 0; }
+    .dp-hero-text .eyebrow { color: #bfe3cb; }
+    .dp-hero-text h1 { margin: 12px 0 8px; font-size: 2.4rem; font-weight: 500; line-height: 1.12; }
+    .dp-hero-text p { margin: 0; color: rgba(255,255,255,.74); font-size: .92rem; }
+    .dp-hero-stats { position: relative; z-index: 1; display: flex; flex: 0 0 auto; }
+    .dp-hero-stat { padding: 0 22px; border-left: 1px solid rgba(255,255,255,.22); text-align: right; }
+    .dp-hero-stat:first-child { border-left: 0; padding-left: 0; }
+    .dp-hero-stat strong { display: block; font-weight: 600; font-size: 1.8rem; line-height: 1; font-variant-numeric: tabular-nums; }
+    .dp-hero-stat span { display: block; margin-top: 7px; color: rgba(255,255,255,.66); font-size: .68rem; letter-spacing: .04em; text-transform: uppercase; }
+
+    .eyebrow { color: var(--green-700); font-size: .71rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    .dp-section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+    .dp-section-head h2 { margin: 6px 0 0; font-size: 1.2rem; font-weight: 600; }
+    .dp-section-note { color: var(--muted); font-size: .76rem; }
+    .dp-badge { display: inline-flex; align-items: center; padding: 5px 11px; border-radius: 999px; background: var(--green-50); color: var(--green-800); font-size: .72rem; font-weight: 700; white-space: nowrap; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 12px 30px rgba(24,58,38,.08); }
+    .dp-panel { border-radius: 12px; padding: 28px 30px; }
+
+    .dp-att-list { list-style: none; margin: 0; padding: 0; }
+    .dp-att-row { display: flex; align-items: center; gap: 12px; padding: 15px 0; border-bottom: 1px solid #edf0ee; }
+    .dp-att-row:first-child { padding-top: 2px; }
+    .dp-att-row:last-child { border-bottom: 0; padding-bottom: 2px; }
+    .dp-att-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+    .dp-att-body { flex: 1; min-width: 0; }
+    .dp-att-body strong { display: block; font-size: .92rem; font-weight: 700; }
+    .dp-att-body span { display: block; margin-top: 3px; color: var(--muted); font-size: .79rem; }
+    .dp-att-row a { flex: 0 0 auto; color: var(--green-700); font-weight: 700; font-size: .78rem; }
+
+    .dp-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 0; }
+    .dp-kpi-card { padding: 22px 24px; border-right: 1px solid var(--border); }
+    .dp-kpi-card:last-child { border-right: 0; }
+    .dp-kpi-icon { width: 32px; height: 32px; border-radius: 8px; background: var(--green-50); color: var(--green-700); display: grid; place-items: center; margin-bottom: 14px; }
+    .dp-kpi-card.is-warning .dp-kpi-icon { background: #fbf0e2; color: var(--warning); }
+    .dp-kpi-label { display: block; color: var(--muted); font-size: .74rem; }
+    .dp-kpi-card strong { display: block; margin-top: 7px; font-weight: 600; font-size: 1.8rem; line-height: 1; }
+    .dp-kpi-card.is-warning strong { color: var(--warning); }
+    .dp-kpi-card small { display: block; margin-top: 8px; color: var(--muted); font-size: .72rem; }
+
+    .dp-quick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .dp-quick-tile { min-width: 0; display: flex; align-items: center; gap: 13px; padding: 16px 18px; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+    .dp-qt-icon { width: 36px; height: 36px; border-radius: 9px; background: var(--green-50); color: var(--green-800); display: grid; place-items: center; flex: 0 0 auto; }
+    .dp-quick-tile div { flex: 1; min-width: 0; }
+    .dp-quick-tile strong { display: block; font-size: .86rem; font-weight: 700; }
+    .dp-quick-tile small { display: block; margin-top: 2px; color: var(--muted); font-size: .71rem; }
+    .dp-qt-chev { color: var(--muted); flex: 0 0 auto; }
+
+    .dp-facts-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 50px; }
+    .dp-fact-row { display: flex; align-items: baseline; gap: 6px; padding: 12px 0; border-bottom: 1px solid #edf0ee; }
+    .dp-fact-row:last-child { border-bottom: 0; }
+    .dp-fact-label { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: .85rem; white-space: nowrap; }
+    .dp-fact-label svg { color: var(--green-700); flex: 0 0 auto; }
+    .dp-fact-leader { flex: 1; border-bottom: 1px dotted #c7d3cb; margin: 0 4px; transform: translateY(-5px); }
+    .dp-fact-value { font-weight: 600; font-size: 1.08rem; white-space: nowrap; }
+
+    .dp-two-col { display: grid; grid-template-columns: 1.5fr 1fr; gap: 22px; align-items: start; }
+    .dp-table { width: 100%; border-collapse: collapse; }
+    .dp-table th { text-align: left; padding: 0 0 11px; color: var(--muted); font-size: .66rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+    .dp-table th.dp-num { text-align: right; }
+    .dp-table td { padding: 13px 0; border-bottom: 1px solid #edf0ee; font-size: .85rem; }
+    .dp-table tr:last-child td { border-bottom: 0; }
+    .dp-table td.dp-num { text-align: right; font-weight: 600; font-size: .98rem; }
+    .dp-table td a { font-weight: 700; color: var(--green-800); }
+    .dp-table td.dp-date { color: var(--muted); }
+
+    .dp-dist-block + .dp-dist-block { margin-top: 22px; padding-top: 22px; border-top: 1px solid #edf0ee; }
+    .dp-dist-title { font-size: .76rem; font-weight: 700; color: var(--green-800); margin: 0 0 12px; }
+    .dp-dist-row { display: grid; grid-template-columns: 108px 1fr 38px; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .dp-dist-row:last-child { margin-bottom: 0; }
+    .dp-dist-name { font-size: .77rem; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dp-dist-bar { height: 5px; border-radius: 3px; background: #edf1ee; overflow: hidden; }
+    .dp-dist-bar i { display: block; height: 100%; background: var(--green-700); }
+    .dp-dist-count { font-size: .77rem; font-weight: 700; text-align: right; }
+  </style>
+</helmet>
+
+<div class="shell">
+
+  <aside class="side">
+    <div class="side-brand">
+      <svg class="side-brand-mark" viewBox="0 0 96 96"><rect width="96" height="96" rx="24" fill="#1f6a45"/><path d="M24 39c5-10 14-16 24-16s19 6 24 16l7-6v12c0 18-14 31-31 31S17 63 17 45V33l7 6Z" fill="#fff" opacity=".96"/><path d="M35 48c0-8 6-14 13-14s13 6 13 14v13H35V48Z" fill="#1f6a45"/><circle cx="39" cy="44" r="3" fill="#fff"/><circle cx="57" cy="44" r="3" fill="#fff"/><path d="M43 55h10" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg>
+      <div><strong>GANADERO</strong><span>Gestión de campo</span></div>
+      <span class="side-collapse"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></span>
+    </div>
+    <nav class="side-nav">
+      <div class="side-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4l8 7"/><path d="M6 10v10h12V10"/></svg><span>Panel principal</span></div>
+      <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-7.2 7-12a7 7 0 1 0-14 0c0 4.8 7 12 7 12Z"/><circle cx="12" cy="9" r="2.3"/></svg><span>Mi finca</span></div>
+      <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v-8"/><path d="M12 12c-4 0-6-3-6-6 4 0 6 2 6 5Z"/><path d="M12 11c3 0 5-2 5-5-3 0-5 1-5 4Z"/></svg><span>Potreros</span></div>
+      <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v4M16 3v4M4 9c0-1.1.9-2 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9Z"/><circle cx="9" cy="13" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="13" r="1.2" fill="currentColor" stroke="none"/></svg><span>Animales</span></div>
+      <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9" width="12" height="8" rx="1"/><path d="M14 12h4l3 3v2h-7"/><circle cx="7" cy="19" r="1.6"/><circle cx="17" cy="19" r="1.6"/></svg><span>Compras</span></div>
+      <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="8" height="8" rx="1"/><rect x="13" y="5" width="8" height="8" rx="1"/></svg><span>Lotes ganaderos</span></div>
+      <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M5 8v3a4 4 0 0 0 4 4h6a4 4 0 0 1 4 3"/></svg><span>Movimientos</span></div>
+      <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 11h6M9 15h6M9 19h3"/></svg><span>Auditoría</span></div>
+      <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3"/><path d="M5 6h14"/><path d="M5 6 3 11a2.5 2.5 0 0 0 5 0L5 6Z"/><path d="M19 6l-2 5a2.5 2.5 0 0 0 5 0l-2-5Z"/><path d="M12 6v13"/><path d="M8 21h8"/></svg><span>Pesajes</span></div>
+      <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-7 4 14 2-7h6"/></svg><span>Reproducción</span></div>
+      <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-9.5-9A5.5 5.5 0 0 1 12 5.5 5.5 5.5 0 0 1 21.5 11c-2.5 4.6-9.5 9-9.5 9Z"/></svg><span>Sanidad</span></div>
+      <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4l2-2Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span>Alertas</span></div>
+      <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12.2a2 2 0 0 0 2 1.6h8.4a2 2 0 0 0 2-1.6L22 7H6"/></svg><span>Ventas</span></div>
+      <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7Z"/><path d="M14 3v4h4"/><path d="M9 17v-3M12 17v-5M15 17v-2"/></svg><span>Reportes</span></div>
+    </nav>
+    <div class="side-footer"><span class="side-avatar">D</span><strong>Denis Guarayo</strong></div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-brand">
+        <svg class="topbar-brand-mark" viewBox="0 0 96 96"><rect width="96" height="96" rx="24" fill="#1f6a45"/><path d="M24 39c5-10 14-16 24-16s19 6 24 16l7-6v12c0 18-14 31-31 31S17 63 17 45V33l7 6Z" fill="#fff" opacity=".96"/><path d="M35 48c0-8 6-14 13-14s13 6 13 14v13H35V48Z" fill="#1f6a45"/><circle cx="39" cy="44" r="3" fill="#fff"/><circle cx="57" cy="44" r="3" fill="#fff"/><path d="M43 55h10" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg>
+        GANADERO
+      </div>
+      <div class="notification-bell"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4l2-2Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span>5</span></div>
+    </header>
+
+    <div class="page-container">
+      <div class="page-stack dashboard-institutional">
+
+        <section class="dp-hero">
+          <div class="dp-hero-text">
+            <span class="eyebrow" style="color:#bfe3cb">Panorama operativo</span>
+            <h1 class="serif">Buen día, Denis</h1>
+            <p>Resumen actualizado 10/9/2026, 08:53 p. m.</p>
+          </div>
+          <div class="dp-hero-stats">
+            <div class="dp-hero-stat"><strong class="num">5</strong><span>Animales activos</span></div>
+            <div class="dp-hero-stat"><strong class="num">123,3 kg</strong><span>Peso promedio</span></div>
+            <div class="dp-hero-stat"><strong class="num">—</strong><span>Ganancia diaria</span></div>
+          </div>
+        </section>
+
+        <section>
+          <div class="dp-section-head">
+            <div><span class="eyebrow">Prioridad diaria</span><h2 class="serif">Atención requerida</h2></div>
+            <span class="dp-badge">2 pendientes</span>
+          </div>
+          <div class="card dp-panel">
+            <ul class="dp-att-list">
+              <li class="dp-att-row">
+                <span class="dp-att-dot" style="background: var(--warning)"></span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 2 20h20L12 4Z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="0.9" fill="var(--warning)" stroke="none"/></svg>
+                <div class="dp-att-body"><strong>Animales sin pesaje hace más de 30 días</strong><span>2 registro(s) requieren atención.</span></div>
+              </li>
+              <li class="dp-att-row">
+                <span class="dp-att-dot" style="background: var(--warning)"></span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 2 20h20L12 4Z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="0.9" fill="var(--warning)" stroke="none"/></svg>
+                <div class="dp-att-body"><strong>2 animales sin pesaje reciente</strong><span>Registra controles para mantener actualizado el seguimiento productivo.</span></div>
+                <a href="#">Registrar pesaje</a>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <section>
+          <div class="dp-section-head">
+            <div><span class="eyebrow">Situación actual</span><h2 class="serif">Resumen productivo</h2></div>
+            <span class="dp-section-note">Actualizado 10/9/2026, 08:53 p. m.</span>
+          </div>
+          <div class="card dp-kpi-grid">
+            <div class="dp-kpi-card">
+              <span class="dp-kpi-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v4M16 3v4M4 9c0-1.1.9-2 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9Z"/><circle cx="9" cy="13" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="13" r="1.3" fill="currentColor" stroke="none"/></svg></span>
+              <span class="dp-kpi-label">Animales activos</span><strong class="num">5</strong><small>5 ubicados en potreros</small>
+            </div>
+            <div class="dp-kpi-card">
+              <span class="dp-kpi-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3"/><path d="M5 6h14"/><path d="M5 6 3 11a2.5 2.5 0 0 0 5 0L5 6Z"/><path d="M19 6l-2 5a2.5 2.5 0 0 0 5 0l-2-5Z"/><path d="M12 6v13"/><path d="M8 21h8"/></svg></span>
+              <span class="dp-kpi-label">Peso promedio</span><strong class="num">123,3 kg</strong><small>8 pesajes en 7 días</small>
+            </div>
+            <div class="dp-kpi-card">
+              <span class="dp-kpi-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 6h6v6"/></svg></span>
+              <span class="dp-kpi-label">Ganancia diaria</span><strong class="num">—</strong><small>Promedio por animal</small>
+            </div>
+            <div class="dp-kpi-card is-warning">
+              <span class="dp-kpi-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 2 20h20L12 4Z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="0.9" fill="currentColor" stroke="none"/></svg></span>
+              <span class="dp-kpi-label">Sin pesaje reciente</span><strong class="num">2</strong><small>Requieren seguimiento</small>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="dp-section-head"><div><span class="eyebrow">Trabajo diario</span><h2 class="serif">Acciones rápidas</h2></div></div>
+          <div class="dp-quick-grid">
+            <div class="dp-quick-tile"><span class="dp-qt-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v4M16 3v4M4 9c0-1.1.9-2 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9Z"/><circle cx="9" cy="13" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="13" r="1.2" fill="currentColor" stroke="none"/></svg></span><div><strong>Registrar animal</strong><small>Agregar una ficha al hato</small></div><span class="dp-qt-chev"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span></div>
+            <div class="dp-quick-tile"><span class="dp-qt-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3"/><path d="M5 6h14"/><path d="M5 6 3 11a2.5 2.5 0 0 0 5 0L5 6Z"/><path d="M19 6l-2 5a2.5 2.5 0 0 0 5 0l-2-5Z"/><path d="M12 6v13"/><path d="M8 21h8"/></svg></span><div><strong>Registrar pesaje</strong><small>Control individual o por lote</small></div><span class="dp-qt-chev"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span></div>
+            <div class="dp-quick-tile"><span class="dp-qt-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M5 8v3a4 4 0 0 0 4 4h6a4 4 0 0 1 4 3"/></svg></span><div><strong>Crear movimiento</strong><small>Trasladar animales con control</small></div><span class="dp-qt-chev"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span></div>
+            <div class="dp-quick-tile"><span class="dp-qt-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 14h2M14 19h2M19 19h2"/></svg></span><div><strong>Escanear QR</strong><small>Abrir rápidamente una ficha</small></div><span class="dp-qt-chev"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span></div>
+          </div>
+        </section>
+
+        <section>
+          <div class="dp-section-head"><div><span class="eyebrow">Campo</span><h2 class="serif">Estado operativo</h2></div></div>
+          <div class="card dp-panel">
+            <div class="dp-facts-grid">
+              <div>
+                <div class="dp-fact-row"><span class="dp-fact-label"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-7.2 7-12a7 7 0 1 0-14 0c0 4.8 7 12 7 12Z"/><circle cx="12" cy="9" r="2.2"/></svg>En potrero</span><span class="dp-fact-leader"></span><span class="dp-fact-value num">5</span></div>
+                <div class="dp-fact-row"><span class="dp-fact-label"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="8" height="8" rx="1"/><rect x="13" y="5" width="8" height="8" rx="1"/></svg>Lotes activos</span><span class="dp-fact-leader"></span><span class="dp-fact-value num">1</span></div>
+                <div class="dp-fact-row"><span class="dp-fact-label"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-7.2 7-12a7 7 0 1 0-14 0c0 4.8 7 12 7 12Z"/><circle cx="12" cy="9" r="2.2"/></svg>Potreros activos</span><span class="dp-fact-leader"></span><span class="dp-fact-value num">3</span></div>
+              </div>
+              <div>
+                <div class="dp-fact-row"><span class="dp-fact-label"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3"/><path d="M5 6h14"/><path d="M5 6 3 11a2.5 2.5 0 0 0 5 0L5 6Z"/><path d="M19 6l-2 5a2.5 2.5 0 0 0 5 0l-2-5Z"/><path d="M12 6v13"/><path d="M8 21h8"/></svg>Pesajes · 7 días</span><span class="dp-fact-leader"></span><span class="dp-fact-value num">8</span></div>
+                <div class="dp-fact-row"><span class="dp-fact-label"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M5 8v3a4 4 0 0 0 4 4h6a4 4 0 0 1 4 3"/></svg>Movimientos · 7 días</span><span class="dp-fact-leader"></span><span class="dp-fact-value num">2</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="dp-two-col">
+            <div>
+              <div class="dp-section-head"><div><span class="eyebrow">Trazabilidad</span><h2 class="serif">Pesajes recientes</h2></div><a href="#">Ver todos →</a></div>
+              <div class="card dp-panel">
+                <table class="dp-table">
+                  <thead><tr><th>Animal</th><th>Fecha</th><th class="dp-num">Peso</th></tr></thead>
+                  <tbody>
+                    <tr><td><a href="#">Gringo</a></td><td class="dp-date">6/9/2026</td><td class="dp-num num">150 kg</td></tr>
+                    <tr><td><a href="#">machoo</a></td><td class="dp-date">6/9/2026</td><td class="dp-num num">150 kg</td></tr>
+                    <tr><td><a href="#">stif</a></td><td class="dp-date">6/9/2026</td><td class="dp-num num">100 kg</td></tr>
+                    <tr><td><a href="#">stif</a></td><td class="dp-date">5/9/2026</td><td class="dp-num num">100 kg</td></tr>
+                    <tr><td><a href="#">dabucho</a></td><td class="dp-date">5/9/2026</td><td class="dp-num num">140 kg</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div>
+              <div class="dp-section-head"><div><span class="eyebrow">Composición</span><h2 class="serif">Distribución del hato</h2></div></div>
+              <div class="card dp-panel">
+                <div class="dp-dist-block">
+                  <p class="dp-dist-title">Por categoría</p>
+                  <div class="dp-dist-row"><span class="dp-dist-name">Vaquilla</span><span class="dp-dist-bar"><i style="width:100%"></i></span><span class="dp-dist-count">2</span></div>
+                  <div class="dp-dist-row"><span class="dp-dist-name">Novillo</span><span class="dp-dist-bar"><i style="width:50%"></i></span><span class="dp-dist-count">1</span></div>
+                  <div class="dp-dist-row"><span class="dp-dist-name">Ternero</span><span class="dp-dist-bar"><i style="width:50%"></i></span><span class="dp-dist-count">1</span></div>
+                  <div class="dp-dist-row"><span class="dp-dist-name">Toro</span><span class="dp-dist-bar"><i style="width:50%"></i></span><span class="dp-dist-count">1</span></div>
+                </div>
+                <div class="dp-dist-block">
+                  <p class="dp-dist-title">Por potrero</p>
+                  <div class="dp-dist-row"><span class="dp-dist-name">Corral</span><span class="dp-dist-bar"><i style="width:100%"></i></span><span class="dp-dist-count">5</span></div>
+                </div>
+                <div class="dp-dist-block">
+                  <p class="dp-dist-title">Por lote</p>
+                  <div class="dp-dist-row"><span class="dp-dist-name">Lote 1</span><span class="dp-dist-bar"><i style="width:100%"></i></span><span class="dp-dist-count">5</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

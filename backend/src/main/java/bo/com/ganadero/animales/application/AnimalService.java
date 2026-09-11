@@ -60,6 +60,16 @@ public class AnimalService {
     }
 
     @Transactional(readOnly = true)
+    public AnimalResumen resumen(AnimalFilter f) {
+        CurrentUser u = context.requirePermission("ANIMAL_VER");
+        if (f.propiedadId() != null) context.requirePropertyAccess(u, f.propiedadId());
+        if (!u.accesoTodasPropiedades() && u.propiedadesPermitidas().isEmpty()) {
+            return new AnimalResumen(0, 0, 0, 0);
+        }
+        return animals.resumen(u.empresaId(), u.propiedadesPermitidas(), f);
+    }
+
+    @Transactional(readOnly = true)
     public Animal get(UUID id) {
         CurrentUser u = context.requirePermission("ANIMAL_VER");
         Animal a = require(id, u.empresaId());

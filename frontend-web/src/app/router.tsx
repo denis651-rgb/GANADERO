@@ -2,6 +2,10 @@ import { Navigate, Route, Routes } from 'react-router'
 import { AppShell } from '@/app/layout/AppShell'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
 import { PropiedadesPage } from '@/features/propiedades/pages/PropiedadesPage'
+import { ConfiguracionGeneralPage } from '@/features/propiedades/pages/ConfiguracionGeneralPage'
+import { RespaldosPage } from '@/features/propiedades/pages/RespaldosPage'
+import { CategoriasEdadPage } from '@/features/propiedades/pages/CategoriasEdadPage'
+import { GoogleCalendarPage } from '@/features/propiedades/pages/GoogleCalendarPage'
 import { PotrerosPage } from '@/features/potreros/pages/PotrerosPage'
 import { AnimalesPage } from '@/features/animales/pages/AnimalesPage'
 import { NuevoAnimalPage } from '@/features/animales/pages/NuevoAnimalPage'
@@ -31,6 +35,10 @@ export function AppRouter() {
       <Route element={<AppShell />}>
         <Route index element={<DashboardPage />} />
         <Route path="propiedades" element={<PropiedadesPage />} />
+        <Route path="propiedades/configuracion" element={<ConfiguracionGeneralPage />} />
+        <Route path="propiedades/respaldos" element={<RespaldosPage />} />
+        <Route path="propiedades/categorias-edad" element={<CategoriasEdadPage />} />
+        <Route path="propiedades/google-calendar" element={<GoogleCalendarPage />} />
         <Route path="potreros" element={<PotrerosPage />} />
         <Route path="animales" element={<AnimalesPage />} />
         <Route path="animales/nuevo" element={<NuevoAnimalPage />} />

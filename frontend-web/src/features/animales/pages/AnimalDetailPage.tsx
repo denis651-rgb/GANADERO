@@ -9,7 +9,7 @@ import { IdentificadoresTab } from '@/features/animales/components/Identificador
 import { FotosTab } from '@/features/animales/components/FotosTab'
 import type { AnimalState } from '@/features/animales/types'
 import { listPropiedades } from '@/features/propiedades/api'
-import { listPotreros } from '@/features/potreros/api'
+import { listAllPotreros } from '@/features/potreros/api'
 import { ESTADO_CALOSTRADO_LABELS, listControlesEctoparasitarios, listControlesNeonatales, listExamenesReproductivos, listTratamientos, MOMENTO_CONTROL_NEONATAL_LABELS, NIVEL_CARGA_PARASITARIA_LABELS, RESULTADO_EXAMEN_REPRODUCTIVO_LABELS, TIPO_ECTOPARASITO_LABELS, type ControlEctoparasitario, type ControlNeonatal, type ExamenReproductivo, type Tratamiento } from '@/features/sanidad/api'
 import { getResumenCompraAnimal } from '@/features/compras/api'
 import { getPesajeHistory } from '@/features/pesajes/api'
@@ -91,7 +91,7 @@ export function AnimalDetailPage() {
   const compraResumen = useQuery({ queryKey: ['animal-compra-resumen', id], queryFn: () => getResumenCompraAnimal(id), enabled: Boolean(id) })
   const historialPesos = useQuery({ queryKey: ['pesaje-history', id], queryFn: () => getPesajeHistory(id), enabled: Boolean(id) })
   const catalogs = useQuery({ queryKey: ['animal-detail-catalogs'], queryFn: async () => {
-    const [breeds, categories, properties, paddocks] = await Promise.all([listRazas(), listCategorias(), listPropiedades(), listPotreros()])
+    const [breeds, categories, properties, paddocks] = await Promise.all([listRazas(), listCategorias(), listPropiedades(), listAllPotreros()])
     return { breeds, categories, properties, paddocks }
   } })
   const stateMutation = useMutation({

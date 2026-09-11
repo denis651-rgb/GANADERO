@@ -11,7 +11,7 @@ import { listAnimals } from '@/features/animales/api'
 import type { AnimalSummary } from '@/features/animales/types'
 import { listLotes } from '@/features/lotes/api'
 import { listPropiedades } from '@/features/propiedades/api'
-import { listPotreros } from '@/features/potreros/api'
+import { listAllPotreros } from '@/features/potreros/api'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
@@ -105,7 +105,7 @@ export function MovimientosPage() {
     queryKey: ['movimientos-catalogs'],
     queryFn: async () => {
       const [propiedades, potreros, lotesPage, animalesPage] = await Promise.all([
-        listPropiedades(), listPotreros(), listLotes({ search: undefined, estado: 'ACTIVO', page: 0, size: 500 }),
+        listPropiedades(), listAllPotreros(), listLotes({ search: undefined, estado: 'ACTIVO', page: 0, size: 500 }),
         listAnimals({ search: undefined, estado: 'ACTIVO', sexo: '', page: 0, size: 500 }),
       ])
       return { propiedades, potreros, lotes: lotesPage.content, animales: animalesPage.content }
