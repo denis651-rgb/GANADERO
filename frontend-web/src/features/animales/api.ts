@@ -37,7 +37,7 @@ export async function createAnimalesLote(input: CrearAnimalesLoteInput) {
 
 export interface AnimalResumen { total: number; activos: number; hembras: number; machos: number }
 
-export async function getAnimalesResumen(filters?: AnimalFilters) {
+export async function getAnimalesResumen(filters?: Omit<AnimalFilters, 'page' | 'size'>) {
   const params = {
     search: filters?.search || undefined,
     estado: filters?.estado || undefined,

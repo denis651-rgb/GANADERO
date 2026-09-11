@@ -12,6 +12,7 @@ import { NuevoAnimalPage } from '@/features/animales/pages/NuevoAnimalPage'
 import { IngresoLotePage } from '@/features/animales/pages/IngresoLotePage'
 import { AnimalDetailPage } from '@/features/animales/pages/AnimalDetailPage'
 import { EditarAnimalPage } from '@/features/animales/pages/EditarAnimalPage'
+import { DeclararHistorialLotePage } from '@/features/animales/pages/DeclararHistorialLotePage'
 import { QrScannerPage } from '@/features/animales/qr/pages/QrScannerPage'
 import { QrPrintPage } from '@/features/animales/qr/pages/QrPrintPage'
 import { LotesPage } from '@/features/lotes/pages/LotesPage'
@@ -45,6 +46,7 @@ export function AppRouter() {
         <Route path="animales/ingreso-lote" element={<IngresoLotePage />} />
         <Route path="animales/:id" element={<AnimalDetailPage />} />
         <Route path="animales/:id/editar" element={<EditarAnimalPage />} />
+        <Route path="animales/declarar-historial" element={<DeclararHistorialLotePage />} />
         <Route path="lotes" element={<LotesPage />} />
         <Route path="lotes/:id" element={<LoteDetailPage />} />
         <Route path="movimientos" element={<MovimientosPage />} />

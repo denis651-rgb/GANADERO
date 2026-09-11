@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { listAnimals } from '@/features/animales/api'
 import type { AnimalSummary } from '@/features/animales/types'
 import { listLotes } from '@/features/lotes/api'
-import { listPotreros } from '@/features/potreros/api'
+import { listAllPotreros } from '@/features/potreros/api'
 import { listPropiedades } from '@/features/propiedades/api'
 import type { Propiedad } from '@/features/propiedades/api'
 
@@ -24,7 +24,7 @@ export function useReproduccionCatalogs() {
     queryFn: async () => {
       const [properties, paddocks, lotsPage, hembrasPage, machosPage] = await Promise.all([
         listPropiedades(),
-        listPotreros(),
+        listAllPotreros(),
         listLotes({ estado: 'ACTIVO', page: 0, size: 100 }),
         listAnimals({ estado: 'ACTIVO', sexo: 'HEMBRA', page: 0, size: 500 }),
         listAnimals({ estado: 'ACTIVO', sexo: 'MACHO', page: 0, size: 500 }),
