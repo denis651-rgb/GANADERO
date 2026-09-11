@@ -11,4 +11,5 @@ public interface AnimalRepository {AnimalPage findAll(UUID empresa,Set<UUID> per
  List<Animal> findParaReclasificacion(int offset,int limit);
  void actualizarCategoria(UUID animalId,UUID nuevaCategoria,UUID actor);
  boolean existeAnimalConCategoria(UUID categoriaId);
+ AnimalResumen resumen(UUID empresa,Set<UUID> permitidas,AnimalFilter filter);
 }

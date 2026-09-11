@@ -6,7 +6,7 @@ import { addAnimales, cerrarLote, getLote, listMembresias, retirarAnimales, upda
 import type { ModoIngreso } from '@/features/lotes/api'
 import { listAnimals } from '@/features/animales/api'
 import { listPropiedades } from '@/features/propiedades/api'
-import { listPotreros } from '@/features/potreros/api'
+import { listAllPotreros } from '@/features/potreros/api'
 import { ControlEctoparasitarioModal } from '@/features/sanidad/components/ControlEctoparasitarioModal'
 import { MoverLoteWizard } from '@/features/lotes/components/MoverLoteWizard'
 import type { ResultadoMovimientoLote } from '@/features/movimientolote/types'
@@ -49,7 +49,7 @@ export function LoteDetailPage() {
   const miembros = useQuery({ queryKey: ['lote-miembros', id, true], queryFn: () => listMembresias(id, true), enabled: Boolean(id) })
   const historicos = useQuery({ queryKey: ['lote-miembros', id, false], queryFn: () => listMembresias(id, false), enabled: Boolean(id) })
   const catalogs = useQuery({ queryKey: ['lote-catalogs'], queryFn: async () => {
-    const [propiedades, potreros] = await Promise.all([listPropiedades(), listPotreros()])
+    const [propiedades, potreros] = await Promise.all([listPropiedades(), listAllPotreros()])
     return { propiedades, potreros }
   } })
   const disponiblesQuery = useQuery({

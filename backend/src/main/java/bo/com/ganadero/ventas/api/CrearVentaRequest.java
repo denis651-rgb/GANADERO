@@ -2,6 +2,7 @@ package bo.com.ganadero.ventas.api;
 
 import bo.com.ganadero.pesajes.domain.TipoPeso;
 import bo.com.ganadero.ventas.application.VentaCommand;
+import bo.com.ganadero.ventas.domain.ModalidadVenta;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -20,10 +21,12 @@ public record CrearVentaRequest(
         String observaciones,
         UUID pesajeExistenteId,
         TipoPeso tipoPeso,
-        String dispositivo) {
+        String dispositivo,
+        String telefonoComprador,
+        ModalidadVenta modalidad) {
 
     public VentaCommand toCommand() {
         return new VentaCommand(animalId, fechaVenta, comprador, precio, moneda, pesoVentaKg, observaciones,
-                pesajeExistenteId, tipoPeso, dispositivo);
+                pesajeExistenteId, tipoPeso, dispositivo, telefonoComprador, modalidad);
     }
 }

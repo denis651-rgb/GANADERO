@@ -17,6 +17,7 @@ import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import bo.com.ganadero.shared.security.CurrentUser;
 import bo.com.ganadero.shared.security.UserContext;
+import bo.com.ganadero.ventas.domain.ModalidadVenta;
 import bo.com.ganadero.ventas.domain.Venta;
 import bo.com.ganadero.ventas.domain.VentaRepository;
 import org.springframework.beans.factory.ObjectProvider;
@@ -24,22 +25,33 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
- * Registra el precio/comprador de la venta de un animal en un solo paso.
+ * Registra el precio/comprador de la venta de uno o varios animales.
  *
  * <p>No reimplementa la máquina de estados de movimientos: compone con
  * {@link MovimientoService} (tipo SALIDA_VENTA) para que el animal pase a
  * VENDIDO, y guarda los datos comerciales en su propia tabla. El peso de
  * salida se apoya en el historial de {@link Pesaje}: reutiliza uno existente
- * (sin duplicarlo) o crea uno nuevo con motivo VENTA enlazado a esta venta.</p>
+ * (sin duplicarlo, solo disponible para la venta individual) o crea uno nuevo
+ * con motivo VENTA enlazado a esta venta.</p>
+ *
+ * <p>{@link #registrarLote(VentaLoteCommand)} vende varios animales en una sola
+ * transacción (todo o nada), bajo dos modalidades: {@link ModalidadVenta#EN_PIE}
+ * (un precio fijo por cabeza, igual para todos) o {@link ModalidadVenta#CARNEADO}
+ * (precio por kilo, monto distinto por animal según {@code pesosVentaKg}).</p>
  */
 @Service
 public class VentaService {
+    private static final int ESCALA_MONETARIA = 2;
+
     private final VentaRepository ventas;
     private final AnimalRepository animales;
     private final MovimientoService movimientos;
@@ -74,14 +86,6 @@ public class VentaService {
         }
         LocalDate fecha = command.fechaVenta() == null ? LocalDate.now() : command.fechaVenta();
 
-        RestriccionRetiroPort retiro = restriccionRetiro.getIfAvailable();
-        if (retiro != null) {
-            retiro.vigente(user.empresaId(), animal.id(), fecha).ifPresent(r -> {
-                throw new BusinessException(ErrorCode.VENTA_RETIRO_SANITARIO_VIGENTE,
-                        "El animal tiene un retiro de " + r.tipo() + " vigente hasta " + r.hasta() + ".");
-            });
-        }
-
         Pesaje pesajeReferenciado = null;
         if (command.pesajeExistenteId() != null) {
             Pesaje existente = pesajes.findById(command.pesajeExistenteId(), user.empresaId())
@@ -92,8 +96,84 @@ public class VentaService {
             pesajeReferenciado = existente;
         }
 
+        String moneda = command.moneda() == null || command.moneda().isBlank() ? "BOB" : command.moneda();
+        return procesarUnaVenta(user, animal, fecha, command.comprador(), command.telefonoComprador(),
+                command.modalidad() == null ? ModalidadVenta.EN_PIE : command.modalidad(), command.precio(), null,
+                moneda, pesajeReferenciado, command.pesoVentaKg(), command.tipoPeso(), command.dispositivo(),
+                command.observaciones(), null);
+    }
+
+    @Transactional
+    public List<Venta> registrarLote(VentaLoteCommand command) {
+        CurrentUser user = context.requirePermission("VENTA_REGISTRAR");
+        if (command.animalIds() == null || command.animalIds().isEmpty()) {
+            throw new BusinessException(ErrorCode.VENTA_LOTE_VACIO);
+        }
+        if (command.comprador() == null || command.comprador().isBlank()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+        }
+        if (command.modalidad() == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "La modalidad de venta es obligatoria.");
+        }
+        if (command.modalidad() == ModalidadVenta.EN_PIE
+                && (command.precioCabeza() == null || command.precioCabeza().signum() <= 0)) {
+            throw new BusinessException(ErrorCode.VENTA_PRECIO_INVALIDO, "Indica un precio por cabeza válido.");
+        }
+        if (command.modalidad() == ModalidadVenta.CARNEADO
+                && (command.precioKg() == null || command.precioKg().signum() <= 0)) {
+            throw new BusinessException(ErrorCode.VENTA_PRECIO_INVALIDO, "Indica un precio por kilo válido.");
+        }
+        LocalDate fecha = command.fechaVenta() == null ? LocalDate.now() : command.fechaVenta();
+        Map<UUID, BigDecimal> pesos = command.pesosVentaKg() == null ? Map.of() : command.pesosVentaKg();
+        UUID grupoVentaId = UUID.randomUUID();
+
+        List<Venta> resultado = new java.util.ArrayList<>();
+        for (UUID animalId : new LinkedHashSet<>(command.animalIds())) {
+            Animal animal = animales.findById(animalId, user.empresaId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.ANIMAL_NOT_FOUND));
+            if (animal.estado() == EstadoAnimal.VENDIDO) {
+                throw new BusinessException(ErrorCode.ANIMAL_STATUS_NOT_ALLOWED,
+                        "El animal " + animal.codigo() + " ya fue vendido.");
+            }
+            BigDecimal peso = pesos.get(animalId);
+            if (command.modalidad() == ModalidadVenta.CARNEADO && (peso == null || peso.signum() <= 0)) {
+                throw new BusinessException(ErrorCode.VENTA_PESO_REQUERIDO,
+                        "Falta el peso de salida del animal " + animal.codigo() + " para calcular su precio.");
+            }
+            if (peso != null && peso.signum() <= 0) throw new BusinessException(ErrorCode.PESAJE_PESO_INVALIDO);
+
+            BigDecimal precioUnitario = command.modalidad() == ModalidadVenta.EN_PIE
+                    ? command.precioCabeza() : command.precioKg();
+            BigDecimal precio = command.modalidad() == ModalidadVenta.EN_PIE
+                    ? command.precioCabeza()
+                    : command.precioKg().multiply(peso).setScale(ESCALA_MONETARIA, RoundingMode.HALF_UP);
+
+            resultado.add(procesarUnaVenta(user, animal, fecha, command.comprador(), command.telefonoComprador(),
+                    command.modalidad(), precio, precioUnitario, "BOB", null, peso, TipoPeso.MEDIDO, "WEB",
+                    command.observaciones(), grupoVentaId));
+        }
+        return resultado;
+    }
+
+    /**
+     * Núcleo compartido de una venta individual: valida retiro sanitario, confirma el movimiento
+     * SALIDA_VENTA (única fuente de verdad para el cambio de estado del animal), persiste la
+     * {@link Venta} y, si corresponde, el {@link Pesaje} de salida.
+     */
+    private Venta procesarUnaVenta(CurrentUser user, Animal animal, LocalDate fecha, String comprador,
+                                   String telefonoComprador, ModalidadVenta modalidad, BigDecimal precio,
+                                   BigDecimal precioUnitario, String moneda, Pesaje pesajeReferenciado, BigDecimal pesoNuevo,
+                                   TipoPeso tipoPeso, String dispositivo, String observaciones, UUID grupoVentaId) {
+        RestriccionRetiroPort retiro = restriccionRetiro.getIfAvailable();
+        if (retiro != null) {
+            retiro.vigente(user.empresaId(), animal.id(), fecha).ifPresent(r -> {
+                throw new BusinessException(ErrorCode.VENTA_RETIRO_SANITARIO_VIGENTE,
+                        "El animal tiene un retiro de " + r.tipo() + " vigente hasta " + r.hasta() + ".");
+            });
+        }
+
         Movimiento movimiento = movimientos.create(new MovimientoCommand(null, TipoMovimiento.SALIDA_VENTA, fecha,
-                "Venta a " + command.comprador(), command.observaciones(),
+                "Venta a " + comprador, observaciones,
                 null, null, null, null, null, null,
                 List.of(new MovimientoAnimal(animal.id(), animal.version()))));
         movimientos.confirm(movimiento.id(), movimiento.version());
@@ -101,34 +181,34 @@ public class VentaService {
         BigDecimal pesoKg;
         if (pesajeReferenciado != null) {
             pesoKg = pesajeReferenciado.pesoKg();
-        } else if (command.pesoVentaKg() != null) {
-            if (command.pesoVentaKg().signum() <= 0) throw new BusinessException(ErrorCode.PESAJE_PESO_INVALIDO);
-            pesoKg = command.pesoVentaKg();
+        } else if (pesoNuevo != null) {
+            if (pesoNuevo.signum() <= 0) throw new BusinessException(ErrorCode.PESAJE_PESO_INVALIDO);
+            pesoKg = pesoNuevo;
         } else {
             pesoKg = null;
         }
 
         // La Venta se persiste antes que cualquier Pesaje nuevo: pesaje.venta_id tiene FK a venta(id).
         UUID ventaId = UUID.randomUUID();
-        Venta venta = new Venta(ventaId, animal.id(), movimiento.id(), fecha, command.comprador(),
-                command.precio(), command.moneda() == null || command.moneda().isBlank() ? "BOB" : command.moneda(),
-                pesoKg, command.observaciones(), user.userId(), Instant.now(), 0);
+        Venta venta = new Venta(ventaId, animal.id(), movimiento.id(), fecha, comprador, precio,
+                moneda, pesoKg, observaciones, user.userId(), Instant.now(), 0, telefonoComprador, modalidad,
+                precioUnitario, grupoVentaId);
         Venta guardada = ventas.create(venta);
 
-        if (pesajeReferenciado == null && command.pesoVentaKg() != null) {
-            crearPesajeVenta(user, command, animal, fecha, movimiento.id(), ventaId);
+        if (pesajeReferenciado == null && pesoNuevo != null) {
+            crearPesajeVenta(user, animal, fecha, movimiento.id(), ventaId, pesoNuevo, tipoPeso, dispositivo);
         }
         return guardada;
     }
 
     /** Crea un pesaje nuevo (motivo VENTA) enlazado a una venta ya persistida. */
-    private void crearPesajeVenta(CurrentUser user, VentaCommand command, Animal animal, LocalDate fecha,
-                                  UUID movimientoId, UUID ventaId) {
+    private void crearPesajeVenta(CurrentUser user, Animal animal, LocalDate fecha, UUID movimientoId, UUID ventaId,
+                                  BigDecimal pesoVentaKg, TipoPeso tipoPeso, String dispositivo) {
         UUID id = UUID.randomUUID();
-        Pesaje nuevo = new Pesaje(id, user.empresaId(), animal.id(), fecha, command.pesoVentaKg(),
-                TipoPesaje.VENTA, command.tipoPeso() == null ? TipoPeso.MEDIDO : command.tipoPeso(),
+        Pesaje nuevo = new Pesaje(id, user.empresaId(), animal.id(), fecha, pesoVentaKg,
+                TipoPesaje.VENTA, tipoPeso == null ? TipoPeso.MEDIDO : tipoPeso,
                 null, null, user.userId(), animal.propiedadActualId(), animal.potreroActualId(),
-                animal.loteActualId(), command.dispositivo(), null, ventaId, movimientoId, id, null,
+                animal.loteActualId(), dispositivo, null, ventaId, movimientoId, id, null,
                 EstadoPesaje.ACTIVO, null, null, null, "Peso de salida registrado al vender.",
                 null, null, null, null, null, null, 0);
         pesajes.create(nuevo, user.userId());

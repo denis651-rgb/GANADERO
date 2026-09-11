@@ -4,7 +4,7 @@ import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, ShieldAlert } from 
 import type { Lote, Membresia } from '@/features/lotes/api'
 import { listLotes } from '@/features/lotes/api'
 import { listPropiedades } from '@/features/propiedades/api'
-import { listPotreros } from '@/features/potreros/api'
+import { listAllPotreros } from '@/features/potreros/api'
 import {
   cancelarPreparacionMovimientoLote,
   confirmarMovimientoLote,
@@ -67,7 +67,7 @@ export function MoverLoteWizard({ lote, miembrosActivos, onClose, onSuccess }: M
   const catalogs = useQuery({
     queryKey: ['mover-lote-catalogs'],
     queryFn: async () => {
-      const [propiedades, potreros] = await Promise.all([listPropiedades(), listPotreros()])
+      const [propiedades, potreros] = await Promise.all([listPropiedades(), listAllPotreros()])
       return { propiedades, potreros }
     },
   })

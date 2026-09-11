@@ -22,7 +22,7 @@ describe('DashboardPage operativo', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<MemoryRouter><QueryClientProvider client={client}><DashboardPage /></QueryClientProvider></MemoryRouter>)
 
-    expect(await screen.findByText('42')).toBeInTheDocument()
+    expect((await screen.findAllByText('42')).length).toBeGreaterThan(0)
     expect(screen.getByRole('heading', { name: 'Atención requerida' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Registrar animal/ })).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: /Registrar pesaje/ })).not.toHaveLength(0)
@@ -34,11 +34,10 @@ describe('DashboardPage operativo', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<MemoryRouter><QueryClientProvider client={client}><DashboardPage /></QueryClientProvider></MemoryRouter>)
 
-    const items = await screen.findAllByRole('listitem')
-    const attentionItems = items.filter((item) => item.className.startsWith('attention-'))
-    expect(attentionItems[0].className).toBe('attention-danger')
+    const attentionItems = await screen.findAllByRole('listitem')
     expect(within(attentionItems[0]).getByText('Tratamientos vencidos')).toBeInTheDocument()
-    expect(attentionItems[1].className).toBe('attention-warning')
+    expect(attentionItems[0].querySelector('.dp-att-dot')).toHaveStyle({ background: 'var(--danger)' })
+    expect(attentionItems[1].querySelector('.dp-att-dot')).toHaveStyle({ background: 'var(--warning)' })
   })
 
   it('lista los pesajes recientes en una tabla con columnas alineadas', async () => {

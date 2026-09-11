@@ -1,6 +1,8 @@
 package bo.com.ganadero.animales.application;
 
 import bo.com.ganadero.animales.domain.*;
+import bo.com.ganadero.shared.codigos.CodigoService;
+import bo.com.ganadero.shared.codigos.TipoCodigo;
 import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import bo.com.ganadero.shared.security.CurrentUser;
@@ -33,15 +35,17 @@ public class CategoriaAnimalConfigService {
     private final AnimalRepository animales;
     private final HistorialCategoriaAnimalRepository historial;
     private final UserContext context;
+    private final CodigoService codigos;
     private final TransactionTemplate porAnimal;
 
     public CategoriaAnimalConfigService(CategoriaAnimalRepository categorias, AnimalRepository animales,
                                         HistorialCategoriaAnimalRepository historial, UserContext context,
-                                        PlatformTransactionManager transactionManager) {
+                                        CodigoService codigos, PlatformTransactionManager transactionManager) {
         this.categorias = categorias;
         this.animales = animales;
         this.historial = historial;
         this.context = context;
+        this.codigos = codigos;
         this.porAnimal = new TransactionTemplate(transactionManager);
         this.porAnimal.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -54,9 +58,10 @@ public class CategoriaAnimalConfigService {
 
     @Transactional
     public CategoriaAnimal crear(RangoCategoriaCommand c) {
-        context.requirePermission(PERMISO);
+        CurrentUser u = context.requirePermission(PERMISO);
         validar(c, null);
-        CategoriaAnimal nueva = new CategoriaAnimal(UUID.randomUUID(), null, c.codigo(), c.nombre(),
+        String codigo = codigos.paraCreacion(u, TipoCodigo.CATEGORIA, null, null, c.codigo());
+        CategoriaAnimal nueva = new CategoriaAnimal(UUID.randomUUID(), null, codigo, c.nombre(),
                 c.sexoAplicable(), c.edadMinMeses(), c.edadMaxMeses(), c.descripcion(), true,
                 c.clasificacionAutomatica(), c.ordenEvaluacion());
         return categorias.crear(nueva);

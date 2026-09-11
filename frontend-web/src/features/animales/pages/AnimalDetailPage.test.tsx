@@ -30,7 +30,7 @@ vi.mock('@/features/sanidad/api', async () => {
   }
 })
 vi.mock('@/features/propiedades/api', () => ({ listPropiedades: vi.fn().mockResolvedValue([]) }))
-vi.mock('@/features/potreros/api', () => ({ listPotreros: vi.fn().mockResolvedValue([]) }))
+vi.mock('@/features/potreros/api', () => ({ listAllPotreros: vi.fn().mockResolvedValue([]) }))
 vi.mock('@/features/compras/api', () => ({ getResumenCompraAnimal: vi.fn().mockResolvedValue(null) }))
 vi.mock('@/features/pesajes/api', () => ({ getPesajeHistory: vi.fn().mockResolvedValue([]) }))
 vi.mock('@/features/animales/components/GenealogiaTab', () => ({ GenealogiaTab: () => null }))

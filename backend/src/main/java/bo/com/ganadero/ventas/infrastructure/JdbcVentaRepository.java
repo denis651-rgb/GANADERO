@@ -1,6 +1,7 @@
 package bo.com.ganadero.ventas.infrastructure;
 
 import bo.com.ganadero.shared.db.Rows;
+import bo.com.ganadero.ventas.domain.ModalidadVenta;
 import bo.com.ganadero.ventas.domain.Venta;
 import bo.com.ganadero.ventas.domain.VentaRepository;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -27,8 +28,9 @@ public class JdbcVentaRepository implements VentaRepository {
     public Venta create(Venta v) {
         jdbc.sql("""
                 insert into venta(id,animal_id,movimiento_id,fecha_venta,comprador,precio,moneda,
-                    peso_venta_kg,observaciones,created_by)
-                values(:id,:animal,:movimiento,:fecha,:comprador,:precio,:moneda,:peso,:obs,:actor)
+                    peso_venta_kg,observaciones,created_by,telefono_comprador,modalidad,precio_unitario,grupo_venta_id)
+                values(:id,:animal,:movimiento,:fecha,:comprador,:precio,:moneda,:peso,:obs,:actor,
+                    :telefono,:modalidad,:precioUnitario,:grupo)
                 """)
                 .param("id", v.id().toString())
                 .param("animal", v.animalId().toString())
@@ -40,6 +42,10 @@ public class JdbcVentaRepository implements VentaRepository {
                 .param("peso", v.pesoVentaKg())
                 .param("obs", v.observaciones())
                 .param("actor", v.createdBy() == null ? null : v.createdBy().toString())
+                .param("telefono", v.telefonoComprador())
+                .param("modalidad", v.modalidad().name())
+                .param("precioUnitario", v.precioUnitario())
+                .param("grupo", v.grupoVentaId() == null ? null : v.grupoVentaId().toString())
                 .update();
         return findById(v.id()).orElseThrow();
     }
@@ -74,6 +80,8 @@ public class JdbcVentaRepository implements VentaRepository {
                 LocalDate.parse(r.getString("fecha_venta")), r.getString("comprador"),
                 r.getBigDecimal("precio"), r.getString("moneda"), r.getBigDecimal("peso_venta_kg"),
                 r.getString("observaciones"), Rows.uuid(r, "created_by"), Rows.instant(r, "created_at"),
-                r.getLong("version"));
+                r.getLong("version"), r.getString("telefono_comprador"),
+                ModalidadVenta.valueOf(r.getString("modalidad")), r.getBigDecimal("precio_unitario"),
+                Rows.uuid(r, "grupo_venta_id"));
     }
 }

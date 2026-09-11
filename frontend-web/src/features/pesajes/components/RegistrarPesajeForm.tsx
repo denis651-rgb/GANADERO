@@ -8,7 +8,7 @@ import { registrarPesaje } from '@/features/pesajes/api'
 import type { AnimalSummary } from '@/features/animales/types'
 import { listLotes } from '@/features/lotes/api'
 import { listPropiedades } from '@/features/propiedades/api'
-import { listPotreros } from '@/features/potreros/api'
+import { listAllPotreros } from '@/features/potreros/api'
 import { AnimalPicker } from '@/features/pesajes/components/AnimalPicker'
 import { createUuid } from '@/shared/utils/uuid'
 import { Button } from '@/shared/components/Button'
@@ -50,7 +50,7 @@ export function RegistrarPesajeForm({ onSaved, onCancel }: RegistrarPesajeFormPr
     queryFn: async () => {
       const [properties, paddocks, lots] = await Promise.all([
         listPropiedades(),
-        listPotreros(),
+        listAllPotreros(),
         listLotes({ estado: 'ACTIVO', page: 0, size: 200 }),
       ])
       return { properties, paddocks, lots }

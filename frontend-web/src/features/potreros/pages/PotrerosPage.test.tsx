@@ -6,7 +6,7 @@ import { PotrerosPage } from './PotrerosPage'
 const updatePotrero = vi.fn()
 vi.mock('@/auth/auth-context', () => ({ useAuth: () => ({ can: () => true }) }))
 vi.mock('@/features/potreros/api', () => ({
-  listPotreros: vi.fn().mockResolvedValue([{ id: 'pot-1', propiedadId: 'p-1', codigo: 'P-01', nombre: 'Norte', estado: 'DISPONIBLE', activo: true, tieneAgua: true, version: 1 }]),
+  listPotreros: vi.fn().mockResolvedValue({ content: [{ id: 'pot-1', propiedadId: 'p-1', codigo: 'P-01', nombre: 'Norte', estado: 'DISPONIBLE', activo: true, tieneAgua: true, version: 1 }], page: 0, size: 20, totalElements: 1, totalPages: 1 }),
   listTiposPasto: vi.fn().mockResolvedValue([]), createPotrero: vi.fn(),
   updatePotrero: (...args: unknown[]) => updatePotrero(...args),
 }))

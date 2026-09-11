@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, Link, RefreshCw, RotateCw, Save, Unlink, Upload } from 'lucide-react'
+import { Link, RefreshCw, RotateCw, Save, Unlink, Upload } from 'lucide-react'
 import { getConfiguracionCalendarioExterno, getEstadoSincronizacionCalendario, guardarConfiguracionCalendarioExterno, reintentarSincronizacionCalendario } from '@/features/configuracion/calendarioExternoApi'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
@@ -84,7 +84,7 @@ export function GoogleCalendarPanel() {
 
   return <Card>
     <div className="section-heading">
-      <div><h3><CalendarDays size={18} aria-hidden="true" /> Google Calendar</h3><p className="muted">Conecta una cuenta para enviar las actividades sanitarias al calendario creado por Ganadero.</p></div>
+      <p className="muted">Conecta una cuenta para enviar las actividades sanitarias al calendario creado por Ganadero.</p>
       {backend.data && <span className={`status-badge ${connected ? 'status-activo' : 'status-inactivo'}`}>{connected ? 'AUTORIZADO' : backend.data.estado}</span>}
     </div>
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}

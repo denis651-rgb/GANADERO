@@ -1,14 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, CheckCircle2, ClipboardPlus, Plus, Save, Trash2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, ClipboardPlus, Copy, Plus, Save, Trash2, Wand2 } from 'lucide-react'
 import { getAnimal, listCategorias, listRazas } from '@/features/animales/api'
 import { calcularNacimientoEstimado, categoriaSugerida } from '@/features/animales/edad'
 import type { AnimalSummary, CategoriaAnimal, UnidadEdadDeclarada } from '@/features/animales/types'
 import { DeclararHistorialModal } from '@/features/animales/components/DeclararHistorialModal'
-import { DeclararHistorialLoteModal } from '@/features/animales/components/DeclararHistorialLoteModal'
 import { listPropiedades } from '@/features/propiedades/api'
-import { listPotreros } from '@/features/potreros/api'
+import { listAllPotreros } from '@/features/potreros/api'
 import { createMovimiento, confirmarMovimiento } from '@/features/movimientos/api'
 import { confirmarCompra, crearCompra, getCompraDetalles } from '@/features/compras/api'
 import { fechaRecepcionInstant, type ModalidadPrecio } from '@/features/compras/types'
@@ -70,17 +69,22 @@ export function IngresoLotePage() {
   const [enviarCuarentena, setEnviarCuarentena] = useState(false)
   const [cuarentenaPotreroId, setCuarentenaPotreroId] = useState('')
   const [filas, setFilas] = useState<AnimalRow[]>(() => [filaVacia()])
+  const [cantidadAgregar, setCantidadAgregar] = useState('1')
+  const [bulkSexo, setBulkSexo] = useState<'' | 'MACHO' | 'HEMBRA'>('')
+  const [bulkPeso, setBulkPeso] = useState('')
+  const [bulkTipoPeso, setBulkTipoPeso] = useState('ESTIMADO')
+  const [bulkEdadValor, setBulkEdadValor] = useState('')
+  const [bulkEdadUnidad, setBulkEdadUnidad] = useState<UnidadEdadDeclarada>('MESES')
+  const focoRef = useRef<number | null>(null)
   const [creados, setCreados] = useState<AnimalSummary[] | null>(null)
   const [declarandoPara, setDeclarandoPara] = useState<AnimalSummary | null>(null)
-  const [declarandoLote, setDeclarandoLote] = useState(false)
   const [declarados, setDeclarados] = useState<Set<string>>(new Set())
-  const [declaracionExitosa, setDeclaracionExitosa] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
 
   const catalogs = useQuery({
     queryKey: ['animal-form-catalogs'],
     queryFn: async () => {
-      const [breeds, categories, properties, paddocks] = await Promise.all([listRazas(), listCategorias(), listPropiedades(), listPotreros()])
+      const [breeds, categories, properties, paddocks] = await Promise.all([listRazas(), listCategorias(), listPropiedades(), listAllPotreros()])
       return { breeds, categories, properties, paddocks }
     },
   })
@@ -89,6 +93,49 @@ export function IngresoLotePage() {
   const actualizarFila = (key: number, campo: keyof AnimalRow, valor: string) => {
     setFilas((prev) => prev.map((fila) => (fila.key === key ? { ...fila, [campo]: valor } : fila)))
   }
+
+  const hayBulk = Boolean(bulkSexo || bulkPeso || bulkEdadValor)
+
+  function agregarFilas(n: number) {
+    const inicio = filas.length + 1
+    setFilas((prev) => [...prev, ...Array.from({ length: n }, () => filaVacia())])
+    focoRef.current = inicio
+  }
+
+  function duplicarFila(key: number) {
+    const indice = filas.findIndex((fila) => fila.key === key)
+    if (indice < 0) return
+    const nueva: AnimalRow = { ...filas[indice], key: rowKey++, nombre: '' }
+    setFilas((prev) => {
+      const copia = [...prev]
+      copia.splice(indice + 1, 0, nueva)
+      return copia
+    })
+    focoRef.current = indice + 2
+  }
+
+  function aplicarLote() {
+    if (!hayBulk) return
+    const cambios: Partial<AnimalRow> = {}
+    if (bulkSexo) cambios.sexo = bulkSexo
+    if (bulkPeso) {
+      cambios.pesoIngresoKg = bulkPeso
+      cambios.tipoPeso = bulkTipoPeso
+    }
+    if (bulkEdadValor) {
+      cambios.tipoNacimiento = 'EDAD_APROXIMADA'
+      cambios.edadDeclaradaValor = bulkEdadValor
+      cambios.edadDeclaradaUnidad = bulkEdadUnidad
+    }
+    setFilas((prev) => prev.map((fila) => ({ ...fila, ...cambios })))
+  }
+
+  useEffect(() => {
+    if (focoRef.current == null) return
+    const target = document.querySelector<HTMLInputElement>(`input[aria-label="Nombre del animal ${focoRef.current}"]`)
+    target?.focus()
+    focoRef.current = null
+  }, [filas])
 
   const overrides = filas.map((fila) => fila.precioOverride ? Number(fila.precioOverride) : undefined)
   const algunOverride = overrides.some((value) => value != null)
@@ -190,7 +237,23 @@ export function IngresoLotePage() {
             : <Field label="Precio total del lote" hint="Se reparte entre todos los animales; puedes ajustar el precio por fila."><input type="number" inputMode="decimal" min="0" step="0.01" value={precioTotal} onChange={(event) => setPrecioTotal(event.target.value)} /></Field>}
           <Field label="Total calculado"><input value={totalCalculado.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} readOnly /></Field>
 
-          <div className="form-full"><div className="section-heading ingreso-lote-heading"><div><h3>Animales del lote <span className="count-badge">{filas.length}</span></h3><p className="muted">Completa los datos particulares de cada animal. La raza, propiedad y potrero se toman de los datos comunes.</p></div><Button type="button" variant="secondary" onClick={() => setFilas((prev) => [...prev, filaVacia()])}><Plus size={16} aria-hidden="true" />Agregar animal</Button></div></div>
+          <div className="form-full"><div className="section-heading ingreso-lote-heading"><div><h3>Animales del lote <span className="count-badge">{filas.length}</span></h3><p className="muted">Completa los datos particulares de cada animal. La raza, propiedad y potrero se toman de los datos comunes.</p></div>
+          <div className="agregar-filas">
+            <input aria-label="Cantidad de animales a agregar" type="number" min="1" max="50" step="1" value={cantidadAgregar} onChange={(event) => setCantidadAgregar(event.target.value)} />
+            <Button type="button" variant="secondary" onClick={() => agregarFilas(Math.min(50, Math.max(1, Number(cantidadAgregar) || 1)))}><Plus size={16} aria-hidden="true" />Agregar</Button>
+            <div className="agregar-filas-quick">{[1, 5, 10, 20].map((n) => <button key={n} type="button" aria-label={`Agregar ${n} animales`} onClick={() => agregarFilas(n)}>+{n}</button>)}</div>
+          </div>
+        </div></div>
+
+        <div className="form-full ingreso-lote-toolbar">
+          <span className="ingreso-lote-toolbar-label">Aplicar a todas las filas:</span>
+          <select aria-label="Sexo a aplicar en lote" value={bulkSexo} onChange={(event) => setBulkSexo(event.target.value as '' | 'MACHO' | 'HEMBRA')}><option value="">Sexo —</option><option value="HEMBRA">Hembra</option><option value="MACHO">Macho</option></select>
+          <input aria-label="Peso a aplicar en lote (kg)" type="number" min="0.1" step="0.1" placeholder="Peso (kg)" value={bulkPeso} onChange={(event) => setBulkPeso(event.target.value)} />
+          <select aria-label="Tipo de peso a aplicar en lote" value={bulkTipoPeso} onChange={(event) => setBulkTipoPeso(event.target.value)}><option value="ESTIMADO">Estimado</option><option value="MEDIDO">Medido</option></select>
+          <input aria-label="Edad a aplicar en lote" type="number" min="1" step="1" placeholder="Edad" value={bulkEdadValor} onChange={(event) => setBulkEdadValor(event.target.value)} />
+          <select aria-label="Unidad de edad a aplicar en lote" value={bulkEdadUnidad} onChange={(event) => setBulkEdadUnidad(event.target.value as UnidadEdadDeclarada)}><option value="DIAS">Días</option><option value="MESES">Meses</option><option value="ANIOS">Años</option></select>
+          <Button type="button" variant="secondary" onClick={aplicarLote} disabled={!hayBulk}><Wand2 size={16} aria-hidden="true" />Aplicar</Button>
+        </div>
 
           <div className="form-full ingreso-lote-editor">
             <div className="ingreso-lote-tip"><strong>Edad del animal</strong><span>Si el proveedor informa una edad aproximada, regístrala como tal. El sistema calculará el nacimiento estimado desde la fecha de recepción y conservará el dato declarado.</span></div>
@@ -218,7 +281,7 @@ export function IngresoLotePage() {
                   </td>
                   <td className="animal-price-cell"><input aria-label={`Precio del animal ${index + 1}`} type="number" inputMode="decimal" min="0" step="0.01" placeholder={distribucionPorTropa ? distribucionPorTropa[index]?.toFixed(2) : 'Sin ajuste'} value={fila.precioOverride} onChange={(event) => actualizarFila(fila.key, 'precioOverride', event.target.value)} /><small>{moneda || 'BOB'} · opcional</small></td>
                   <td className="animal-notes-cell"><input aria-label={`Observaciones del animal ${index + 1}`} placeholder="Observación opcional…" value={fila.observaciones} onChange={(event) => actualizarFila(fila.key, 'observaciones', event.target.value)} maxLength={500} /></td>
-                  <td className="animal-actions-cell"><Button type="button" variant="ghost" aria-label={`Quitar fila ${index + 1}`} title="Quitar animal" disabled={filas.length === 1} onClick={() => setFilas((prev) => prev.filter((item) => item.key !== fila.key))}><Trash2 size={18} aria-hidden="true" /></Button></td>
+                  <td className="animal-actions-cell"><Button type="button" variant="ghost" aria-label={`Duplicar fila ${index + 1}`} title="Duplicar animal" onClick={() => duplicarFila(fila.key)}><Copy size={18} aria-hidden="true" /></Button><Button type="button" variant="ghost" aria-label={`Quitar fila ${index + 1}`} title="Quitar animal" disabled={filas.length === 1} onClick={() => setFilas((prev) => prev.filter((item) => item.key !== fila.key))}><Trash2 size={18} aria-hidden="true" /></Button></td>
                 </tr>})}</tbody>
               </table>
             </div>
@@ -237,8 +300,7 @@ export function IngresoLotePage() {
     </>}
 
     {creados && <Card>
-      <div className="section-heading"><div className="title-with-icon"><CheckCircle2 size={20} aria-hidden="true" /><h2>{creados.length} animal(es) registrado(s)</h2></div>{creados.length > 0 ? <Button variant="secondary" onClick={() => { setDeclaracionExitosa(null); setDeclarandoLote(true) }}><ClipboardPlus size={17} aria-hidden="true" />Declarar historial grupal</Button> : null}</div>
-      {declaracionExitosa ? <Alert tone="success">{declaracionExitosa}</Alert> : null}
+      <div className="section-heading"><div className="title-with-icon"><CheckCircle2 size={20} aria-hidden="true" /><h2>{creados.length} animal(es) registrado(s)</h2></div>{creados.length > 0 ? <Button variant="secondary" onClick={() => navigate('/animales/declarar-historial', { state: { animales: creados } })}><ClipboardPlus size={17} aria-hidden="true" />Declarar historial grupal</Button> : null}</div>
       {creados.length === 0
         ? <EmptyState title="Sin animales" description="El lote no generó animales." />
         : <div className="table-wrapper"><table><caption className="visually-hidden">Animales recién registrados</caption><thead><tr><th scope="col">Código</th><th scope="col">Nombre</th><th scope="col">Historial sanitario</th></tr></thead><tbody>{creados.map((animal) => <tr key={animal.id}>
@@ -256,15 +318,6 @@ export function IngresoLotePage() {
       animalLabel={declarandoPara.nombre ? `${declarandoPara.codigo} · ${declarandoPara.nombre}` : declarandoPara.codigo}
       onClose={() => setDeclarandoPara(null)}
       onSuccess={() => { setDeclarados((prev) => new Set(prev).add(declarandoPara.id)); setDeclarandoPara(null) }}
-    />}
-    {declarandoLote && creados && <DeclararHistorialLoteModal
-      animales={creados}
-      onClose={() => setDeclarandoLote(false)}
-      onSuccess={(animalIds, aplicaciones) => {
-        setDeclarados((actuales) => new Set([...actuales, ...animalIds]))
-        setDeclaracionExitosa(`${aplicaciones} antecedente(s) sanitario(s) declarado(s) correctamente.`)
-        setDeclarandoLote(false)
-      }}
     />}
   </div>
 }

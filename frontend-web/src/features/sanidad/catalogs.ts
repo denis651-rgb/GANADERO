@@ -3,7 +3,7 @@ import { listAnimals } from '@/features/animales/api'
 import type { AnimalSummary } from '@/features/animales/types'
 import { listCategorias } from '@/features/animales/api'
 import { listLotes } from '@/features/lotes/api'
-import { listPotreros } from '@/features/potreros/api'
+import { listAllPotreros } from '@/features/potreros/api'
 import { listPropiedades } from '@/features/propiedades/api'
 import type { Propiedad } from '@/features/propiedades/api'
 
@@ -22,7 +22,7 @@ export function useSanidadCatalogs() {
     queryFn: async () => {
       const [properties, paddocks, categories, lotsPage, animalsPage] = await Promise.all([
         listPropiedades(),
-        listPotreros(),
+        listAllPotreros(),
         listCategorias(),
         listLotes({ estado: 'ACTIVO', page: 0, size: 100 }),
         listAnimals({ estado: 'ACTIVO', page: 0, size: 500 }),

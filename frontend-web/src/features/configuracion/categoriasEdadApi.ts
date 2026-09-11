@@ -3,7 +3,7 @@ import type { ApiResponse } from '@/shared/api/types'
 import type { CategoriaAnimal } from '@/features/animales/types'
 
 export interface RangoCategoriaInput {
-  codigo: string
+  codigo?: string
   nombre: string
   sexoAplicable: 'MACHO' | 'HEMBRA' | 'AMBOS'
   edadMinMeses?: number

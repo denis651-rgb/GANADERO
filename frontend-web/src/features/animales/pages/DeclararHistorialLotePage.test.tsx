@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createMemoryRouter, RouterProvider } from 'react-router'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { AnimalSummary } from '@/features/animales/types'
-import { DeclararHistorialLoteModal } from './DeclararHistorialLoteModal'
+import { DeclararHistorialLotePage } from './DeclararHistorialLotePage'
 
 const registrarHistorialDeclaradoLote = vi.fn()
 
@@ -16,12 +17,19 @@ const animales = [
   { id: 'animal-2', codigo: 'ANI-000002', nombre: 'Sol' },
 ] as AnimalSummary[]
 
-describe('DeclararHistorialLoteModal', () => {
+function renderPage(state?: unknown) {
+  const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+  const router = createMemoryRouter(
+    [{ path: '/animales/declarar-historial', element: <DeclararHistorialLotePage /> }],
+    { initialEntries: [{ pathname: '/animales/declarar-historial', state }] },
+  )
+  render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>)
+}
+
+describe('DeclararHistorialLotePage', () => {
   it('registra varias actividades para todos los animales seleccionados', async () => {
     registrarHistorialDeclaradoLote.mockResolvedValue([{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }])
-    const onSuccess = vi.fn()
-    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
-    render(<QueryClientProvider client={client}><DeclararHistorialLoteModal animales={animales} onClose={vi.fn()} onSuccess={onSuccess} /></QueryClientProvider>)
+    renderPage({ animales })
 
     fireEvent.change(screen.getByLabelText(/^Tipo/), { target: { value: 'VACUNACION' } })
     fireEvent.change(screen.getByLabelText(/^Fecha/), { target: { value: '2026-09-01' } })
@@ -40,6 +48,13 @@ describe('DeclararHistorialLoteModal', () => {
         expect.objectContaining({ tipoActividad: 'DESPARASITACION', fechaAplicacion: '2026-09-02' }),
       ],
     }))
-    expect(onSuccess).toHaveBeenCalledWith(['animal-1', 'animal-2'], 4)
+    expect(await screen.findByText(/4 antecedente\(s\) sanitario\(s\) correctamente/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ir a Animales' })).toBeInTheDocument()
+  })
+
+  it('muestra un vacío con salida a Animales si no llegan animales', () => {
+    renderPage()
+    expect(screen.getByText('Sin animales para declarar')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ir a Animales' })).toBeInTheDocument()
   })
 })

@@ -12,7 +12,8 @@ const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }
 describe('Header global', () => {
   it('muestra estado global sin repetir el título de la página', () => {
     render(<QueryClientProvider client={client}><MemoryRouter><Header /></MemoryRouter></QueryClientProvider>)
-    expect(screen.getByLabelText('GANADERO')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Panel principal' })).toHaveAttribute('href', '/')
+    expect(screen.getByRole('link', { name: 'Panel principal' })).toHaveTextContent('GANADERO')
     expect(screen.queryByText('Potreros')).not.toBeInTheDocument()
     expect(screen.queryByText('Panel principal')).not.toBeInTheDocument()
   })

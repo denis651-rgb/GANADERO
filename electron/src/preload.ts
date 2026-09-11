@@ -5,8 +5,14 @@ function readApiBaseUrl(): string | undefined {
   return flag?.slice('--ganadero-api-base-url='.length)
 }
 
+function readBackendStatus(): 'ok' | 'failed' {
+  const flag = process.argv.find((arg) => arg.startsWith('--ganadero-backend-status='))
+  return flag?.slice('--ganadero-backend-status='.length) === 'failed' ? 'failed' : 'ok'
+}
+
 contextBridge.exposeInMainWorld('ganadero', {
   apiBaseUrl: readApiBaseUrl(),
+  quit: () => ipcRenderer.invoke('app:quit'),
   googleCalendar: {
     status: () => ipcRenderer.invoke('google-calendar-oauth:status'),
     importClientConfig: (jsonText: string, fileName: string) =>
@@ -15,5 +21,21 @@ contextBridge.exposeInMainWorld('ganadero', {
     revoke: () => ipcRenderer.invoke('google-calendar-oauth:revoke'),
     changeAccount: () => ipcRenderer.invoke('google-calendar-oauth:change-account'),
     syncNow: () => ipcRenderer.invoke('google-calendar:sync-now'),
+  },
+  backups: {
+    backendStatus: readBackendStatus(),
+    getSettings: () => ipcRenderer.invoke('backups:get-settings'),
+    saveSettings: (settings: unknown) => ipcRenderer.invoke('backups:save-settings', settings),
+    selectExternalFolder: () => ipcRenderer.invoke('backups:select-external-folder'),
+    createNow: () => ipcRenderer.invoke('backups:create-now'),
+    copyExternal: (nombre: string) => ipcRenderer.invoke('backups:copy-external', nombre),
+    list: () => ipcRenderer.invoke('backups:list'),
+    verify: (nombre: string) => ipcRenderer.invoke('backups:verify', nombre),
+    deleteBackup: (nombre: string) => ipcRenderer.invoke('backups:delete', nombre),
+    selectRestoreFile: () => ipcRenderer.invoke('backups:select-restore-file'),
+    inspectRestoreFile: (filePath: string) => ipcRenderer.invoke('backups:inspect-restore-file', filePath),
+    restore: (filePath: string) => ipcRenderer.invoke('backups:restore', filePath),
+    openLocalFolder: () => ipcRenderer.invoke('backups:open-local-folder'),
+    openExternalFolder: () => ipcRenderer.invoke('backups:open-external-folder'),
   },
 })

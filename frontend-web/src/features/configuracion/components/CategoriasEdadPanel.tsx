@@ -45,12 +45,9 @@ export function CategoriasEdadPanel() {
   if (!editable) return null
 
   return <Card>
-    <div className="section-heading">
-      <div><span className="eyebrow">Mi finca</span><h3>Categorías por edad</h3></div>
-      <div className="inline-actions">
-        <Button variant="secondary" onClick={() => setConfirmarReclasificar(true)}><RefreshCw size={16} aria-hidden="true" />Aplicar reclasificación ahora</Button>
-        <Button onClick={() => setModalCategoria('nueva')}><Plus size={16} aria-hidden="true" />Nueva categoría</Button>
-      </div>
+    <div className="row-actions">
+      <Button variant="secondary" onClick={() => setConfirmarReclasificar(true)}><RefreshCw size={16} aria-hidden="true" />Aplicar reclasificación ahora</Button>
+      <Button onClick={() => setModalCategoria('nueva')}><Plus size={16} aria-hidden="true" />Nueva categoría</Button>
     </div>
     <p className="muted">Estos rangos determinan la categoría automática de cada animal según su sexo y edad. Buey y otras excepciones manuales no participan del cálculo automático.</p>
     {query.isPending && <LoadingState message="Cargando categorías…" />}

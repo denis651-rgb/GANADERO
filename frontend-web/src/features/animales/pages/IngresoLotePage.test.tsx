@@ -22,7 +22,7 @@ vi.mock('@/features/propiedades/api', () => ({
   listPropiedades: vi.fn().mockResolvedValue([{ id: 'prop-1', nombre: 'La Esperanza', activo: true }]),
 }))
 vi.mock('@/features/potreros/api', () => ({
-  listPotreros: vi.fn().mockResolvedValue([{ id: 'pot-1', propiedadId: 'prop-1', nombre: 'Potrero Norte', activo: true }]),
+  listAllPotreros: vi.fn().mockResolvedValue([{ id: 'pot-1', propiedadId: 'prop-1', nombre: 'Potrero Norte', activo: true }]),
 }))
 vi.mock('@/features/movimientos/api', () => ({
   createMovimiento: (...args: unknown[]) => createMovimiento(...args),
@@ -52,8 +52,8 @@ describe('IngresoLotePage', () => {
     renderPage()
     await screen.findByText('Brahman')
     expect(screen.getByRole('button', { name: 'Quitar fila 1' })).toBeDisabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar animal' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar animal' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar' }))
     const tabla = screen.getByRole('table', { name: 'Animales del lote' })
     expect(screen.getAllByRole('table')).toHaveLength(1)
     expect(within(tabla).getAllByRole('row')).toHaveLength(4)
@@ -96,7 +96,7 @@ describe('IngresoLotePage', () => {
     fireEvent.change(screen.getByLabelText(/^Potrero/), { target: { value: 'pot-1' } })
     registrarProveedorNuevo('Estancia El Roble')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar animal' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar' }))
     const categorias = screen.getAllByLabelText(/^Categoría/)
     expect(categorias).toHaveLength(2)
     fireEvent.change(categorias[0], { target: { value: 'cat-1' } })
@@ -137,6 +137,32 @@ describe('IngresoLotePage', () => {
     expect(createMovimiento).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Declarar historial grupal' })).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Declarar historial sanitario' })).toHaveLength(2)
+  })
+
+  it('agrega N filas, aplica valores en lote y duplica una fila', async () => {
+    renderPage()
+    await screen.findByText('Brahman')
+
+    fireEvent.change(screen.getByLabelText('Cantidad de animales a agregar'), { target: { value: '5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar' }))
+    const tabla = screen.getByRole('table', { name: 'Animales del lote' })
+    expect(within(tabla).getAllByRole('row')).toHaveLength(7)
+
+    const pesoBulk = screen.getByLabelText('Peso a aplicar en lote (kg)')
+    fireEvent.change(screen.getByLabelText('Sexo a aplicar en lote'), { target: { value: 'MACHO' } })
+    fireEvent.change(pesoBulk, { target: { value: '150' } })
+    fireEvent.change(screen.getByLabelText('Edad a aplicar en lote'), { target: { value: '18' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+
+    expect(screen.getByLabelText('Sexo del animal 1')).toHaveValue('MACHO')
+    expect(screen.getByLabelText('Peso al ingreso (kg) del animal 1')).toHaveValue(150)
+    expect(screen.getByLabelText('Edad aproximada del animal 1')).toHaveValue(18)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicar fila 1' }))
+    expect(within(tabla).getAllByRole('row')).toHaveLength(8)
+    expect(screen.getByLabelText('Sexo del animal 2')).toHaveValue('MACHO')
+    expect(screen.getByLabelText('Peso al ingreso (kg) del animal 2')).toHaveValue(150)
+    expect(screen.getByLabelText('Nombre del animal 2')).toHaveValue('')
   })
 
   it('no encadena movimiento de cuarentena si el checkbox no está marcado', async () => {
