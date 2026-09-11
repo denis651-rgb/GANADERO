@@ -6,7 +6,7 @@ export function descargarCsv(nombreArchivo: string, encabezados: string[], filas
   }
   const contenido = [encabezados, ...filas].map((fila) => fila.map(escapar).join(',')).join('\n')
   // BOM inicial: para que Excel detecte UTF-8 y no rompa las tildes/ñ.
-  const blob = new Blob([`﻿${contenido}`], { type: 'text/csv;charset=utf-8;' })
+  const blob = new Blob([`\uFEFF${contenido}`], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const enlace = document.createElement('a')
   enlace.href = url

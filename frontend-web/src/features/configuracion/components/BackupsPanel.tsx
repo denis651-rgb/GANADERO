@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { DatabaseBackup, Download, Eye, FolderOpen, RotateCcw, Trash2 } from 'lucide-react'
 import type { BackupInfo, BackupManifestInfo, BackupSettings } from '@/shared/api/http'
@@ -24,7 +24,7 @@ const CONFIRMACION_ESPERADA = 'RESTAURAR'
 export function BackupsPanel() {
   const desktop = window.ganadero?.backups
   const client = useQueryClient()
-  const [form, setForm] = useState<BackupSettings | null>(null)
+  const [draft, setForm] = useState<BackupSettings | null>(null)
   const [restoreTarget, setRestoreTarget] = useState<{ path: string; manifest: BackupManifestInfo } | null>(null)
   const [confirmText, setConfirmText] = useState('')
   const [restoreResultMsg, setRestoreResultMsg] = useState<{ ok: boolean; mensaje: string } | null>(null)
@@ -33,9 +33,7 @@ export function BackupsPanel() {
   const settingsQuery = useQuery({ queryKey: ['backup-settings'], queryFn: () => desktop!.getSettings(), enabled: Boolean(desktop) })
   const listQuery = useQuery({ queryKey: ['backups-list'], queryFn: () => desktop!.list(), enabled: Boolean(desktop) })
 
-  useEffect(() => {
-    if (settingsQuery.data && !form) setForm(settingsQuery.data)
-  }, [settingsQuery.data, form])
+  const form = draft ?? settingsQuery.data
 
   const guardarConfig = useMutation({
     mutationFn: (input: BackupSettings) => desktop!.saveSettings(input),
