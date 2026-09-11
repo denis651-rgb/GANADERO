@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
+import { useSearchParams } from 'react-router'
 import { listVentas, registrarVenta, registrarVentaLote, type ModalidadVenta, type Venta } from '@/features/ventas/api'
 import { AnimalMultiPicker } from '@/features/ventas/components/AnimalMultiPicker'
 import { AnimalPicker } from '@/features/ventas/components/AnimalPicker'
@@ -40,6 +41,9 @@ const invalidacionesVenta = (client: ReturnType<typeof useQueryClient>) => Promi
 
 export function VentasPage() {
   const client = useQueryClient()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filtroAnimalId = searchParams.get('animalId') || ''
+  const quitarFiltroAnimal = () => setSearchParams((params) => { params.delete('animalId'); return params }, { replace: true })
   const [showForm, setShowForm] = useState(false)
   const [modo, setModo] = useState<'individual' | 'lote'>('individual')
   const [desde, setDesde] = useState('')
@@ -66,8 +70,8 @@ export function VentasPage() {
   const [pesosLote, setPesosLote] = useState<Record<string, string>>({})
 
   const query = useQuery({
-    queryKey: ['ventas', { desde, hasta }],
-    queryFn: () => listVentas({ desde: desde || undefined, hasta: hasta || undefined }),
+    queryKey: ['ventas', { desde, hasta, animalId: filtroAnimalId }],
+    queryFn: () => listVentas({ animalId: filtroAnimalId || undefined, desde: desde || undefined, hasta: hasta || undefined }),
   })
   const animales = useQuery({
     queryKey: ['ventas-animales'],
@@ -265,6 +269,10 @@ export function VentasPage() {
         <span>Filtros</span>
         <input aria-label="Desde" type="date" value={desde} onChange={(event) => setDesde(event.target.value)} />
         <input aria-label="Hasta" type="date" value={hasta} onChange={(event) => setHasta(event.target.value)} />
+        {filtroAnimalId && <>
+          <span>Animal: {animalLabel(filtroAnimalId)}</span>
+          <Button type="button" variant="ghost" onClick={quitarFiltroAnimal}>Quitar filtro</Button>
+        </>}
       </div>
       {query.isPending && <LoadingState message="Cargando ventas…" />}
       {query.data?.length === 0 && <EmptyState title="Sin ventas registradas" description="Registra la primera venta de un animal." />}

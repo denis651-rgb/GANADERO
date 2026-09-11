@@ -6,6 +6,7 @@ import java.util.UUID;
 
 public interface MovimientoRepository {
     MovimientoPage findAll(UUID empresa, EstadoMovimiento estado, TipoMovimiento tipo, int page, int size);
+    MovimientoPage findAll(UUID empresa, EstadoMovimiento estado, TipoMovimiento tipo, UUID loteId, int page, int size);
     Optional<Movimiento> findById(UUID id, UUID empresa);
     Optional<Movimiento> findByIdForUpdate(UUID id, UUID empresa);
     Optional<Movimiento> findByOriginal(UUID id, UUID empresa);

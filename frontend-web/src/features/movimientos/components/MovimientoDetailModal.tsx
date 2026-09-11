@@ -1,6 +1,8 @@
 import { Modal } from '@/shared/components/Modal'
-import { useQueries } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router'
 import { getAnimal } from '@/features/animales/api'
+import { getResumenCompraAnimal } from '@/features/compras/api'
 import { formatDate } from '@/shared/utils/date'
 import { Button } from '@/shared/components/Button'
 import { MovimientoStatusBadge } from '@/features/movimientos/components/MovimientoStatusBadge'
@@ -41,6 +43,12 @@ export function MovimientoDetailModal({ open, onClose, movimiento, detalles, cat
   })) })
   const animales = new Map(catalogs?.animales.map((animal) => [animal.id, animal]))
   consultas.forEach((consulta) => { if (consulta.data) animales.set(consulta.data.id, consulta.data) })
+  const primerAnimalId = detalles?.[0]?.animalId
+  const compraOrigen = useQuery({
+    queryKey: ['movimiento-compra-origen', primerAnimalId],
+    queryFn: () => getResumenCompraAnimal(primerAnimalId!),
+    enabled: open && movimiento?.tipo === 'INGRESO_COMPRA' && !!primerAnimalId,
+  })
   if (!movimiento) return null
   const nombre = (items: { id: string; nombre: string }[] | undefined, id?: string) => (id && items?.find((item) => item.id === id)?.nombre) ?? '—'
   const origen = [nombre(catalogs?.propiedades, movimiento.origenPropiedadId), nombre(catalogs?.potreros, movimiento.origenPotreroId), nombre(catalogs?.lotes, movimiento.origenLoteId)].join(' / ')
@@ -85,6 +93,12 @@ export function MovimientoDetailModal({ open, onClose, movimiento, detalles, cat
       )}
       {movimiento.movimientoRevertidoId && (
         <p><Button variant="ghost" onClick={() => onViewRelated(movimiento.movimientoRevertidoId!)}>Ver movimiento revertido</Button></p>
+      )}
+      {movimiento.tipo === 'INGRESO_COMPRA' && compraOrigen.data && (
+        <p><Link to={`/compras/${compraOrigen.data.id}`}>Ver compra de origen · {compraOrigen.data.codigo}</Link></p>
+      )}
+      {movimiento.tipo === 'SALIDA_VENTA' && primerAnimalId && (
+        <p><Link to={`/ventas?animalId=${primerAnimalId}`}>Ver venta de origen</Link></p>
       )}
 
       {movimiento.estado === 'CONFIRMADO' && <p>Deshacer revierte los cambios de este movimiento en los animales. Cerrar solo cierra esta ventana.</p>}

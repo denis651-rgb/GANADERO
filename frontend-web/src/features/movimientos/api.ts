@@ -90,9 +90,9 @@ export interface CreateMovimientoInput {
   animales: MovimientoAnimalInput[]
 }
 
-export async function listMovimientos(filters: { estado?: EstadoMovimiento | ''; tipo?: TipoMovimiento | ''; page: number; size: number }) {
+export async function listMovimientos(filters: { estado?: EstadoMovimiento | ''; tipo?: TipoMovimiento | ''; loteId?: string; page: number; size: number }) {
   return (await http.get<ApiResponse<Page<Movimiento>>>('/api/v1/movimientos', {
-    params: { estado: filters.estado || undefined, tipo: filters.tipo || undefined, page: filters.page, size: filters.size },
+    params: { estado: filters.estado || undefined, tipo: filters.tipo || undefined, loteId: filters.loteId || undefined, page: filters.page, size: filters.size },
   })).data.data
 }
 

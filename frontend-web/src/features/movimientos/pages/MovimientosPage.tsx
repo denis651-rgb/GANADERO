@@ -1,6 +1,7 @@
 ﻿import { useMemo, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Eye, Plus, Search } from 'lucide-react'
+import { useSearchParams } from 'react-router'
 import { anularMovimiento, confirmarMovimiento, createMovimiento, getMovimiento, listDetalles, listMovimientos, revertirMovimiento, validarMovimiento } from '@/features/movimientos/api'
 import type { EstadoMovimiento, Movimiento, TipoMovimiento, ValidacionMovimiento } from '@/features/movimientos/api'
 import { MovimientoDetailModal } from '@/features/movimientos/components/MovimientoDetailModal'
@@ -26,6 +27,8 @@ import { recuperarOrigen, ubicacionMovimiento } from '../ubicacion'
 import { formatDate } from '@/shared/utils/date'
 
 const tipos: TipoMovimiento[] = ['CAMBIO_POTRERO', 'CAMBIO_LOTE', 'TRANSFERENCIA_PROPIEDAD', 'INGRESO_COMPRA', 'SALIDA_VENTA', 'CUARENTENA', 'RETORNO_CUARENTENA']
+/** Compra y venta se registran solo desde sus propios módulos; aquí no se crean movimientos de esos tipos. */
+const tiposCreables: TipoMovimiento[] = ['CAMBIO_POTRERO', 'CAMBIO_LOTE', 'TRANSFERENCIA_PROPIEDAD', 'CUARENTENA', 'RETORNO_CUARENTENA']
 const estados: EstadoMovimiento[] = ['PENDIENTE', 'CONFIRMADO', 'ANULADO', 'REVERTIDO']
 export const movementSearchAvailable = false
 
@@ -58,6 +61,13 @@ export function filtrarAnimalesPorOrigen<T extends AnimalFiltrable>(animales: T[
 }
 
 export function MovimientosPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const linkedId = searchParams.get('movimientoId')
+  const linkedMovimiento = useQuery({
+    queryKey: ['movimientos', 'enlace', linkedId],
+    queryFn: () => getMovimiento(linkedId!),
+    enabled: Boolean(linkedId),
+  })
   const client = useQueryClient()
   const { showToast } = useToast()
   const [page, setPage] = useState(0)
@@ -73,7 +83,12 @@ export function MovimientosPage() {
   const [destinoPropiedadId, setDestinoPropiedadId] = useState('')
   const [destinoPotreroId, setDestinoPotreroId] = useState('')
   const [destinoLoteId, setDestinoLoteId] = useState('')
-  const [selected, setSelected] = useState<Movimiento | null>(null)
+  const [selectedLocal, setSelected] = useState<Movimiento | null>(null)
+  const selected = selectedLocal ?? (linkedId ? linkedMovimiento.data ?? null : null)
+  const cerrarDetalle = () => {
+    setSelected(null)
+    if (linkedId) setSearchParams((params) => { params.delete('movimientoId'); return params }, { replace: true })
+  }
   const [validation, setValidation] = useState<ValidacionMovimiento | null>(null)
   const [anularTarget, setAnularTarget] = useState<Movimiento | null>(null)
   const [revertirTarget, setRevertirTarget] = useState<Movimiento | null>(null)
@@ -169,20 +184,19 @@ export function MovimientosPage() {
   })
   const confirm = useMutation({
     mutationFn: ({ id, version }: { id: string; version: number }) => confirmarMovimiento(id, version),
-    onSuccess: async () => { setValidation(null); setSelected(null); showToast('Movimiento confirmado.'); await invalidateMovimientos() },
+    onSuccess: async () => { setValidation(null); cerrarDetalle(); showToast('Movimiento confirmado.'); await invalidateMovimientos() },
   })
   const annul = useMutation({
     mutationFn: ({ id, motivo, version }: { id: string; motivo: string; version: number }) => anularMovimiento(id, motivo, version),
-    onSuccess: async () => { setAnularTarget(null); setSelected(null); await invalidateMovimientos() },
+    onSuccess: async () => { setAnularTarget(null); cerrarDetalle(); await invalidateMovimientos() },
   })
   const revert = useMutation({
     mutationFn: ({ id, motivo, version }: { id: string; motivo: string; version: number }) => revertirMovimiento(id, motivo, version),
-    onSuccess: async () => { setRevertirTarget(null); setSelected(null); showToast('Movimiento revertido.'); await invalidateMovimientos() },
+    onSuccess: async () => { setRevertirTarget(null); cerrarDetalle(); showToast('Movimiento revertido.'); await invalidateMovimientos() },
   })
-  const error = query.error ?? catalogs.error ?? animalesOrigen.error ?? create.error ?? validar.error ?? confirm.error ?? annul.error ?? revert.error
+  const error = linkedMovimiento.error ?? query.error ?? catalogs.error ?? animalesOrigen.error ?? create.error ?? validar.error ?? confirm.error ?? annul.error ?? revert.error
 
   const req = destinoRequerido(tipoForm)
-  const requiereOrigen = tipoForm !== 'INGRESO_COMPRA'
   const potrerosOrigen = useMemo(() => (catalogs.data?.potreros ?? [])
     .filter((item) => item.activo && item.propiedadId === origenPropiedadId), [catalogs.data?.potreros, origenPropiedadId])
   const lotesOrigen = useMemo(() => (catalogs.data?.lotes ?? [])
@@ -248,11 +262,11 @@ export function MovimientosPage() {
     <PageHeader eyebrow="Ganado" title="Movimientos" description="Traslados entre propiedades, potreros y lotes." actions={<Button onClick={() => { setShowForm((value) => { if (!value) { setAnimalesSeleccionados(new Set()); setAnimalSearch(''); setOrigenPropiedadId(''); setOrigenPotreroId(''); setOrigenLoteId(''); setDestinoPropiedadId(''); setDestinoPotreroId(''); setDestinoLoteId('') } return !value }) }}><Plus size={18} />Nuevo movimiento</Button>} />
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
     {showForm && <Card><h3>Crear movimiento</h3><form className="form-grid compact-form movement-form" onSubmit={(event) => { event.preventDefault(); create.mutate(event.currentTarget) }}>
-      <Field label="Tipo"><select name="tipo" required value={tipoForm} onChange={(event) => cambiarTipo(event.target.value as TipoMovimiento)}>{tipos.map((tipo) => <option key={tipo}>{tipo}</option>)}</select></Field>
+      <Field label="Tipo"><select name="tipo" required value={tipoForm} onChange={(event) => cambiarTipo(event.target.value as TipoMovimiento)}>{tiposCreables.map((tipo) => <option key={tipo}>{tipo}</option>)}</select></Field>
       <Field label="Fecha"><input name="fecha" type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></Field>
       <Field label="Motivo"><input name="motivo" maxLength={1000} /></Field>
       <Field label="Observación"><input name="observacion" maxLength={1000} /></Field>
-      <Field label="Origen (propiedad)" required={requiereOrigen} hint={requiereOrigen ? 'Define qué animales pueden seleccionarse.' : 'Opcional para ingresos por compra.'}><select name="origenPropiedadId" value={origenPropiedadId} onChange={(event) => cambiarPropiedadOrigen(event.target.value)}><option value="">Sin especificar</option>{catalogs.data?.propiedades.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
+      <Field label="Origen (propiedad)" required hint="Define qué animales pueden seleccionarse."><select name="origenPropiedadId" value={origenPropiedadId} onChange={(event) => cambiarPropiedadOrigen(event.target.value)}><option value="">Sin especificar</option>{catalogs.data?.propiedades.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
       <Field label="Origen (potrero)" hint="Opcional: limita los animales al potrero."><select name="origenPotreroId" value={origenPotreroId} disabled={!origenPropiedadId} onChange={(event) => cambiarPotreroOrigen(event.target.value)}><option value="">{origenPropiedadId ? 'Todos los potreros' : 'Selecciona primero una propiedad'}</option>{potrerosOrigen.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
       <Field label="Origen (lote)" hint="Opcional: limita los animales al lote."><select name="origenLoteId" value={origenLoteId} disabled={!origenPropiedadId} onChange={(event) => cambiarLoteOrigen(event.target.value)}><option value="">{origenPropiedadId ? 'Todos los lotes' : 'Selecciona primero una propiedad'}</option>{lotesOrigen.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
       {(req === 'propiedad' || req === 'potrero-o-lote') && <Field label="Destino (propiedad)" required={req === 'propiedad'}><select name="destinoPropiedadId" value={destinoPropiedadId} onChange={(event) => cambiarPropiedadDestino(event.target.value)}><option value="">Sin especificar</option>{propiedadesDestino.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>}
@@ -299,7 +313,7 @@ export function MovimientosPage() {
 
     <MovimientoDetailModal
       open={!!selected}
-      onClose={() => setSelected(null)}
+      onClose={cerrarDetalle}
       movimiento={selected}
       detalles={detalles.data}
       catalogs={catalogs.data}

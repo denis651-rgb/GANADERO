@@ -136,6 +136,8 @@ export function MoverLoteWizard({ lote, miembrosActivos, onClose, onSuccess }: M
         client.invalidateQueries({ queryKey: ['lote'] }),
         client.invalidateQueries({ queryKey: ['lotes'] }),
         client.invalidateQueries({ queryKey: ['animals'] }),
+        client.invalidateQueries({ queryKey: ['animal'] }),
+        client.invalidateQueries({ queryKey: ['animal-timeline'] }),
         client.invalidateQueries({ queryKey: ['movimientos'] }),
       ])
       onSuccess(resultado)

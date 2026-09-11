@@ -1,6 +1,7 @@
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useDeferredValue, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Group, Search } from 'lucide-react'
+import { listAnimals } from '@/features/animales/api'
 import { listLotes, listMembresias } from '@/features/lotes/api'
 import type { AnimalSummary } from '@/features/animales/types'
 import { Field } from '@/shared/components/Field'
@@ -13,9 +14,11 @@ interface AnimalMultiPickerProps {
 }
 
 /**
- * Selección múltiple de animales activos para una venta por lote: buscador por código (arete) o
- * nombre sobre la lista ya cargada, más un buscador de lotes que agrega de una vez a todos sus
- * animales activos (vía listMembresias) sin requerir un endpoint nuevo en el backend.
+ * Selección múltiple de animales activos para una venta por lote: sin búsqueda, muestra la lista ya
+ * cargada por la página; al escribir (2+ caracteres) delega la búsqueda al backend (código, nombre,
+ * arete/identificador y raza — igual que el resto de la app) en vez de filtrar solo por código/nombre
+ * en memoria. Además, un buscador de lotes agrega de una vez a todos sus animales activos (vía
+ * listMembresias) sin requerir un endpoint nuevo en el backend.
  */
 export function AnimalMultiPicker({ animales, cargando, seleccionados, onChange }: AnimalMultiPickerProps) {
   const [search, setSearch] = useState('')
@@ -23,11 +26,14 @@ export function AnimalMultiPicker({ animales, cargando, seleccionados, onChange 
   const [loteOpen, setLoteOpen] = useState(false)
   const [cargandoLote, setCargandoLote] = useState(false)
 
-  const filtro = search.trim().toLowerCase()
-  const filtrados = useMemo(() => {
-    if (!filtro) return animales
-    return animales.filter((a) => a.codigo.toLowerCase().includes(filtro) || (a.nombre ?? '').toLowerCase().includes(filtro))
-  }, [animales, filtro])
+  const deferredSearch = useDeferredValue(search.trim())
+  const busqueda = useQuery({
+    queryKey: ['venta-animal-picker', deferredSearch],
+    queryFn: () => listAnimals({ search: deferredSearch, estado: 'ACTIVO', sexo: '', page: 0, size: 200 }),
+    enabled: deferredSearch.length >= 2,
+  })
+  const buscando = deferredSearch.length >= 2
+  const filtrados = buscando ? (busqueda.data?.content ?? []) : animales
 
   const loteDeferred = useDeferredValue(loteSearch.trim())
   const loteQuery = useQuery({
@@ -64,13 +70,13 @@ export function AnimalMultiPicker({ animales, cargando, seleccionados, onChange 
         <div className="movement-picker-toolbar">
           <span className="search-box">
             <Search size={18} aria-hidden="true" />
-            <input type="search" autoComplete="off" aria-label="Buscar animales por código o nombre" value={search}
-              disabled={cargando} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por código (arete) o nombre…" />
+            <input type="search" autoComplete="off" aria-label="Buscar animales por código, arete, nombre o raza" value={search}
+              disabled={cargando} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por código, arete, nombre o raza…" />
           </span>
           <span className="movement-selection-summary" aria-live="polite">{seleccionados.size} seleccionados · {filtrados.length} disponibles</span>
         </div>
-        {cargando
-          ? <p className="movement-picker-empty" role="status">Cargando animales…</p>
+        {(cargando && !buscando) || (buscando && busqueda.isPending)
+          ? <p className="movement-picker-empty" role="status">{buscando ? 'Buscando…' : 'Cargando animales…'}</p>
           : filtrados.length > 0
             ? <div className="movement-animal-list">{filtrados.map((animal) => (
                 <label key={animal.id} className="movement-animal-option">
@@ -81,7 +87,7 @@ export function AnimalMultiPicker({ animales, cargando, seleccionados, onChange 
             : <p className="movement-picker-empty" role="status">No hay animales activos que coincidan con la búsqueda.</p>}
       </fieldset>
 
-      <div className="form-full">
+      <div className="form-full picker-root">
         <Field label="…o vender un lote completo" icon={<Group size={18} aria-hidden="true" />}
           hint="Busca un lote activo; se agregan a la selección todos sus animales activos.">
           <input

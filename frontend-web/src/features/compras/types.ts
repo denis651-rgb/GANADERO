@@ -96,6 +96,7 @@ export interface CompraPage {
 }
 
 export interface ResumenCompraAnimal {
+  id: string
   codigo: string
   fechaRecepcion: string
   modalidad: ModalidadPrecio

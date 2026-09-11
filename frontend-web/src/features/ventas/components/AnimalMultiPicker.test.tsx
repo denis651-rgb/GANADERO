@@ -6,10 +6,14 @@ import { AnimalMultiPicker } from './AnimalMultiPicker'
 
 const listLotes = vi.fn()
 const listMembresias = vi.fn()
+const listAnimals = vi.fn()
 
 vi.mock('@/features/lotes/api', () => ({
   listLotes: (...args: unknown[]) => listLotes(...args),
   listMembresias: (...args: unknown[]) => listMembresias(...args),
+}))
+vi.mock('@/features/animales/api', () => ({
+  listAnimals: (...args: unknown[]) => listAnimals(...args),
 }))
 
 const animales = [
@@ -27,15 +31,21 @@ function renderPicker(seleccionados: Set<string>, onChange: (next: Set<string>) 
 }
 
 describe('AnimalMultiPicker', () => {
-  it('filtra la lista por código o nombre', () => {
+  it('muestra la lista precargada sin búsqueda', () => {
     renderPicker(new Set(), vi.fn())
     expect(screen.getByText('ANI-000001', { exact: false })).toBeInTheDocument()
     expect(screen.getByText('ANI-000002', { exact: false })).toBeInTheDocument()
+  })
 
-    fireEvent.change(screen.getByLabelText('Buscar animales por código o nombre'), { target: { value: 'Sol' } })
+  it('al escribir 2+ caracteres, delega la búsqueda al backend (código, arete, nombre o raza)', async () => {
+    listAnimals.mockResolvedValue({ content: [{ id: 'animal-2', codigo: 'ANI-000002', nombre: 'Sol' }], page: 0, size: 200, totalElements: 1, totalPages: 1 })
+    renderPicker(new Set(), vi.fn())
 
+    fireEvent.change(screen.getByLabelText('Buscar animales por código, arete, nombre o raza'), { target: { value: 'Sol' } })
+
+    await waitFor(() => expect(listAnimals).toHaveBeenCalledWith(expect.objectContaining({ search: 'Sol', estado: 'ACTIVO' })))
+    expect(await screen.findByText('ANI-000002', { exact: false })).toBeInTheDocument()
     expect(screen.queryByText('ANI-000001', { exact: false })).not.toBeInTheDocument()
-    expect(screen.getByText('ANI-000002', { exact: false })).toBeInTheDocument()
   })
 
   it('agrega o quita un animal al marcar su checkbox', () => {

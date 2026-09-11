@@ -350,6 +350,7 @@ button.text-link { background: none; border: 0; padding: 0; cursor: pointer; fon
 .record-help-title { display: flex; align-items: center; gap: 8px; color: var(--green-800); font-size: .8rem; font-weight: 800; }
 .record-help p { margin: 0; color: var(--muted); font-size: .76rem; line-height: 1.55; }
 .save-hint-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green-600); flex: 0 0 auto; }
+.candidato-otro-lote-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); margin-left: 6px; vertical-align: middle; }
 .age-range-panel { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: #f8faf8; }
 .age-range-heading { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 220px); gap: 16px; align-items: end; }
 .age-range-heading > div { display: grid; gap: 3px; }

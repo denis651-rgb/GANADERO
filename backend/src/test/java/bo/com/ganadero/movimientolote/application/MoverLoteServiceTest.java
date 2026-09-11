@@ -38,6 +38,7 @@ class MoverLoteServiceTest {
     @SuppressWarnings("unchecked")
     private final ObjectProvider<RestriccionSanitariaPort> restriccionProvider = mock(ObjectProvider.class);
     private MoverLoteService service;
+    private final java.util.ArrayList<bo.com.ganadero.timeline.application.RegistrarEventoTimeline> eventos = new java.util.ArrayList<>();
 
     private UUID empresa, loteId, propiedadOrigen, potreroOrigen, propiedadDestino, potreroDestino, actorId;
     private CurrentUser user;
@@ -60,7 +61,7 @@ class MoverLoteServiceTest {
         user = new CurrentUser(actorId, empresa, UUID.randomUUID(), Set.of(), Set.of("LOTE_MOVER"), Set.of(), true);
         UserContext context = new UserContext(() -> user);
         service = new MoverLoteService(preparaciones, lotes, animales, movimientos, movimientoService, context, codigos,
-                mock(ApplicationEventPublisher.class), evento -> { }, restriccionProvider);
+                mock(ApplicationEventPublisher.class), eventos::add, restriccionProvider);
 
         when(preparaciones.crear(any(), any(), any())).thenAnswer(inv -> inv.getArgument(0));
         when(animales.validLocation(eq(empresa), any(), any())).thenReturn(true);
@@ -150,6 +151,25 @@ class MoverLoteServiceTest {
     }
 
     // ---------- confirmar() ----------
+
+    @Test
+    void registraUnSoloMovimientoParaTodosLosAnimalesYVinculaSusTimelines() {
+        List<UUID> ids = List.of(UUID.randomUUID(), UUID.randomUUID());
+        PreparacionMovimientoLote prep = preparacionVigente(AccionLote.MANTENER_LOTE, propiedadOrigen, potreroDestino, ids, 2);
+        prepararMocksConfirmar(prep, ids);
+        ResultadoMovimientoLote resultado = service.confirmar(prep.id(), confirmarCommand(prep.version(), ids));
+
+        verify(movimientos, times(1)).saveConfirmed(argThat(m -> m.origenLoteId().equals(loteId)
+                && m.destinoLoteId().equals(loteId)), argThat(detalles -> detalles.size() == 2), eq(actorId));
+        verify(movimientos).saveDetalleUbicaciones(eq(resultado.movimientoId()), argThat(detalles -> detalles.size() == 2
+                && detalles.stream().allMatch(d -> d.movimientoId().equals(resultado.movimientoId())
+                && d.potreroAntes().equals(potreroOrigen) && d.potreroDespues().equals(potreroDestino))));
+        assertThat(eventos).hasSize(2);
+        assertThat(eventos).extracting(e -> e.animalId()).containsExactlyInAnyOrderElementsOf(ids);
+        assertThat(eventos).allSatisfy(e -> assertThat(e.registroOrigenId()).isEqualTo(resultado.movimientoId()));
+        verify(preparaciones).confirmar(prep.id(), resultado.movimientoId(), null, prep.version(), actorId);
+        verify(lotes, never()).openMembership(any(), any(), any(), any(), any(), any(), any(), any(), any());
+    }
 
     @Test
     void confirmaCambioDePotreroDentroDeLaMismaPropiedad() {

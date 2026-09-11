@@ -4,6 +4,8 @@ import bo.com.ganadero.movimientos.application.MovimientoService;
 import bo.com.ganadero.movimientos.domain.EstadoMovimiento;
 import bo.com.ganadero.movimientos.domain.TipoMovimiento;
 import bo.com.ganadero.shared.api.ApiResponse;
+import bo.com.ganadero.shared.error.BusinessException;
+import bo.com.ganadero.shared.error.ErrorCode;
 import bo.com.ganadero.shared.web.CorrelationIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -28,14 +30,18 @@ public class MovimientoController {
     @GetMapping
     ApiResponse<MovimientoPageResponse> list(@RequestParam(required = false) EstadoMovimiento estado,
                                              @RequestParam(required = false) TipoMovimiento tipo,
+                                             @RequestParam(required = false) UUID loteId,
                                              @RequestParam(defaultValue = "0") @Min(0) int page,
                                              @RequestParam(defaultValue = "20") @Min(1) @Max(500) int size,
                                              HttpServletRequest request) {
-        return ok(MovimientoPageResponse.from(service.list(estado, tipo, page, size)), request);
+        return ok(MovimientoPageResponse.from(service.list(estado, tipo, loteId, page, size)), request);
     }
 
     @PostMapping
     ApiResponse<MovimientoResponse> create(@Valid @RequestBody CrearMovimientoRequest body, HttpServletRequest request) {
+        if (body.tipo() == TipoMovimiento.INGRESO_COMPRA || body.tipo() == TipoMovimiento.SALIDA_VENTA) {
+            throw new BusinessException(ErrorCode.MOVEMENT_TIPO_RESTRINGIDO);
+        }
         return ok(MovimientoResponse.from(service.create(body.command())), request);
     }
 

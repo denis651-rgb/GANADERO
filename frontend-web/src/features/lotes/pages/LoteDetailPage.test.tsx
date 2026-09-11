@@ -7,6 +7,8 @@ import { listMembresias } from '@/features/lotes/api'
 
 const addAnimales = vi.fn().mockResolvedValue({ ok: true, ingresados: 1 })
 const updateLote = vi.fn().mockResolvedValue({})
+vi.mock('@/auth/auth-context', () => ({ useAuth: () => ({ can: () => true }) }))
+vi.mock('@/features/movimientos/api', () => ({ listMovimientos: vi.fn().mockResolvedValue({ content: [], totalPages: 0 }) }))
 vi.mock('@/features/lotes/api', () => ({
   getLote: vi.fn().mockResolvedValue({ id: 'l-1', codigo: 'LOT-1', nombre: 'Toros', propiedadId: 'p-1', estado: 'ACTIVO', fechaApertura: '2026-09-03', version: 2, cantidadMaxima: 30, cantidadActual: 29 }),
   listMembresias: vi.fn().mockResolvedValue([]),
