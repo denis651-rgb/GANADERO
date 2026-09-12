@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ExternalLink, RefreshCw } from 'lucide-react'
+import { CalendarDays, RefreshCw } from 'lucide-react'
 import { listarEstadoOcurrenciasCalendario, reintentarOcurrenciaCalendario } from '@/features/configuracion/calendarioExternoApi'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
@@ -27,8 +27,8 @@ export function CalendarioExternoPanel() {
         <td>{item.animales}</td>
         <td><span className={`status-badge ${item.estadoExterno === 'SINCRONIZADO' ? 'status-activo' : 'status-inactivo'}`}>{item.estadoExterno ?? item.estadoCola ?? 'NO SINCRONIZADO'}</span></td>
         <td><div className="actions-cell">
-          {item.enlaceExterno && <a className="icon-button" href={item.enlaceExterno} target="_blank" rel="noreferrer" title="Abrir en Google Calendar" aria-label="Abrir en Google Calendar"><ExternalLink size={17} /></a>}
-          {(item.estadoCola === 'ERROR_DEFINITIVO' || !item.estadoExterno) && <Button type="button" variant="secondary" title="Reintentar sincronización" aria-label="Reintentar sincronización" loading={retry.isPending && retry.variables === item.ocurrenciaId} onClick={() => retry.mutate(item.ocurrenciaId)}><RefreshCw size={17} aria-hidden="true" /></Button>}
+          {item.enlaceExterno && <a className="button button-ghost jornada-icon-action" href={item.enlaceExterno} target="_blank" rel="noreferrer" title="Ver calendario" aria-label="Ver calendario"><CalendarDays size={17} aria-hidden="true" /></a>}
+          {(item.estadoCola === 'ERROR_DEFINITIVO' || !item.estadoExterno) && <Button type="button" variant="secondary" className="jornada-icon-action" title="Reintentar sincronización" aria-label="Reintentar sincronización" loading={retry.isPending && retry.variables === item.ocurrenciaId} onClick={() => retry.mutate(item.ocurrenciaId)}><RefreshCw size={17} aria-hidden="true" /></Button>}
         </div></td>
       </tr>)}
     </tbody></table></div>}

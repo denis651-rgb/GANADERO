@@ -131,12 +131,25 @@ habrá ninguna actividad para elegir al preparar la jornada.
    (categoría, sexo, edad) y las pestañas **Elegibles** / **Excluidos**; en
    "Excluidos" se explica el motivo de cada exclusión.
 7. Marca los animales a incluir, o presiona **Seleccionar todos los
-   elegibles**, y presiona **Continuar a confirmación**.
-8. En **Confirmar jornada**, revisa los datos recomendados (medicamento,
-   dosis, instrucciones) y ajustá lo que haya sido distinto en la práctica:
-   dosis aplicada y motivo del ajuste, producto realmente aplicado, vía,
-   lugar, días de retiro de carne y de leche, resultado y observaciones.
-9. Presiona **Confirmar jornada**.
+   elegibles**.
+8. Si vas a hacer el trabajo en el campo sin llevar la computadora,
+   presiona **Exportar planilla** antes de continuar (ver más abajo).
+9. Presiona **Continuar a confirmación**.
+10. En **Confirmar jornada**, revisa los datos recomendados (medicamento,
+    dosis, instrucciones) y ajustá lo que haya sido distinto en la
+    práctica: dosis aplicada y motivo del ajuste, producto realmente
+    aplicado, vía, lugar, días de retiro de carne y de leche, resultado y
+    observaciones.
+11. Presiona **Confirmar jornada**.
+
+**Exportar planilla** genera una hoja con los animales que marcaste, la
+actividad, el producto y dosis recomendados, y columnas en blanco para
+tickear a mano en el campo: **Aplicado**, **Dosis aplicada** y
+**Observaciones**. Desde **Ganadero Desktop** se guarda como un archivo
+Excel (.xlsx) de verdad, eligiendo dónde con el diálogo de guardar
+habitual; desde la versión web descarga un CSV con la misma información
+(se abre igual en Excel). De vuelta de la visita, usá esa hoja como
+referencia para completar **Confirmar jornada**.
 
 Mientras una jornada esté en **Borrador**, podés usar los íconos de la fila
 para **Editar jornada** o **Cancelar jornada** (con motivo).
@@ -153,13 +166,25 @@ para **Editar jornada** o **Cancelar jornada** (con motivo).
 ### Resultado esperado
 
 La jornada queda **Confirmada**, con un mensaje del tipo "Se registraron 42
-aplicaciones", visibles luego en el historial sanitario de cada animal.
+aplicaciones", visibles luego en el historial sanitario de cada animal. Ahí
+mismo aparece el botón **Agregar otra actividad a esta misma visita**: si
+ese día también corresponde, por ejemplo, una desparasitación además de la
+vacunación, este botón abre **Nueva jornada** con la fecha, propiedad,
+potrero y lote ya completados, y al preparar esa jornada te propone como
+punto de partida los mismos animales de la visita anterior que también
+sean elegibles para la nueva actividad — no hace falta volver a buscarlos
+uno por uno.
 
 ### Importante
 
 > Editar una jornada en Borrador reinicia la selección de animales — hay
 > que volver a prepararla para que se revalide la elegibilidad con los
 > datos nuevos.
+
+> "Agregar otra actividad a esta misma visita" solo precompleta el
+> formulario y sugiere animales; sigue siendo una jornada aparte, con su
+> propia preparación y confirmación — está pensado para no tener que
+> volver al campo un día distinto por cada actividad.
 
 ## Controles individuales
 
@@ -368,6 +393,17 @@ El plan debe estar en estado **Activo**. Si está en Borrador, presiona
 
 Faltan configurar las edades mínimas para machos y hembras en **Sanidad**
 → **Planes sanitarios** → "Edades mínimas para examen reproductivo".
+
+### No puedo presionar "Exportar planilla"
+
+Faltan elegir la actividad y marcar al menos un animal — el botón se
+habilita recién con esos dos datos listos.
+
+### Exporté la planilla pero me dio un CSV en vez de un Excel
+
+Estás en la versión web, no en **Ganadero Desktop**. El CSV trae la misma
+información y se abre igual en Excel; el .xlsx real solo se genera desde
+la aplicación de escritorio.
 
 ### Al preparar una jornada, no aparece ninguna actividad para elegir
 

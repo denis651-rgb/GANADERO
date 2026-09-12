@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { Download } from 'lucide-react'
 import {
   listPlanItems,
   listPlanes,
@@ -9,6 +10,7 @@ import {
   type JornadaSanitaria,
   type PlanSanitarioItem,
 } from '@/features/sanidad/api'
+import { datosPlanilla, filasCsvPlanilla, nombreArchivoPlanilla } from '@/features/sanidad/planilla'
 import type { SanidadCatalogs } from '@/features/sanidad/catalogs'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
@@ -16,6 +18,8 @@ import { Field } from '@/shared/components/Field'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { Modal } from '@/shared/components/Modal'
 import { normalizeApiError } from '@/shared/api/errors'
+import { descargarCsv } from '@/shared/utils/csv'
+import { useToast } from '@/shared/toast/useToast'
 
 export interface PreparacionJornada {
   seleccionados: number
@@ -28,13 +32,17 @@ interface JornadaPrepararModalProps {
   catalogs: SanidadCatalogs
   onClose: () => void
   onSaved: (preparacion: PreparacionJornada) => void
+  /** Animales de la visita anterior (misma fecha/ubicación), para no volver a elegirlos uno por uno. */
+  preseleccionAnimalIds?: string[]
 }
 
-export function JornadaPrepararModal({ jornada, catalogs, onClose, onSaved }: JornadaPrepararModalProps) {
+export function JornadaPrepararModal({ jornada, catalogs, onClose, onSaved, preseleccionAnimalIds }: JornadaPrepararModalProps) {
+  const { showToast } = useToast()
   const [planItemId, setPlanItemId] = useState('')
   const [fechaAplicacion, setFechaAplicacion] = useState(() => new Date().toISOString().slice(0, 10))
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [manualSelection, setManualSelection] = useState<Set<string> | null>(null)
   const [vista, setVista] = useState<'ELEGIBLES' | 'EXCLUIDOS'>('ELEGIBLES')
+  const [exportando, setExportando] = useState(false)
 
   const planItems = useQuery({
     queryKey: ['sanidad-plan-items-activos', jornada.tipoJornada],
@@ -73,26 +81,60 @@ export function JornadaPrepararModal({ jornada, catalogs, onClose, onSaved }: Jo
 
   function cambiarActividad(value: string) {
     setPlanItemId(value)
-    setSelected(new Set())
+    setManualSelection(null)
     setVista('ELEGIBLES')
   }
 
   function cambiarFecha(value: string) {
     setFechaAplicacion(value)
-    setSelected(new Set())
+    setManualSelection(null)
   }
+
+  const elegibles = useMemo(() => elegibilidad.data?.elegibles ?? [], [elegibilidad.data])
+  const excluidos = elegibilidad.data?.noElegibles ?? []
+
+  // Mientras el usuario no toque la selección a mano, arranca con los animales de la visita
+  // anterior que además sigan elegibles para esta actividad y fecha (si no viene ninguna
+  // preselección, esto da un Set vacío y el comportamiento es igual que antes).
+  const preseleccion = useMemo(() => new Set(preseleccionAnimalIds ?? []), [preseleccionAnimalIds])
+  const defaultSelected = useMemo(
+    () => new Set(elegibles.filter((animal) => preseleccion.has(animal.id)).map((animal) => animal.id)),
+    [elegibles, preseleccion],
+  )
+  const selected = manualSelection ?? defaultSelected
 
   function toggle(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+    const next = new Set(selected)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    setManualSelection(next)
   }
 
-  const elegibles = elegibilidad.data?.elegibles ?? []
-  const excluidos = elegibilidad.data?.noElegibles ?? []
+  async function exportarPlanilla() {
+    if (!itemSeleccionado) return
+    const input = datosPlanilla({
+      actividad: itemSeleccionado,
+      fechaAplicacion,
+      propiedad: catalogs.properties.find((item) => item.id === jornada.propiedadId)?.nombre,
+      potrero: jornada.potreroId ? catalogs.paddocks.find((item) => item.id === jornada.potreroId)?.nombre : undefined,
+      lote: jornada.loteGanaderoId ? catalogs.lots.find((item) => item.id === jornada.loteGanaderoId)?.nombre : undefined,
+      animales: elegibles.filter((animal) => selected.has(animal.id)),
+    })
+
+    if (!window.ganadero?.sanidad) {
+      descargarCsv(nombreArchivoPlanilla(input, 'csv'), [], filasCsvPlanilla(input))
+      return
+    }
+    setExportando(true)
+    try {
+      const resultado = await window.ganadero.sanidad.exportarPlanilla(input)
+      if (!resultado.cancelado) showToast('Planilla de campo guardada.')
+    } catch {
+      showToast('No se pudo generar la planilla.', 'danger')
+    } finally {
+      setExportando(false)
+    }
+  }
 
   return <Modal open title={`Preparar jornada · ${TIPO_ACTIVIDAD_LABELS[jornada.tipoJornada]}`} onClose={onClose} wide description="Selecciona primero la actividad. El sistema verificará automáticamente qué animales pueden participar.">
     <div className="page-stack">
@@ -124,6 +166,9 @@ export function JornadaPrepararModal({ jornada, catalogs, onClose, onSaved }: Jo
       {elegibilidad.error && <Alert tone="danger">{normalizeApiError(elegibilidad.error).message}</Alert>}
 
       {elegibilidad.data && <>
+        {manualSelection === null && defaultSelected.size > 0 && (
+          <Alert tone="info">Se preseleccionaron {defaultSelected.size} animal(es) de la visita anterior que también son elegibles para esta actividad. Podés ajustar la selección abajo.</Alert>
+        )}
         <div className="eligibility-summary" aria-live="polite">
           <span><strong>{elegibles.length}</strong> elegibles</span>
           <span className={excluidos.length ? 'eligibility-excluded-count' : undefined}><strong>{excluidos.length}</strong> excluidos</span>
@@ -148,7 +193,10 @@ export function JornadaPrepararModal({ jornada, catalogs, onClose, onSaved }: Jo
 
       <div className="form-actions">
         <span className="muted">{selected.size} animal(es) seleccionados.</span>
-        <Button onClick={() => setSelected(new Set(elegibles.map((animal) => animal.id)))} variant="secondary" disabled={elegibles.length === 0}>Seleccionar todos los elegibles</Button>
+        <Button onClick={() => setManualSelection(new Set(elegibles.map((animal) => animal.id)))} variant="secondary" disabled={elegibles.length === 0}>Seleccionar todos los elegibles</Button>
+        <Button onClick={() => void exportarPlanilla()} variant="secondary" loading={exportando} disabled={!itemSeleccionado || selected.size === 0}>
+          <Download size={16} aria-hidden="true" />Exportar planilla
+        </Button>
         <Button onClick={() => guardar.mutate()} loading={guardar.isPending} disabled={!planItemId || selected.size === 0}>Continuar a confirmación</Button>
       </div>
       {guardar.error && <Alert tone="danger">{normalizeApiError(guardar.error).message}</Alert>}
