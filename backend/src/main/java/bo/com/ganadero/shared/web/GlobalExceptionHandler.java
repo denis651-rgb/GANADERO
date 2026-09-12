@@ -12,6 +12,7 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -57,6 +58,16 @@ public class GlobalExceptionHandler {
         return error(ErrorCode.VALIDATION_ERROR, ErrorCode.VALIDATION_ERROR.defaultMessage(), request);
     }
 
+    // Ej.: un cliente pide GET /api/v1/x/{id} con un id que no es UUID válido. Es un error del
+    // cliente (400), no una falla del servidor — sin este handler caía en handleUnexpected (500)
+    // y el frontend lo reintentaba indefinidamente creyendo que era un problema transitorio.
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException exception, HttpServletRequest request) {
+        LOGGER.warn("Parámetro inválido '{}'={} en {} {}. correlationId={}", exception.getName(), exception.getValue(),
+                request.getMethod(), request.getRequestURI(), correlationId(request));
+        return error(ErrorCode.VALIDATION_ERROR, ErrorCode.VALIDATION_ERROR.defaultMessage(), request);
+    }
+
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
     ResponseEntity<ApiError> handleVersionConflict(HttpServletRequest request) {
         return error(ErrorCode.VERSION_CONFLICT, ErrorCode.VERSION_CONFLICT.defaultMessage(), request);
@@ -71,7 +82,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiError> handleUnexpected(Exception exception, HttpServletRequest request) {
-        LOGGER.error("Unexpected error. correlationId={}", correlationId(request), exception);
+        LOGGER.error("Unexpected error in {} {}. correlationId={}", request.getMethod(), request.getRequestURI(),
+                correlationId(request), exception);
         return error(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.defaultMessage(), request);
     }
 

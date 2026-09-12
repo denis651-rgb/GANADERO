@@ -271,7 +271,14 @@ button.text-link { background: none; border: 0; padding: 0; cursor: pointer; fon
 .alert-summary strong { font-size: 1.35rem; }.notification-center-list { display: grid; gap: 12px; }
 .notification-card { display: flex; align-items: center; justify-content: space-between; gap: 20px; border-left: 5px solid #78909c; }.notification-card.severity-warning { border-left-color: #d68a00; }.notification-card.severity-urgente { border-left-color: #d14343; }.notification-card.severity-critica { border-left-color: #8e1b1b; background: #fff8f7; }
 .notification-card-main { display: grid; gap: 5px; }.notification-card-main h2,.notification-card-main p { margin: 0; }.notification-priority { font-size: .7rem; font-weight: 850; letter-spacing: .08em; }
-@media (max-width: 700px) { .alert-summary-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }.notification-card { align-items: stretch; flex-direction: column; } }
+.notification-center-list.compact { gap: 6px; }
+.notification-card.compact { padding: 10px 18px; gap: 16px; }
+.notification-card.compact .notification-card-main { gap: 1px; }
+.notification-card.compact .notification-card-main h2 { font-size: .95rem; }
+.notification-card.compact .notification-card-main p { font-size: .82rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notification-card.compact .notification-card-main small { color: var(--muted); }
+.notification-card.compact .inline-actions { flex-shrink: 0; }
+@media (max-width: 700px) { .alert-summary-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }.notification-card { align-items: stretch; flex-direction: column; }.notification-card.compact .notification-card-main p { white-space: normal; } }
 
 .check-list.compact { gap: 6px; margin-top: 12px; font-size: .82rem; }
 .check-list.compact li { gap: 7px; }
@@ -411,6 +418,7 @@ button.text-link { background: none; border: 0; padding: 0; cursor: pointer; fon
 .ingreso-lote-table input[type="date"] { min-width: 0; }
 .animal-actions-cell { text-align: center; }
 .animal-actions-cell .button { width: 42px; min-width: 42px; height: 42px; padding: 0; }
+.actions-cell { display: flex; align-items: center; gap: 8px; }
 .title-with-icon { display: flex; align-items: center; gap: 9px; }
 .bulk-history-section { display: grid; gap: 12px; }
 .bulk-history-form { display: grid; gap: 22px; }
