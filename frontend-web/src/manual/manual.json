@@ -1,0 +1,21 @@
+{
+  "title": "Manual de usuario de Ganadero",
+  "version": "0.1.0",
+  "systemVersion": "0.1.0",
+  "updatedAt": "2026-09-11",
+  "chapters": [
+    { "id": "portada", "title": "Portada", "file": "00-portada.md" },
+    { "id": "primeros-pasos", "title": "Primeros pasos", "file": "01-primeros-pasos.md" },
+    { "id": "mi-finca", "title": "Mi finca", "file": "02-mi-finca.md" },
+    { "id": "animales", "title": "Animales", "file": "03-animales.md" },
+    { "id": "compras", "title": "Compras", "file": "04-compras.md" },
+    { "id": "lotes", "title": "Lotes", "file": "05-lotes.md" },
+    { "id": "movimientos", "title": "Movimientos", "file": "06-movimientos.md" },
+    { "id": "pesajes", "title": "Pesajes", "file": "07-pesajes.md" },
+    { "id": "reproduccion", "title": "Reproducción", "file": "08-reproduccion.md" },
+    { "id": "sanidad", "title": "Sanidad", "file": "09-sanidad.md" },
+    { "id": "alertas", "title": "Alertas", "file": "10-alertas.md" },
+    { "id": "ventas", "title": "Ventas", "file": "11-ventas.md" },
+    { "id": "preguntas-frecuentes", "title": "Preguntas frecuentes", "file": "12-preguntas-frecuentes.md" }
+  ]
+}
