@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { DatabaseBackup, Download, Eye, FolderOpen, RotateCcw, Trash2 } from 'lucide-react'
+import { DatabaseBackup, Download, Eye, FolderOpen, RotateCcw, Stethoscope, Trash2 } from 'lucide-react'
 import type { BackupInfo, BackupManifestInfo, BackupSettings } from '@/shared/api/http'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
@@ -23,12 +23,14 @@ const CONFIRMACION_ESPERADA = 'RESTAURAR'
 
 export function BackupsPanel() {
   const desktop = window.ganadero?.backups
+  const diagnostics = window.ganadero?.diagnostics
   const client = useQueryClient()
   const [draft, setForm] = useState<BackupSettings | null>(null)
   const [restoreTarget, setRestoreTarget] = useState<{ path: string; manifest: BackupManifestInfo } | null>(null)
   const [confirmText, setConfirmText] = useState('')
   const [restoreResultMsg, setRestoreResultMsg] = useState<{ ok: boolean; mensaje: string } | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<BackupInfo | null>(null)
+  const [diagnosticoResultMsg, setDiagnosticoResultMsg] = useState<string | null>(null)
 
   const settingsQuery = useQuery({ queryKey: ['backup-settings'], queryFn: () => desktop!.getSettings(), enabled: Boolean(desktop) })
   const listQuery = useQuery({ queryKey: ['backups-list'], queryFn: () => desktop!.list(), enabled: Boolean(desktop) })
@@ -76,6 +78,10 @@ export function BackupsPanel() {
       client.invalidateQueries({ queryKey: ['backups-list'] })
     },
   })
+  const exportarDiagnostico = useMutation({
+    mutationFn: () => diagnostics!.export(),
+    onSuccess: (resultado) => setDiagnosticoResultMsg(resultado.cancelado ? null : `Diagnóstico guardado en ${resultado.path}`),
+  })
 
   if (!desktop) {
     return <Card>
@@ -84,7 +90,7 @@ export function BackupsPanel() {
   }
 
   const operacionEnCurso = crear.isPending || verificarTodos.isPending || restaurar.isPending || guardarConfig.isPending || eliminar.isPending
-  const error = settingsQuery.error ?? listQuery.error ?? guardarConfig.error ?? crear.error ?? verificarTodos.error ?? eliminar.error ?? elegirRestaurar.error
+  const error = settingsQuery.error ?? listQuery.error ?? guardarConfig.error ?? crear.error ?? verificarTodos.error ?? eliminar.error ?? elegirRestaurar.error ?? exportarDiagnostico.error
   const lista = listQuery.data ?? []
   const ultimoRespaldo = lista[0]
   const ultimoErrorRespaldo = lista.find((r) => r.ultimoError)?.ultimoError
@@ -92,6 +98,7 @@ export function BackupsPanel() {
   return <Card>
     {error && <Alert tone="danger">{(error as Error).message}</Alert>}
     {restoreResultMsg && <Alert tone={restoreResultMsg.ok ? 'success' : 'danger'}>{restoreResultMsg.mensaje}</Alert>}
+    {diagnosticoResultMsg && <Alert tone="success">{diagnosticoResultMsg}</Alert>}
 
     <div className="section-heading"><h4>Resumen</h4></div>
     <div className="metric-grid">
@@ -164,6 +171,17 @@ export function BackupsPanel() {
         </Button>
       </td>
     </tr>)}</tbody></table></div>}
+
+    <div className="section-heading"><h4>Diagnóstico</h4></div>
+    <p className="muted">Si algo falla, exporta esta información antes de contactar soporte: incluye los registros de la aplicación y del backend, sin datos de la operación.</p>
+    <div className="inline-actions">
+      <Button variant="secondary" loading={exportarDiagnostico.isPending} onClick={() => exportarDiagnostico.mutate()}>
+        <Stethoscope size={16} aria-hidden="true" />Exportar información de diagnóstico
+      </Button>
+      <Button variant="ghost" onClick={() => diagnostics!.openLogsFolder()}>
+        <FolderOpen size={16} aria-hidden="true" />Abrir carpeta de logs
+      </Button>
+    </div>
 
     <ConfirmDialog
       open={Boolean(restoreTarget)}

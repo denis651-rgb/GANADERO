@@ -3,6 +3,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { createServer } from 'node:net'
 import path from 'node:path'
 import fs from 'node:fs'
+import { getLogsDir } from './logging'
 
 const PREFERRED_PORT = 8080
 const HEALTH_TIMEOUT_MS = 30_000
@@ -86,6 +87,16 @@ export class BackendManager {
     return path.join(app.getPath('userData'), 'backups')
   }
 
+  get mediaPath(): string {
+    return path.join(app.getPath('userData'), 'media')
+  }
+
+  /** Misma carpeta que usan los logs de Electron (ver logging.ts): "Exportar información de
+   * diagnóstico" empaqueta ambos juntos, como logs/ganadero-*.log + logs/backend-*.log. */
+  get logsPath(): string {
+    return getLogsDir()
+  }
+
   async start(): Promise<number> {
     const userData = app.getPath('userData')
     fs.mkdirSync(userData, { recursive: true })
@@ -95,7 +106,6 @@ export class BackendManager {
     this.port = await findFreePort(PREFERRED_PORT)
     const javaBin = resolveJavaBinary()
     const jarPath = resolveJarPath()
-    const mediaPath = path.join(userData, 'media')
 
     this.child = spawn(javaBin, ['-jar', jarPath], {
       env: {
@@ -103,8 +113,9 @@ export class BackendManager {
         SPRING_PROFILES_ACTIVE: 'local',
         PORT: String(this.port),
         GANADERO_DB_PATH: this.dbPath,
-        GANADERO_MEDIA_PATH: mediaPath,
+        GANADERO_MEDIA_PATH: this.mediaPath,
         GANADERO_BACKUPS_PATH: this.backupsPath,
+        GANADERO_LOGS_PATH: this.logsPath,
       },
       stdio: 'pipe',
       windowsHide: true,

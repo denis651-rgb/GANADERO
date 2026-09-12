@@ -33,6 +33,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -46,9 +47,11 @@ import java.util.zip.ZipOutputStream;
  * <p>La creación usa {@code VACUUM INTO} sobre la conexión principal (fuera de cualquier
  * transacción Spring/JPA, requisito de SQLite) para obtener un snapshot consistente sin copiar
  * el archivo abierto directamente. Un {@link ReentrantLock} evita que dos creaciones corran a
- * la vez. La copia a una carpeta externa sincronizada (p. ej. Google Drive de escritorio) y la
- * restauración las hace Electron por fuera de este servicio — este service nunca detiene su
- * propio proceso ni reemplaza el .db que tiene abierto.</p>
+ * la vez. Junto a la base se empaqueta también la carpeta de media (fotos de animales, ver
+ * {@code app.storage.root-path}) bajo la entrada {@code media/}, para que un respaldo restaurado
+ * en otra instalación no pierda las fotos. La copia a una carpeta externa sincronizada (p. ej.
+ * Google Drive de escritorio) y la restauración las hace Electron por fuera de este servicio —
+ * este service nunca detiene su propio proceso ni reemplaza el .db que tiene abierto.</p>
  */
 @Service
 public class RespaldoService {
@@ -56,15 +59,19 @@ public class RespaldoService {
             Pattern.compile("^Ganadero_\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}\\.ganadero-backup$");
     private static final DateTimeFormatter NOMBRE_FORMATO = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
     private static final ZoneId BOLIVIA = ZoneId.of("America/La_Paz");
-    private static final int VERSION_FORMATO = 1;
+    // v2 agrega la carpeta media/ al paquete; v1 (solo manifest.json + database/ganadero.db)
+    // se sigue leyendo/restaurando sin problema, simplemente no trae fotos.
+    private static final int VERSION_FORMATO = 2;
     private static final String ENTRADA_MANIFEST = "manifest.json";
     private static final String ENTRADA_BASE = "database/ganadero.db";
+    private static final String ENTRADA_MEDIA_PREFIJO = "media/";
 
     private final RespaldoRepository respaldos;
     private final UserContext context;
     private final ObjectMapper objectMapper;
     private final JdbcClient jdbc;
     private final Path backupsDir;
+    private final Path mediaDir;
     private final String versionAplicacion;
     private final ReentrantLock lock = new ReentrantLock();
 
@@ -72,6 +79,7 @@ public class RespaldoService {
                            JdbcClient jdbc,
                            @Value("${GANADERO_DB_PATH:./data/ganadero.db}") String dbPath,
                            @Value("${GANADERO_BACKUPS_PATH:}") String backupsPathRaw,
+                           @Value("${app.storage.root-path:./data/media}") String mediaPathRaw,
                            @Value("${info.app.version}") String versionAplicacion) {
         this.respaldos = respaldos;
         this.context = context;
@@ -79,6 +87,7 @@ public class RespaldoService {
         this.jdbc = jdbc;
         this.versionAplicacion = versionAplicacion;
         this.backupsDir = resolverCarpetaRespaldos(dbPath, backupsPathRaw);
+        this.mediaDir = Path.of(mediaPathRaw).toAbsolutePath().normalize();
     }
 
     private static Path resolverCarpetaRespaldos(String dbPath, String backupsPathRaw) {
@@ -283,8 +292,22 @@ public class RespaldoService {
             zos.putNextEntry(new ZipEntry(ENTRADA_BASE));
             Files.copy(dbFile, zos);
             zos.closeEntry();
+            empaquetarMedia(zos);
         } catch (IOException e) {
             throw new IllegalStateException("No se pudo empaquetar el respaldo.", e);
+        }
+    }
+
+    /** Sin carpeta de media (instalación nueva sin fotos aún) simplemente no agrega entradas. */
+    private void empaquetarMedia(ZipOutputStream zos) throws IOException {
+        if (!Files.isDirectory(mediaDir)) return;
+        try (Stream<Path> archivos = Files.walk(mediaDir)) {
+            for (Path archivo : archivos.filter(Files::isRegularFile).sorted().toList()) {
+                String relativo = mediaDir.relativize(archivo).toString().replace('\\', '/');
+                zos.putNextEntry(new ZipEntry(ENTRADA_MEDIA_PREFIJO + relativo));
+                Files.copy(archivo, zos);
+                zos.closeEntry();
+            }
         }
     }
 

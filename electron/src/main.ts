@@ -1,12 +1,16 @@
-import { app, BrowserWindow, Menu, Tray, ipcMain } from 'electron'
+import { app, BrowserWindow, Menu, Tray, ipcMain, shell } from 'electron'
 import path from 'node:path'
 import { BackendManager } from './backend'
 import { BackupManager } from './backups/manager'
 import { startBackupScheduler, type BackupSchedulerHandle } from './backups/scheduler'
+import { exportarDiagnostico } from './diagnostics'
+import { initLogging, getLogsDir } from './logging'
 import { startNotificationPolling } from './notifications'
 import { registerFrontendScheme, serveFrontend, FRONTEND_SCHEME } from './frontend-protocol'
 import { GoogleOAuthManager } from './google-oauth'
 import { startGoogleCalendarSync, type GoogleCalendarSyncHandle } from './google-calendar-sync'
+import { exportarPlanillaSanitaria, type PlanillaSanitariaInput } from './sanidad-export'
+import { buscarActualizacionesManualmente, initAutoUpdater } from './updater'
 
 const DEV_SERVER_URL = 'http://localhost:5173'
 const ICON_PATH = path.join(__dirname, '..', 'build', 'icon.ico')
@@ -38,6 +42,9 @@ if (!app.requestSingleInstanceLock()) {
   // app.setName() no siempre alcanza a tiempo para app.getPath('userData'); se fija explícito
   // para garantizar %APPDATA%/Ganadero como pide el plan de escritorio.
   app.setPath('userData', path.join(app.getPath('appData'), 'Ganadero'))
+  // Debe ir después de fijar userData: initLogging() calcula la carpeta de logs a partir de
+  // app.getPath('userData'), y tiene que coincidir con la que usa BackendManager para db/media/backups.
+  initLogging()
 
   app.whenReady().then(async () => {
     serveFrontend()
@@ -52,11 +59,16 @@ if (!app.requestSingleInstanceLock()) {
 
     createWindow(backendFailed)
     registerBackupsIpc()
+    registerDiagnosticsIpc()
     registerAppIpc()
     createTray()
+    // Se busca incluso en modo recuperación: si el backend no arrancó, una actualización podría
+    // ser justo el arreglo.
+    initAutoUpdater()
 
     if (!backendFailed) {
       registerGoogleOAuthIpc()
+      registerSanidadIpc()
       stopNotifications = startNotificationPolling(() => backend.port, focusWindow)
       googleCalendarSync = startGoogleCalendarSync(() => backend.port, googleOAuth)
       backupScheduler = startBackupScheduler(backupManager)
@@ -80,6 +92,16 @@ function registerGoogleOAuthIpc(): void {
   ipcMain.handle('google-calendar-oauth:revoke', () => googleOAuth.revoke())
   ipcMain.handle('google-calendar-oauth:change-account', () => googleOAuth.changeAccount())
   ipcMain.handle('google-calendar:sync-now', () => googleCalendarSync?.syncNow())
+}
+
+function registerSanidadIpc(): void {
+  ipcMain.handle('sanidad:exportar-planilla', (_event, input: PlanillaSanitariaInput) => exportarPlanillaSanitaria(input))
+}
+
+/** Disponible incluso si el backend falló al iniciar: es justo cuando más útil es poder exportar los logs. */
+function registerDiagnosticsIpc(): void {
+  ipcMain.handle('diagnostics:export', () => exportarDiagnostico(backend))
+  ipcMain.handle('diagnostics:open-logs-folder', () => shell.openPath(getLogsDir()))
 }
 
 /**
@@ -144,6 +166,7 @@ function createTray(): void {
   tray.setToolTip('Ganadero')
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Abrir Ganadero', click: focusWindow },
+    { label: 'Buscar actualizaciones', click: buscarActualizacionesManualmente },
     { type: 'separator' },
     { label: 'Salir', click: () => { quitting = true; app.quit() } },
   ]))

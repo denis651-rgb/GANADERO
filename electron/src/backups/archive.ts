@@ -18,10 +18,13 @@ export interface RespaldoManifest {
 
 export const MANIFEST_ENTRY = 'manifest.json'
 export const DATABASE_ENTRY = 'database/ganadero.db'
-const MAX_ENTRIES = 10
-const MAX_TOTAL_BYTES = 5 * 1024 * 1024 * 1024 // 5 GB: generosa para una base SQLite de una finca.
+export const MEDIA_ENTRY_PREFIX = 'media/'
+// Formato v2: además de manifest.json + database/ganadero.db, empaqueta media/ (fotos de
+// animales) — de ahí el límite de entradas mucho más alto que en v1 (dos entradas fijas).
+export const MAX_ENTRIES = 20_000
+const MAX_TOTAL_BYTES = 8 * 1024 * 1024 * 1024 // 8 GB: base SQLite + fotos de animales.
 const FORMATO_ESPERADO = 'GANADERO_BACKUP'
-const VERSION_FORMATO_SOPORTADA = 1
+const VERSION_FORMATO_SOPORTADA = 2
 
 export class ArchiveValidationError extends Error {}
 
@@ -75,6 +78,41 @@ export function extractDatabaseEntry(zipPath: string, destPath: string): void {
   const entry = zip.getEntry(DATABASE_ENTRY)
   if (!entry) throw new ArchiveValidationError('El respaldo no contiene database/ganadero.db.')
   fs.writeFileSync(destPath, zip.readFile(entry) ?? Buffer.alloc(0))
+}
+
+/**
+ * Resuelve dónde debe escribirse una entrada relativa dentro de destAbs, o lanza si escapa
+ * (Zip Slip). Separado de extractMediaEntries para poder probarlo sin pasar por un ZIP real:
+ * adm-zip normaliza "../" al escribir un zip propio (ver comentario en el test de Zip Slip más
+ * abajo), así que un caso malicioso solo se puede ejercer fabricando la ruta directamente.
+ */
+export function resolverDestinoMedia(destAbs: string, relativo: string): string {
+  const destino = path.resolve(destAbs, relativo)
+  if (destino !== destAbs && !destino.startsWith(destAbs + path.sep)) {
+    throw new ArchiveValidationError(`Ruta de entrada de media fuera del destino permitido: ${relativo}`)
+  }
+  return destino
+}
+
+/**
+ * Extrae las entradas media/** a destDir (sin el prefijo "media/"), preservando subcarpetas.
+ * Devuelve la cantidad de archivos extraídos — 0 si el respaldo es de un formato anterior sin
+ * fotos, en cuyo caso el llamador no debe tocar la carpeta de media existente.
+ */
+export function extractMediaEntries(zipPath: string, destDir: string): number {
+  const zip = new AdmZip(zipPath)
+  const entries = validateZipEntries(zip.getEntries(), path.dirname(zipPath))
+  const destAbs = path.resolve(destDir)
+  let extraidos = 0
+  for (const entry of entries) {
+    if (entry.isDirectory || !entry.entryName.startsWith(MEDIA_ENTRY_PREFIX)) continue
+    const relativo = entry.entryName.slice(MEDIA_ENTRY_PREFIX.length)
+    const destino = resolverDestinoMedia(destAbs, relativo)
+    fs.mkdirSync(path.dirname(destino), { recursive: true })
+    fs.writeFileSync(destino, zip.readFile(entry) ?? Buffer.alloc(0))
+    extraidos += 1
+  }
+  return extraidos
 }
 
 export function computeSha256(filePath: string): string {

@@ -1,7 +1,7 @@
 {
   "name": "ganadero-desktop",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Ganadero como aplicación de escritorio (Electron + backend Spring Boot embebido)",
   "main": "dist/main.js",
   "scripts": {
@@ -11,10 +11,18 @@
     "package:frontend": "cd ../frontend-web && npm run build",
     "package:backend": "cd ../backend && ./mvnw -q -o clean package -DskipTests",
     "package:runtime": "node scripts/build-runtime.js",
-    "dist": "npm run build && npm run package:frontend && npm run package:backend && npm run package:runtime && electron-builder"
+    "dist": "npm run build && npm run package:frontend && npm run package:backend && npm run package:runtime && electron-builder",
+    "release": "npm run build && npm run package:frontend && npm run package:backend && npm run package:runtime && electron-builder --publish always"
   },
   "dependencies": {
-    "adm-zip": "^0.6.1"
+    "adm-zip": "^0.6.1",
+    "electron-updater": "^6.8.9",
+    "exceljs": "^4.4.0"
+  },
+  "overrides": {
+    "exceljs": {
+      "uuid": "^11.1.1"
+    }
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.7",

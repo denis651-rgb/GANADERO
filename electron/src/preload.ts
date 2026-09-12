@@ -38,4 +38,11 @@ contextBridge.exposeInMainWorld('ganadero', {
     openLocalFolder: () => ipcRenderer.invoke('backups:open-local-folder'),
     openExternalFolder: () => ipcRenderer.invoke('backups:open-external-folder'),
   },
+  sanidad: {
+    exportarPlanilla: (input: unknown) => ipcRenderer.invoke('sanidad:exportar-planilla', input),
+  },
+  diagnostics: {
+    export: () => ipcRenderer.invoke('diagnostics:export'),
+    openLogsFolder: () => ipcRenderer.invoke('diagnostics:open-logs-folder'),
+  },
 })

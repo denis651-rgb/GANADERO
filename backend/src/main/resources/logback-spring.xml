@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Electron pasa GANADERO_LOGS_PATH (carpeta compartida con sus propios logs, ver
+         electron/src/logging.ts) para que "Exportar información de diagnóstico" pueda empaquetar
+         ambos juntos. Sin Electron (dev/tests), cae a ./data/logs igual que GANADERO_DB_PATH. -->
+    <property name="LOGS_PATH" value="${GANADERO_LOGS_PATH:-./data/logs}" />
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Sin <file>: el nombre activo lo define el propio patrón con la fecha de hoy, así que
+         "backend-2026-09-10.log" es a la vez el archivo en curso y el ya rotado (nada de un
+         "backend.log" genérico que haya que abrir para saber la fecha). -->
+    <appender name="ARCHIVO" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOGS_PATH}/backend-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>14</maxHistory>
+            <totalSizeCap>200MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="ARCHIVO" />
+    </root>
+</configuration>

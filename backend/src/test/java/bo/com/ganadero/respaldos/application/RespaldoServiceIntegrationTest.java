@@ -46,6 +46,7 @@ class RespaldoServiceIntegrationTest {
     private RespaldoService service;
     private JdbcClient jdbc;
     private Path backupsDir;
+    private Path mediaDir;
     private UUID actorId;
 
     @BeforeEach
@@ -55,13 +56,14 @@ class RespaldoServiceIntegrationTest {
         Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").mixed(true).load().migrate();
         jdbc = JdbcClient.create(dataSource);
         backupsDir = tempDir.resolve("backups");
+        mediaDir = tempDir.resolve("media");
 
         actorId = UUID.randomUUID();
         CurrentUser user = new CurrentUser(actorId, UUID.randomUUID(), UUID.randomUUID(), Set.of(),
                 Set.of("RESPALDOS_VER", "RESPALDOS_CREAR", "RESPALDOS_ELIMINAR", "RESPALDOS_RESTAURAR", "RESPALDOS_CONFIGURAR"),
                 Set.of(), true);
         service = new RespaldoService(new JdbcRespaldoRepository(jdbc), new UserContext(() -> user), new ObjectMapper(),
-                jdbc, dbFile.toString(), backupsDir.toString(), "0.0.1-TEST");
+                jdbc, dbFile.toString(), backupsDir.toString(), mediaDir.toString(), "0.0.1-TEST");
     }
 
     @Test
@@ -150,6 +152,29 @@ class RespaldoServiceIntegrationTest {
 
         assertThatThrownBy(() -> service.eliminar(segundo.nombreArchivo()))
                 .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.RESPALDO_ES_EL_UNICO_VALIDO));
+    }
+
+    @Test
+    void incluyeLosArchivosDeMediaEnElRespaldo() throws Exception {
+        Files.createDirectories(mediaDir.resolve("animales/123"));
+        Files.writeString(mediaDir.resolve("animales/123/foto.jpg"), "contenido-de-foto");
+
+        Respaldo creado = service.crear();
+
+        try (ZipFile zip = new ZipFile(backupsDir.resolve(creado.nombreArchivo()).toFile())) {
+            ZipEntry mediaEntry = zip.getEntry("media/animales/123/foto.jpg");
+            assertThat(mediaEntry).isNotNull();
+            assertThat(new String(zip.getInputStream(mediaEntry).readAllBytes())).isEqualTo("contenido-de-foto");
+        }
+    }
+
+    @Test
+    void noFallaSiNoExisteAunLaCarpetaDeMedia() {
+        assertThat(mediaDir).doesNotExist();
+
+        Respaldo creado = service.crear();
+
+        assertThat(creado.integridad()).isEqualTo(IntegridadRespaldo.VALIDA);
     }
 
     @Test

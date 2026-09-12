@@ -15,9 +15,38 @@ declare global {
         syncNow: () => Promise<GoogleCalendarSyncResult>
       }
       backups?: BackupsDesktopBridge
+      sanidad?: {
+        exportarPlanilla: (input: PlanillaSanitariaInput) => Promise<ExportarPlanillaResult>
+      }
+      diagnostics?: DiagnosticsDesktopBridge
     }
   }
 }
+
+export interface PlanillaSanitariaAnimal {
+  codigo: string
+  nombre?: string
+  sexo: 'MACHO' | 'HEMBRA'
+  edadTexto?: string
+}
+
+export interface PlanillaSanitariaInput {
+  actividad: string
+  fecha: string
+  propiedad: string
+  potrero?: string
+  lote?: string
+  producto?: string
+  dosisTexto?: string
+  viaAdministracion?: string
+  lugarAplicacion?: string
+  instrucciones?: string
+  retiroCarneDias?: number
+  retiroLecheDias?: number
+  animales: PlanillaSanitariaAnimal[]
+}
+
+export type ExportarPlanillaResult = { cancelado: true } | { cancelado: false; path: string }
 
 export type BackupEstado = 'CREANDO' | 'CREADO_LOCALMENTE' | 'COPIANDO_A_CARPETA_EXTERNA'
   | 'COPIADO_A_CARPETA_EXTERNA' | 'ERROR_DE_COPIA' | 'INTEGRIDAD_INVALIDA'
@@ -81,6 +110,16 @@ export interface BackupsDesktopBridge {
   restore: (filePath: string) => Promise<BackupRestoreResult>
   openLocalFolder: () => Promise<void>
   openExternalFolder: () => Promise<void>
+}
+
+export interface DiagnosticoExportResult {
+  cancelado: boolean
+  path?: string
+}
+
+export interface DiagnosticsDesktopBridge {
+  export: () => Promise<DiagnosticoExportResult>
+  openLogsFolder: () => Promise<void>
 }
 
 export interface GoogleOAuthDesktopStatus {
