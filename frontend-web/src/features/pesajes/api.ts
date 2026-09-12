@@ -1,5 +1,5 @@
 import { http } from '@/shared/api/http'
-import type { ApiResponse, Page } from '@/shared/api/types'
+import { normalizePage, type ApiResponse, type Page } from '@/shared/api/types'
 import { createUuid } from '@/shared/utils/uuid'
 import type {
   AnularPesajeInput,
@@ -15,14 +15,14 @@ import type {
 } from '@/features/pesajes/types'
 
 export async function listPesajes(filters: PesajeFilters) {
-  return (await http.get<ApiResponse<Page<Pesaje>>>('/api/v1/pesajes', {
+  return normalizePage((await http.get<ApiResponse<Page<Pesaje>>>('/api/v1/pesajes', {
     params: {
       animalId: filters.animalId || undefined,
       propiedadId: filters.propiedadId || undefined,
       page: filters.page,
       size: filters.size,
     },
-  })).data.data
+  })).data.data)
 }
 
 export async function getPesaje(id: string) {
@@ -30,7 +30,7 @@ export async function getPesaje(id: string) {
 }
 
 export async function getPesajeHistory(animalId: string) {
-  return (await http.get<ApiResponse<Pesaje[]>>(`/api/v1/animales/${animalId}/pesajes`)).data.data
+  return (await http.get<ApiResponse<Pesaje[]>>(`/api/v1/animales/${animalId}/pesajes`)).data.data ?? []
 }
 
 export async function getPesajeIndicadorAnimal(animalId: string) {
@@ -42,9 +42,9 @@ export async function getPesajeIndicadorLote(loteId: string) {
 }
 
 export async function listAnimalesSinPesaje(page = 0, size = 20) {
-  return (await http.get<ApiResponse<PesajeSinPesajePage>>('/api/v1/pesajes/indicadores/sin-pesaje', {
+  return normalizePage((await http.get<ApiResponse<PesajeSinPesajePage>>('/api/v1/pesajes/indicadores/sin-pesaje', {
     params: { page, size },
-  })).data.data
+  })).data.data)
 }
 
 export async function registrarPesaje(input: RegistrarPesajeInput) {

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Activity, Baby, HeartPulse, LayoutDashboard, Stethoscope, XCircle } from 'lucide-react'
 import { useAuth } from '@/auth/auth-context'
-import { listAbortos, listCelos, listDestetes, listDiagnosticos, listPartos, listServicios } from '@/features/reproduccion/api'
+import { listAbortos, listCelos, listDestetes, listDiagnosticos, listPartos, listServicios, type PageResponse } from '@/features/reproduccion/api'
 import { useReproduccionCatalogs } from '@/features/reproduccion/catalogs'
 import { AbortosPanel } from '@/features/reproduccion/components/AbortosPanel'
 import { CelosPanel } from '@/features/reproduccion/components/CelosPanel'
@@ -18,6 +18,10 @@ import { normalizeApiError } from '@/shared/api/errors'
 
 type Seccion = 'resumen' | 'celos' | 'servicios' | 'diagnosticos' | 'partos'
 type SubSeccion = 'partos' | 'abortos' | 'destetes'
+
+function emptyPage<T>(): PageResponse<T> {
+  return { content: [], page: 0, size: 0, totalElements: 0, totalPages: 0 }
+}
 
 const SECCIONES: Array<{ key: Seccion; label: string; icon: typeof LayoutDashboard }> = [
   { key: 'resumen', label: 'Resumen', icon: LayoutDashboard },
@@ -61,19 +65,19 @@ export function ReproduccionPage() {
     </nav>
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
     {loading && <LoadingState message="Cargando información reproductiva…" />}
-    {!loading && seccion === 'resumen' && <ResumenPanel celos={celos.data!} servicios={servicios.data!} diagnosticos={diagnosticos.data!} partos={partos.data!} abortos={abortos.data!} destetes={destetes.data!} />}
-    {!loading && seccion === 'celos' && <CelosPanel celos={celos.data!} isLoading={celos.isPending} error={celos.error} catalogs={catalogs.data} refresh={refresh} />}
-    {!loading && seccion === 'servicios' && <ServiciosPanel servicios={servicios.data!} celos={celos.data!.content} isLoading={servicios.isPending} error={servicios.error} catalogs={catalogs.data} refresh={refresh} />}
-    {!loading && seccion === 'diagnosticos' && <DiagnosticosPanel diagnosticos={diagnosticos.data!} servicios={servicios.data!.content} isLoading={diagnosticos.isPending} error={diagnosticos.error} catalogs={catalogs.data} refresh={refresh} />}
+    {!loading && seccion === 'resumen' && <ResumenPanel celos={celos.data ?? emptyPage()} servicios={servicios.data ?? emptyPage()} diagnosticos={diagnosticos.data ?? emptyPage()} partos={partos.data ?? emptyPage()} abortos={abortos.data ?? emptyPage()} destetes={destetes.data ?? emptyPage()} />}
+    {!loading && seccion === 'celos' && <CelosPanel celos={celos.data ?? emptyPage()} isLoading={celos.isPending} error={celos.error} catalogs={catalogs.data} refresh={refresh} />}
+    {!loading && seccion === 'servicios' && <ServiciosPanel servicios={servicios.data ?? emptyPage()} celos={celos.data?.content ?? []} isLoading={servicios.isPending} error={servicios.error} catalogs={catalogs.data} refresh={refresh} />}
+    {!loading && seccion === 'diagnosticos' && <DiagnosticosPanel diagnosticos={diagnosticos.data ?? emptyPage()} servicios={servicios.data?.content ?? []} isLoading={diagnosticos.isPending} error={diagnosticos.error} catalogs={catalogs.data} refresh={refresh} />}
     {!loading && seccion === 'partos' && <>
       <nav className="tabs" aria-label="Subsecciones de partos y crías">
         <button type="button" className={`tab-button ${subSeccion === 'partos' ? 'active' : ''}`} onClick={() => setSubSeccion('partos')} aria-current={subSeccion === 'partos' ? 'page' : undefined}><Baby size={16} aria-hidden="true" />Partos</button>
         <button type="button" className={`tab-button ${subSeccion === 'abortos' ? 'active' : ''}`} onClick={() => setSubSeccion('abortos')} aria-current={subSeccion === 'abortos' ? 'page' : undefined}><XCircle size={16} aria-hidden="true" />Abortos</button>
         <button type="button" className={`tab-button ${subSeccion === 'destetes' ? 'active' : ''}`} onClick={() => setSubSeccion('destetes')} aria-current={subSeccion === 'destetes' ? 'page' : undefined}><Activity size={16} aria-hidden="true" />Destetes</button>
       </nav>
-      {subSeccion === 'partos' && <PartosPanel partos={partos.data!} isLoading={partos.isPending} error={partos.error} catalogs={catalogs.data} refresh={refresh} />}
-      {subSeccion === 'abortos' && <AbortosPanel abortos={abortos.data!} isLoading={abortos.isPending} error={abortos.error} catalogs={catalogs.data} refresh={refresh} />}
-      {subSeccion === 'destetes' && <DestetesPanel destetes={destetes.data!} isLoading={destetes.isPending} error={destetes.error} catalogs={catalogs.data} refresh={refresh} />}
+      {subSeccion === 'partos' && <PartosPanel partos={partos.data ?? emptyPage()} isLoading={partos.isPending} error={partos.error} catalogs={catalogs.data} refresh={refresh} />}
+      {subSeccion === 'abortos' && <AbortosPanel abortos={abortos.data ?? emptyPage()} isLoading={abortos.isPending} error={abortos.error} catalogs={catalogs.data} refresh={refresh} />}
+      {subSeccion === 'destetes' && <DestetesPanel destetes={destetes.data ?? emptyPage()} isLoading={destetes.isPending} error={destetes.error} catalogs={catalogs.data} refresh={refresh} />}
     </>}
   </div>
 }

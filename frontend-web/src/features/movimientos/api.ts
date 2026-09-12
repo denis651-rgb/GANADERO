@@ -1,5 +1,5 @@
 import { http } from '@/shared/api/http'
-import type { ApiResponse, Page } from '@/shared/api/types'
+import { normalizePage, type ApiResponse, type Page } from '@/shared/api/types'
 
 export type TipoMovimiento = 'CAMBIO_POTRERO' | 'CAMBIO_LOTE' | 'TRANSFERENCIA_PROPIEDAD' | 'INGRESO_COMPRA' | 'SALIDA_VENTA' | 'CUARENTENA' | 'RETORNO_CUARENTENA'
 export type EstadoMovimiento = 'PENDIENTE' | 'CONFIRMADO' | 'ANULADO' | 'REVERTIDO'
@@ -91,9 +91,9 @@ export interface CreateMovimientoInput {
 }
 
 export async function listMovimientos(filters: { estado?: EstadoMovimiento | ''; tipo?: TipoMovimiento | ''; loteId?: string; page: number; size: number }) {
-  return (await http.get<ApiResponse<Page<Movimiento>>>('/api/v1/movimientos', {
+  return normalizePage((await http.get<ApiResponse<Page<Movimiento>>>('/api/v1/movimientos', {
     params: { estado: filters.estado || undefined, tipo: filters.tipo || undefined, loteId: filters.loteId || undefined, page: filters.page, size: filters.size },
-  })).data.data
+  })).data.data)
 }
 
 export async function getMovimiento(id: string) { return (await http.get<ApiResponse<Movimiento>>(`/api/v1/movimientos/${id}`)).data.data }

@@ -21,3 +21,8 @@ export interface Page<T> {
   totalElements: number
   totalPages: number
 }
+
+/** Garantiza `content` como arreglo: evita que un backend que responda sin ese campo tumbe el render. */
+export function normalizePage<T, P extends { content: T[] }>(page: P): P {
+  return { ...page, content: page.content ?? [] }
+}

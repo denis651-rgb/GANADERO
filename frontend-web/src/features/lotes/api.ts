@@ -1,5 +1,5 @@
 import { http } from '@/shared/api/http'
-import type { ApiResponse, Page } from '@/shared/api/types'
+import { normalizePage, type ApiResponse, type Page } from '@/shared/api/types'
 
 export type EstadoLote = 'ACTIVO' | 'CERRADO'
 export type ModoIngreso = 'ATOMICO' | 'PARCIAL'
@@ -91,9 +91,9 @@ export interface HistorialLoteParams {
 }
 
 export async function listLotes(filters: { estado?: EstadoLote | ''; search?: string; page: number; size: number }) {
-  return (await http.get<ApiResponse<Page<Lote>>>('/api/v1/lotes', {
+  return normalizePage((await http.get<ApiResponse<Page<Lote>>>('/api/v1/lotes', {
     params: { estado: filters.estado || undefined, search: filters.search || undefined, page: filters.page, size: filters.size },
-  })).data.data
+  })).data.data)
 }
 
 export async function getLote(id: string) { return (await http.get<ApiResponse<Lote>>(`/api/v1/lotes/${id}`)).data.data }
@@ -111,7 +111,7 @@ export async function cerrarLote(id: string, version: number, motivo?: string, f
 }
 
 export async function listMembresias(loteId: string, activos = true) {
-  return (await http.get<ApiResponse<Membresia[]>>(`/api/v1/lotes/${loteId}/animales`, { params: { activos } })).data.data
+  return (await http.get<ApiResponse<Membresia[]>>(`/api/v1/lotes/${loteId}/animales`, { params: { activos } })).data.data ?? []
 }
 
 export async function addAnimales(loteId: string, input: IngresoLoteInput) {
@@ -123,5 +123,5 @@ export async function retirarAnimales(loteId: string, input: RetiroLoteInput) {
 }
 
 export async function historialLote(loteId: string, params: HistorialLoteParams) {
-  return (await http.get<ApiResponse<Page<Membresia>>>(`/api/v1/lotes/${loteId}/historial`, { params })).data.data
+  return normalizePage((await http.get<ApiResponse<Page<Membresia>>>(`/api/v1/lotes/${loteId}/historial`, { params })).data.data)
 }

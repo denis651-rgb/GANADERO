@@ -1,11 +1,11 @@
 import { http } from '@/shared/api/http'
-import type { ApiResponse } from '@/shared/api/types'
+import { normalizePage, type ApiResponse } from '@/shared/api/types'
 import type { Compra, CompraDetalle, CompraInput, CompraPage, DependenciaCompra, EstadoCompra, ResumenCompraAnimal } from '@/features/compras/types'
 
 export async function listCompras(params: { estado?: EstadoCompra; page: number; size: number }) {
-  return (await http.get<ApiResponse<CompraPage>>('/api/v1/compras', {
+  return normalizePage((await http.get<ApiResponse<CompraPage>>('/api/v1/compras', {
     params: { estado: params.estado || undefined, page: params.page, size: params.size },
-  })).data.data
+  })).data.data)
 }
 
 export async function getCompra(id: string) {
@@ -13,11 +13,11 @@ export async function getCompra(id: string) {
 }
 
 export async function getCompraDetalles(id: string) {
-  return (await http.get<ApiResponse<CompraDetalle[]>>(`/api/v1/compras/${id}/detalles`)).data.data
+  return (await http.get<ApiResponse<CompraDetalle[]>>(`/api/v1/compras/${id}/detalles`)).data.data ?? []
 }
 
 export async function getCompraDependencias(id: string) {
-  return (await http.get<ApiResponse<DependenciaCompra[]>>(`/api/v1/compras/${id}/dependencias`)).data.data
+  return (await http.get<ApiResponse<DependenciaCompra[]>>(`/api/v1/compras/${id}/dependencias`)).data.data ?? []
 }
 
 export async function getResumenCompraAnimal(animalId: string) {

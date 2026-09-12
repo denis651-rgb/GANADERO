@@ -1,5 +1,5 @@
 import { http } from '@/shared/api/http'
-import type { ApiResponse } from '@/shared/api/types'
+import { normalizePage, type ApiResponse } from '@/shared/api/types'
 
 export type SexoAnimal = 'MACHO' | 'HEMBRA'
 export type TipoCelo = 'VISUAL' | 'TORO_MARCADOR' | 'PODOMETRO' | 'SENSOR' | 'OTRO'
@@ -373,7 +373,7 @@ export function toIso(value: string) {
 }
 
 export async function listPartos(params?: { animalId?: string; propiedadId?: string; page?: number; size?: number }) {
-  return (await http.get<ApiResponse<PageResponse<Parto>>>('/api/v1/reproduccion/partos', { params })).data.data
+  return normalizePage((await http.get<ApiResponse<PageResponse<Parto>>>('/api/v1/reproduccion/partos', { params })).data.data)
 }
 
 export async function registrarParto(input: RegistrarPartoInput) {
@@ -395,7 +395,7 @@ export interface GestacionCiclo {
 }
 
 export async function listGestaciones(animalId: string) {
-  return (await http.get<ApiResponse<GestacionCiclo[]>>('/api/v1/reproduccion/gestaciones', { params: { animalId } })).data.data
+  return (await http.get<ApiResponse<GestacionCiclo[]>>('/api/v1/reproduccion/gestaciones', { params: { animalId } })).data.data ?? []
 }
 
 export async function abrirGestacion(input: { animalId: string; diagnosticoId?: string; fechaConfirmacion?: string; fechaInicioEstimada?: string; observaciones?: string }) {
@@ -403,7 +403,7 @@ export async function abrirGestacion(input: { animalId: string; diagnosticoId?: 
 }
 
 export async function listAbortos(params?: { animalId?: string; propiedadId?: string; page?: number; size?: number }) {
-  return (await http.get<ApiResponse<PageResponse<Aborto>>>('/api/v1/reproduccion/abortos', { params })).data.data
+  return normalizePage((await http.get<ApiResponse<PageResponse<Aborto>>>('/api/v1/reproduccion/abortos', { params })).data.data)
 }
 
 export async function registrarAborto(input: RegistrarAbortoInput) {
@@ -411,7 +411,7 @@ export async function registrarAborto(input: RegistrarAbortoInput) {
 }
 
 export async function listDestetes(params?: { animalId?: string; propiedadId?: string; page?: number; size?: number }) {
-  return (await http.get<ApiResponse<PageResponse<Destete>>>('/api/v1/reproduccion/destetes', { params })).data.data
+  return normalizePage((await http.get<ApiResponse<PageResponse<Destete>>>('/api/v1/reproduccion/destetes', { params })).data.data)
 }
 
 export async function registrarDestete(input: RegistrarDesteteInput) {
@@ -423,7 +423,7 @@ export async function getMadreDestete(criaId: string) {
 }
 
 export async function listCelos(params?: { animalId?: string; propiedadId?: string; estado?: EstadoRegistroReproduccion; page?: number; size?: number }) {
-  return (await http.get<ApiResponse<PageResponse<CeloResponse>>>('/api/v1/reproduccion/celos', { params })).data.data
+  return normalizePage((await http.get<ApiResponse<PageResponse<CeloResponse>>>('/api/v1/reproduccion/celos', { params })).data.data)
 }
 
 export async function registrarCelo(input: RegistrarCeloInput) {
@@ -435,7 +435,7 @@ export async function anularCelo(id: string, input: { motivo: string; version: n
 }
 
 export async function listServicios(params?: { animalId?: string; propiedadId?: string; page?: number; size?: number }) {
-  return (await http.get<ApiResponse<PageResponse<ServicioResponse>>>('/api/v1/reproduccion/servicios', { params })).data.data
+  return normalizePage((await http.get<ApiResponse<PageResponse<ServicioResponse>>>('/api/v1/reproduccion/servicios', { params })).data.data)
 }
 
 export async function registrarServicio(input: RegistrarServicioInput) {
@@ -443,7 +443,7 @@ export async function registrarServicio(input: RegistrarServicioInput) {
 }
 
 export async function listDiagnosticos(params?: { animalId?: string; propiedadId?: string; page?: number; size?: number }) {
-  return (await http.get<ApiResponse<PageResponse<DiagnosticoGestacionResponse>>>('/api/v1/reproduccion/diagnosticos', { params })).data.data
+  return normalizePage((await http.get<ApiResponse<PageResponse<DiagnosticoGestacionResponse>>>('/api/v1/reproduccion/diagnosticos', { params })).data.data)
 }
 
 export async function registrarDiagnostico(input: RegistrarDiagnosticoInput) {

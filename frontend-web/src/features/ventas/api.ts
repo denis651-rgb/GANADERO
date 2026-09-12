@@ -62,7 +62,7 @@ export async function listVentas(filters: VentaFilters = {}) {
       desde: filters.desde || undefined,
       hasta: filters.hasta || undefined,
     },
-  })).data.data
+  })).data.data ?? []
 }
 
 export async function registrarVenta(input: VentaInput) {

@@ -1,5 +1,5 @@
 import { http } from '@/shared/api/http'
-import type { ApiResponse, Page } from '@/shared/api/types'
+import { normalizePage, type ApiResponse, type Page } from '@/shared/api/types'
 
 export interface Potrero {
   id: string
@@ -28,19 +28,19 @@ export type UpdatePotreroInput = Partial<Pick<Potrero, 'propiedadId' | 'sectorId
 export interface TipoPasto { id: string; codigo: string; nombre: string }
 
 export async function listPotreros(filters: { propiedadId?: string; estado?: Potrero['estado'] | ''; sectorId?: string; page: number; size: number }) {
-  return (await http.get<ApiResponse<Page<Potrero>>>('/api/v1/potreros', {
+  return normalizePage((await http.get<ApiResponse<Page<Potrero>>>('/api/v1/potreros', {
     params: { propiedadId: filters.propiedadId || undefined, estado: filters.estado || undefined, sectorId: filters.sectorId || undefined, page: filters.page, size: filters.size },
-  })).data.data
+  })).data.data)
 }
 
 export async function listAllPotreros() {
   return (await http.get<ApiResponse<Page<Potrero>>>('/api/v1/potreros', {
     params: { page: 0, size: 500 },
-  })).data.data.content
+  })).data.data.content ?? []
 }
 
 export async function listTiposPasto() {
-  return (await http.get<ApiResponse<TipoPasto[]>>('/api/v1/tipos-pasto')).data.data
+  return (await http.get<ApiResponse<TipoPasto[]>>('/api/v1/tipos-pasto')).data.data ?? []
 }
 
 export async function createPotrero(input: Omit<Potrero, 'id' | 'codigo' | 'activo' | 'version'> & { codigo?: string }) {
