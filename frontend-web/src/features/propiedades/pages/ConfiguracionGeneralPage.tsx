@@ -10,10 +10,12 @@ import { Field } from '@/shared/components/Field'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { normalizeApiError } from '@/shared/api/errors'
+import { useToast } from '@/shared/toast/useToast'
 
 export function ConfiguracionGeneralPage() {
   const client = useQueryClient()
   const { can } = useAuth()
+  const { showToast } = useToast()
   const [pinMessage, setPinMessage] = useState<string | null>(null)
 
   const config = useQuery({ queryKey: ['configuracion'], queryFn: getConfiguracion })
@@ -35,7 +37,7 @@ export function ConfiguracionGeneralPage() {
         version: config.data!.version,
       })
     },
-    onSuccess: () => { void client.invalidateQueries({ queryKey: ['configuracion'] }) },
+    onSuccess: () => { showToast('Configuración guardada correctamente.'); void client.invalidateQueries({ queryKey: ['configuracion'] }) },
   })
   const savePin = useMutation({
     mutationFn: (form: HTMLFormElement) => {
@@ -45,11 +47,11 @@ export function ConfiguracionGeneralPage() {
       if (pin !== confirmacion) throw new Error('El PIN y su confirmación no coinciden.')
       return updateConfiguracion({ nuevoPin: pin, version: config.data!.version })
     },
-    onSuccess: (_data, form) => { form.reset(); setPinMessage('PIN actualizado.'); void client.invalidateQueries({ queryKey: ['configuracion'] }) },
+    onSuccess: (_data, form) => { form.reset(); setPinMessage('PIN actualizado.'); showToast('PIN actualizado.'); void client.invalidateQueries({ queryKey: ['configuracion'] }) },
   })
   const removePin = useMutation({
     mutationFn: () => updateConfiguracion({ quitarPin: true, version: config.data!.version }),
-    onSuccess: () => { setPinMessage('PIN eliminado.'); void client.invalidateQueries({ queryKey: ['configuracion'] }) },
+    onSuccess: () => { setPinMessage('PIN eliminado.'); showToast('PIN eliminado.'); void client.invalidateQueries({ queryKey: ['configuracion'] }) },
   })
 
   const error = config.error ?? saveConfig.error

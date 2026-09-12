@@ -5,6 +5,7 @@ import { ConfiguracionGeneralPage } from './ConfiguracionGeneralPage'
 
 const updateConfiguracion = vi.fn()
 vi.mock('@/auth/auth-context', () => ({ useAuth: () => ({ can: () => true }) }))
+vi.mock('@/shared/toast/useToast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('@/features/configuracion/api', () => ({
   getConfiguracion: vi.fn().mockResolvedValue({
     zonaHoraria: 'America/La_Paz', moneda: 'BOB', unidadPeso: 'KG', unidadSuperficie: 'HA',
