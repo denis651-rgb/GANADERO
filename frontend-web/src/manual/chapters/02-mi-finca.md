@@ -1,15 +1,287 @@
 # Mi finca
 
-_Pendiente de redactar. Ver `CONVENCIONES.md` para la estructura esperada de este capítulo._
+Mi finca reúne lo que el sistema sabe de tu operación: los establecimientos
+donde trabajas, los ajustes generales de la aplicación, cómo se clasifica el
+hato por edad, los respaldos de tu información y la sincronización opcional
+con Google Calendar.
 
-## Para qué sirve
+Casi todo se configura una vez y se usa después de vez en cuando. Este
+capítulo se organiza por pantallas, en el mismo orden que aparece en el menú.
 
-## Antes de comenzar
+## Propiedades
 
-## Procedimiento
+### Para qué sirve
 
-## Ejemplo
+Registrar los establecimientos de tu operación (puedes manejar varios) y, dentro
+de cada uno, sus sectores. Las propiedades identifican dónde se encuentran tus
+potreros y tus animales.
 
-## Resultado esperado
+### Antes de comenzar
+
+Tener a mano el nombre de cada establecimiento, su departamento, municipio y
+superficie en hectáreas. No necesitas códigos: el sistema los asigna solo al
+guardar (`PRP-001`, `PRP-001-SEC-001`...).
+
+La aplicación crea automáticamente una propiedad llamada **Mi finca** al
+instalarse. Lo primero es completarla con tus datos reales.
+
+### Procedimiento
+
+**Completar o crear una propiedad**
+
+1. Abre **Mi finca** → **Propiedades**.
+2. Para completar la propiedad existente, presiona el lápiz de editar y
+   llena **Departamento**, **Municipio**, **Localidad**, **Referencia de
+   dirección** y **Superficie (ha)** según corresponda.
+3. Presiona **Guardar propiedad**.
+4. Si la operación tiene más de un establecimiento, presiona **Nueva
+   propiedad**, escribe el **Nombre** y presiona **Crear propiedad**.
+
+**Añadir sectores**
+
+1. En la lista de propiedades, presiona el ícono de mapa sobre la propiedad.
+2. Presiona **Añadir sector**, escribe el **Nombre** y una **Descripción**
+   opcional, y presiona **Añadir sector**.
+3. Repite la operación por cada sector que quieras distinguir.
+
+### Ejemplo
+
+La estancia "El Roble" (Warnes, Santa Cruz, 1 200 ha) se completa editando
+la propiedad **Mi finca**: se escribe el **nombre** real, ubicación y
+superficie. Dentro de ella se crean los sectores **Norte**, **Laguna** y
+**Gordo**.
+
+### Resultado esperado
+
+Cada propiedad aparece con su código, ubicación, superficie y el estado
+**ACTIVA**. Al seleccionarla se ven sus sectores. Las propiedades y sectores
+**ACTIVOS** quedan disponibles para registrar potreros y animales; los que
+están **INACTIVOS** no aparecen en esas pantallas.
+
+> Al desactivar una propiedad o sector, los potreros y animales existentes
+> conservan su relación. Solo dejan de estar disponibles para datos nuevos.
+
+## Configuración general
+
+### Para qué sirve
+
+Ajustar los valores con los que funciona toda la aplicación: unidades de
+superficie, cuántos días antes se emiten las alertas y el nombre de usuario
+que se muestra en la barra lateral. También permite proteger la aplicación
+con un PIN.
+
+### Antes de comenzar
+
+Decidir la unidad de superficie (hectáreas, metros cuadrados o acres) y
+cuántos días antes de una fecha conviene avisar (parto, vacunación, destete,
+diagnóstico tras el servicio).
+
+### Procedimiento
+
+1. Abre **Mi finca** → **Configuración general**.
+2. Revisa la **Unidad de superficie** y los campos de **días de alerta**:
+   antes del parto, de vacunación, sin pesaje, de destete, de diagnóstico
+   post-servicio y de gestación estimada.
+3. Escribe el **Nombre de usuario** que quieres ver en la aplicación y marca
+   **Comprimir fotos al subirlas** si las capturas son grandes.
+4. Presiona **Guardar configuración**.
+
+**Proteger la aplicación con PIN**
+
+1. En la misma pantalla, baja a **Bloqueo con PIN**.
+2. Escribe el **Nuevo PIN** y repítelo en **Confirmar PIN**.
+3. Presiona **Configurar PIN**. Para quitarlo después, presiona **Quitar PIN**.
+
+### Ejemplo
+
+La finca maneja superficie en hectáreas y quiere enterarse del parto 30 días
+antes y de la vacunación 15 días antes. Con el PIN, solo la persona que lo
+conoce puede abrir Ganadero.
+
+> Sin PIN configurado, cualquiera que encienda la computadora puede abrir la
+> aplicación y ver los datos.
+
+### Resultado esperado
+
+Los cambios aplican a partir de la próxima pantalla: alertas, unidad de
+superficie y nombre visible se actualizan. Si se configuró PIN, al abrir la
+aplicación se pide ingresarlo.
+
+> La **Zona horaria**, **Moneda**, **Unidad de peso** y **Calidad de imagen**
+> se muestran fijas (con los valores configurados en la instalación y no
+> editables desde la interfaz).
+
+## Categorías por edad
+
+### Para qué sirve
+
+Definir los rangos de meses que determinan la categoría de cada animal según
+su sexo. Son la base para clasificar automáticamente el hato y para los
+requisitos de edad de las actividades sanitarias.
+
+### Antes de comenzar
+
+Conocer las categorías que quieres usar. La aplicación trae las más comunes
+(Ternero/Ternera, Vaquilla/Novillo, Vaca/Toro). Solo es necesario cambiarlas
+si tu clasificación es distinta.
+
+### Procedimiento
+
+1. Abre **Mi finca** → **Categorías por edad**.
+2. Revisa las categorías por sexo: nombre, rango en meses, tipo
+   (**Automática** o **Manual**) y estado.
+3. Para crear una, presiona **Nueva categoría**, define **Nombre**, **Sexo
+   aplicable** y las edades **mínima** y **máxima** (vacío = sin límite).
+4. Si dos categorías pueden coincidir, usa **Orden de evaluación** (menor
+   primero). Desmarca "Calcular automáticamente por edad" para excepciones
+   manuales como Buey.
+5. Presiona **Simular impacto** para ver cuántos animales cambiarían antes
+   de guardar, y después **Crear categoría** (o **Guardar cambios** al
+   editar una existente).
+6. Cuando cambien los rangos, presiona **Aplicar reclasificación ahora** para
+   recalcular la categoría del hato con las nuevas reglas.
+
+### Ejemplo
+
+La finca quiere separar la **Vaquillona** (hembras de 13 a 22 meses) antes
+de pasar a la **Vaquilla** (23 a 35 meses). Se crea la categoría nueva, se
+simula el impacto (12 animales cambiarían) y se aplica la reclasificación:
+cada animal pasa a su categoría nueva y queda el cambio anotado en su
+historial.
+
+### Resultado esperado
+
+En la pantalla quedan las categorías activas con sus rangos. Tras la
+reclasificación, el **Panel principal** muestra la nueva distribución por
+categoría, y cada animal actualizado registra el cambio en su historial.
+
+> Al asignar rangos que dejan un hueco sin cubrir (por ejemplo, del 13 al 20
+> y del 25 al 40), la aplicación lo avisa y te pide confirmar que es
+> intencional antes de guardar. Las excepciones manuales nunca se modifican
+> en la reclasificación.
+
+## Respaldos
+
+### Para qué sirve
+
+Proteger toda la información de la finca, guardándola de forma automática en
+tu computadora y, si quieres, copiándola a una carpeta de Google Drive. Un
+respaldo permite recuperar los datos si algo sale mal.
+
+### Antes de comenzar
+
+En el navegador solo se consulta; crea y restaura respaldos desde la
+aplicación **Ganadero Desktop**. Si usarás Drive, define una carpeta
+sincronizada destinada a los respaldos.
+
+### Procedimiento
+
+1. Abre **Mi finca** → **Respaldos**.
+2. En **Configuración**, activa **Respaldo automático**, elige la
+   **Frecuencia** (**Diaria**, **Semanal** o **Mensual**) y la **Hora**.
+3. Define las **Retenciones** (cuántos respaldos diarios, semanales y
+   mensuales se conservan) y, si quieres copia en Drive, presiona **Elegir
+   carpeta…** en "Carpeta sincronizada (Google Drive)".
+4. Presiona **Guardar configuración**.
+5. Para un respaldo inmediato, presiona **Crear respaldo ahora**.
+6. De vez en cuando, comprueba la lista: cada respaldo indica su integridad
+   (**Íntegro**, **Sin verificar** o **Corrupto**). Puedes presionar
+   **Verificar respaldos** o el ícono del ojo en cada fila.
+
+**Restaurar un respaldo**
+
+1. Presiona **Restaurar respaldo…** y elige el archivo.
+2. Confirma la fecha y la versión que se muestran.
+3. Escribe `RESTAURAR` en el campo y presiona **Restaurar**.
+
+### Ejemplo
+
+La finca configura un respaldo **Diario** a las 22:00, con retención de 7
+diarios, 4 semanales y 12 mensuales, copiando a `G:\Mi unidad\Ganadero\
+Respaldos`. Cada mañana, el último respaldo aparece **Íntegro** en el
+historial.
+
+### Resultado esperado
+
+En **Resumen** se ven el último respaldo, la hora del próximo, si la copia
+externa está configurada y si hubo errores. El **Historial** conserva los
+respaldos según la retención configurada.
+
+> Ganadero confirma la copia a la carpeta sincronizada, pero no puede ver si
+> Google Drive terminó de subir: revísalo con el ícono de Drive. **Restaurar**
+> reemplaza toda la información actual por la del respaldo; antes de hacerlo
+> se crea un respaldo preventivo de lo que hay ahora.
+
+## Google Calendar
+
+### Para qué sirve
+
+Enviar las actividades sanitarias (por edad, periódicas o con fecha
+programada) a un calendario de Google, para llevar los compromisos de la finca
+junto con el resto de tus eventos. Solo está disponible en Ganadero Desktop.
+
+### Antes de comenzar
+
+Contar con una cuenta de Google y tenerla abierta en el navegador para
+autorizar la conexión cuando la aplicación lo pida.
+
+### Procedimiento
+
+1. Abre **Mi finca** → **Google Calendar**.
+2. Presiona **Conectar Google** y autoriza el acceso con tu cuenta.
+3. En **Nombre del calendario** escribe el que creará Ganadero (por ejemplo
+   "Vacunación y sanidad") y presiona **Guardar configuración**.
+4. Marca **Sincronizar automáticamente las actividades sanitarias** si
+   quieres que se envíen solas.
+5. Para enviar ahora los pendientes, presiona **Sincronizar ahora**.
+6. Para dejar de usar la conexión, presiona **Revocar acceso**.
+
+### Ejemplo
+
+Con el calendario "Sanidad 2026" conectado, cada actividad **Periódica** del
+plan sanitario genera el evento correspondiente con su fecha y horario, y los
+pendientes se envían solos. En la pantalla se ve la cuenta autorizada y el
+número de eventos en cola y de errores definitivos.
+
+### Resultado esperado
+
+La pantalla muestra el estado **AUTORIZADO**, la cuenta conectada y el
+conteo de eventos. Los eventos aparecen en el calendario de Google; los que
+fallan pueden reenviarse con **Reintentar errores**.
+
+> Las actividades con modalidad **Manual** no generan eventos. Para que una
+> actividad llegue al calendario debe ser **Por edad**, **Periódica** o de
+> **Fecha programada**.
 
 ## Problemas frecuentes
+
+### Al guardar me avisa que la propiedad o el sector cambió
+
+Otra ventana o dispositivo modificó el dato mientras lo editabas. Presiona
+**Recargar datos** para recuperar la versión actual y vuelve a aplicar tu
+cambio.
+
+### La reclasificación no cambia la categoría de un animal
+
+Solo se reclasifican animales **activos** con fecha de nacimiento conocida o
+estimada. Las excepciones manuales (como Buey) no se tocan, y el animal se
+conserva en su categoría si el nuevo rango sigue dándole la misma.
+
+### La aplicación pide confirmar un "hueco" entre categorías
+
+Significa que los rangos no cubren todas las edades (por ejemplo, nada entre
+los 13 y los 24 meses). Si el hueco es real (animales que se venden o se
+clasifican a mano en esa edad), presiona **Confirmar hueco intencional**; si
+fue un error, **Revisar rango** y corrige los meses.
+
+### El respaldo no aparece en Google Drive
+
+Revisa que la carpeta externa esté configurada y que la copia aparezca como
+**Copiado a la carpeta externa** en el historial, y luego verifica en Drive
+que la subida terminó (Ganadero no puede confirmarla por su cuenta). Un
+respaldo en estado **Corrupto** no debe usarse para restaurar.
+
+### No encuentro cómo conectar Google Calendar
+
+Las funciones de conectar y revocar solo están disponibles en la aplicación
+**Ganadero Desktop** (no en el navegador). Abre la pantalla desde ahí.
