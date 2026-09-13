@@ -36,23 +36,32 @@ interface JornadasPanelProps {
   tipoJornadaSugerida?: TipoActividad
 }
 
+interface VisitaBase {
+  fechaInicio: string
+  propiedadId: string
+  potreroId?: string
+  loteGanaderoId?: string
+  animalIds: string[]
+}
+
 interface JornadaFormProps {
   catalogs?: SanidadCatalogs
   jornada: JornadaSanitaria | null
   tipoSugerido?: TipoActividad
+  defaults?: VisitaBase
   propertyId: string
   setPropertyId: (value: string) => void
   loading: boolean
   onSubmit: (form: HTMLFormElement) => void
 }
 
-function JornadaForm({ catalogs, jornada, tipoSugerido, propertyId, setPropertyId, loading, onSubmit }: JornadaFormProps) {
+function JornadaForm({ catalogs, jornada, tipoSugerido, defaults, propertyId, setPropertyId, loading, onSubmit }: JornadaFormProps) {
   return <form className="form-grid" onSubmit={(event) => { event.preventDefault(); onSubmit(event.currentTarget) }}>
     <Field label="Tipo de jornada" required><select name="tipoJornada" required defaultValue={jornada?.tipoJornada ?? tipoSugerido ?? 'VACUNACION'}>{(Object.keys(TIPO_ACTIVIDAD_LABELS) as Array<keyof typeof TIPO_ACTIVIDAD_LABELS>).map((tipo) => <option key={tipo} value={tipo}>{TIPO_ACTIVIDAD_LABELS[tipo]}</option>)}</select></Field>
-    <Field label="Fecha de inicio" required><input name="fechaInicio" type="date" required defaultValue={jornada?.fechaInicio ?? ''} /></Field>
+    <Field label="Fecha de inicio" required><input name="fechaInicio" type="date" required defaultValue={jornada?.fechaInicio ?? defaults?.fechaInicio ?? ''} /></Field>
     <Field label="Propiedad" required><select name="propiedadId" required value={propertyId} onChange={(event) => setPropertyId(event.target.value)}><option value="">Selecciona…</option>{catalogs?.properties.filter((item) => item.activo || item.id === jornada?.propiedadId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
-    <Field label="Potrero"><select name="potreroId" defaultValue={jornada?.potreroId ?? ''}><option value="">Toda la propiedad</option>{catalogs?.paddocks.filter((item) => (item.activo || item.id === jornada?.potreroId) && item.propiedadId === propertyId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
-    <Field label="Lote"><select name="loteGanaderoId" defaultValue={jornada?.loteGanaderoId ?? ''}><option value="">Sin lote</option>{catalogs?.lots.filter((item) => item.propiedadId === propertyId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
+    <Field label="Potrero"><select name="potreroId" defaultValue={jornada?.potreroId ?? defaults?.potreroId ?? ''}><option value="">Toda la propiedad</option>{catalogs?.paddocks.filter((item) => (item.activo || item.id === jornada?.potreroId) && item.propiedadId === propertyId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
+    <Field label="Lote"><select name="loteGanaderoId" defaultValue={jornada?.loteGanaderoId ?? defaults?.loteGanaderoId ?? ''}><option value="">Sin lote</option>{catalogs?.lots.filter((item) => item.propiedadId === propertyId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
     <div className="form-full"><Field label="Observaciones"><textarea name="observaciones" rows={3} maxLength={1000} defaultValue={jornada?.observaciones ?? ''} /></Field></div>
     <div className="form-actions"><Button type="submit" loading={loading}>{jornada ? 'Guardar cambios' : 'Crear jornada'}</Button></div>
   </form>
@@ -82,6 +91,8 @@ export function JornadasPanel({ jornadas, isLoading, error, catalogs, refresh, t
   const [preparando, setPreparando] = useState<JornadaSanitaria | null>(null)
   const [confirmando, setConfirmando] = useState<({ jornada: JornadaSanitaria } & PreparacionJornada) | null>(null)
   const [resultado, setResultado] = useState<ConfirmacionJornadaResult | null>(null)
+  const [visitaBase, setVisitaBase] = useState<VisitaBase | null>(null)
+  const [preseleccion, setPreseleccion] = useState<string[] | undefined>(undefined)
 
   const guardar = useMutation({
     mutationFn: ({ form, jornada }: { form: HTMLFormElement; jornada: JornadaSanitaria | null }) => {
@@ -94,7 +105,11 @@ export function JornadasPanel({ jornadas, isLoading, error, catalogs, refresh, t
       setShowForm(false)
       setEditando(null)
       refresh()
-      if (!variables.jornada && canConfirmar) setPreparando(jornada)
+      if (!variables.jornada && canConfirmar) {
+        setPreparando(jornada)
+        setPreseleccion(visitaBase?.animalIds)
+      }
+      setVisitaBase(null)
     },
   })
   const anular = useMutation({
@@ -102,10 +117,26 @@ export function JornadasPanel({ jornadas, isLoading, error, catalogs, refresh, t
     onSuccess: () => { setAnulando(null); refresh() },
   })
 
-  const openNew = () => { setEditando(null); setPropertyId(''); setShowForm(true) }
-  const openEdit = (jornada: JornadaSanitaria) => { setEditando(jornada); setPropertyId(jornada.propiedadId); setShowForm(true) }
-  const closeForm = () => { if (!guardar.isPending) { setShowForm(false); setEditando(null) } }
+  const openNew = () => { setEditando(null); setPropertyId(''); setVisitaBase(null); setShowForm(true) }
+  const openEdit = (jornada: JornadaSanitaria) => { setEditando(jornada); setPropertyId(jornada.propiedadId); setVisitaBase(null); setShowForm(true) }
+  const closeForm = () => { if (!guardar.isPending) { setShowForm(false); setEditando(null); setVisitaBase(null) } }
   const errorVisible = error ?? guardar.error ?? anular.error
+
+  /** "Agregar otra actividad a esta misma visita": repite fecha/ubicación de la jornada recién
+   * confirmada y ofrece los mismos animales como punto de partida para la siguiente actividad. */
+  function agregarActividadMismaVisita(res: ConfirmacionJornadaResult) {
+    setResultado(null)
+    setEditando(null)
+    setPropertyId(res.jornada.propiedadId)
+    setVisitaBase({
+      fechaInicio: res.jornada.fechaInicio,
+      propiedadId: res.jornada.propiedadId,
+      potreroId: res.jornada.potreroId,
+      loteGanaderoId: res.jornada.loteGanaderoId,
+      animalIds: res.aplicaciones.map((aplicacion) => aplicacion.animalId),
+    })
+    setShowForm(true)
+  }
 
   const actions = (jornada: JornadaSanitaria) => jornada.estado === 'BORRADOR' ? <div className="inline-actions">
     {canCrear && <Button className="jornada-icon-action" variant="ghost" aria-label="Editar jornada" title="Editar jornada" onClick={() => openEdit(jornada)}><Pencil size={19} aria-hidden="true" /></Button>}
@@ -123,10 +154,27 @@ export function JornadasPanel({ jornadas, isLoading, error, catalogs, refresh, t
       {jornadas.length > 0 && <div className="mobile-only">{jornadas.map((jornada) => <div key={jornada.id} className="mobile-entity-card"><div><strong>{TIPO_ACTIVIDAD_LABELS[jornada.tipoJornada]}</strong><p className="muted">{new Date(`${jornada.fechaInicio}T00:00:00`).toLocaleDateString('es-BO')} · {catalogs?.properties.find((item) => item.id === jornada.propiedadId)?.nombre ?? 'Propiedad'}</p><p className="muted">{ESTADO_JORNADA_LABELS[jornada.estado]}</p></div>{actions(jornada)}</div>)}</div>}
     </Card>
 
-    {resultado && <Card><h3>Jornada confirmada</h3><p className="muted">Se registraron <strong>{resultado.totalProcesado}</strong> aplicaciones.</p><Button variant="secondary" onClick={() => setResultado(null)}>Entendido</Button></Card>}
+    {resultado && <Card>
+      <h3>Jornada confirmada</h3>
+      <p className="muted">Se registraron <strong>{resultado.totalProcesado}</strong> aplicaciones.</p>
+      <div className="form-actions">
+        <Button variant="secondary" onClick={() => setResultado(null)}>Entendido</Button>
+        {canCrear && <Button onClick={() => agregarActividadMismaVisita(resultado)}>Agregar otra actividad a esta misma visita</Button>}
+      </div>
+    </Card>}
 
-    <Modal open={showForm} title={editando ? 'Editar jornada sanitaria' : 'Nueva jornada sanitaria'} onClose={closeForm} wide description={editando ? 'Los cambios eliminan la selección anterior de animales para volver a validar su elegibilidad.' : 'Registra una jornada de aplicación a un grupo de animales.'}>
-      <JornadaForm key={editando?.id ?? 'new'} catalogs={catalogs} jornada={editando} tipoSugerido={tipoJornadaSugerida} propertyId={propertyId} setPropertyId={setPropertyId} loading={guardar.isPending} onSubmit={(form) => guardar.mutate({ form, jornada: editando })} />
+    <Modal
+      open={showForm}
+      title={editando ? 'Editar jornada sanitaria' : 'Nueva jornada sanitaria'}
+      onClose={closeForm}
+      wide
+      description={editando
+        ? 'Los cambios eliminan la selección anterior de animales para volver a validar su elegibilidad.'
+        : visitaBase
+          ? 'Repite la fecha y la ubicación de la visita anterior — elegí la nueva actividad; los animales que sigan elegibles quedan preseleccionados.'
+          : 'Registra una jornada de aplicación a un grupo de animales.'}
+    >
+      <JornadaForm key={editando?.id ?? 'new'} catalogs={catalogs} jornada={editando} tipoSugerido={tipoJornadaSugerida} defaults={visitaBase ?? undefined} propertyId={propertyId} setPropertyId={setPropertyId} loading={guardar.isPending} onSubmit={(form) => guardar.mutate({ form, jornada: editando })} />
     </Modal>
 
     <Modal open={Boolean(anulando)} title="Cancelar jornada sanitaria" onClose={() => { if (!anular.isPending) setAnulando(null) }} description="La jornada quedará anulada y ya no podrá prepararse ni editarse.">
@@ -137,7 +185,13 @@ export function JornadasPanel({ jornadas, isLoading, error, catalogs, refresh, t
       </form>
     </Modal>
 
-    {preparando && catalogs && <JornadaPrepararModal jornada={preparando} catalogs={catalogs} onClose={() => setPreparando(null)} onSaved={(preparacion) => { setPreparando(null); setConfirmando({ jornada: preparando, ...preparacion }) }} />}
+    {preparando && catalogs && <JornadaPrepararModal
+      jornada={preparando}
+      catalogs={catalogs}
+      preseleccionAnimalIds={preseleccion}
+      onClose={() => { setPreparando(null); setPreseleccion(undefined) }}
+      onSaved={(preparacion) => { setPreparando(null); setPreseleccion(undefined); setConfirmando({ jornada: preparando, ...preparacion }) }}
+    />}
     {confirmando && catalogs && <JornadaConfirmarModal jornada={confirmando.jornada} animalesSeleccionados={confirmando.seleccionados} planItem={confirmando.planItem} fechaAplicacion={confirmando.fechaAplicacion} onClose={() => setConfirmando(null)} onConfirmado={(res) => { setConfirmando(null); setResultado(res); refresh() }} />}
   </div>
 }

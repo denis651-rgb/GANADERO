@@ -28,15 +28,26 @@ class JdbcMovimientoRepository implements MovimientoRepository {
 
     @Override
     public MovimientoPage findAll(UUID empresa, EstadoMovimiento estado, TipoMovimiento tipo, int page, int size) {
+        return findAll(empresa, estado, tipo, null, page, size);
+    }
+
+    @Override
+    public MovimientoPage findAll(UUID empresa, EstadoMovimiento estado, TipoMovimiento tipo, UUID loteId, int page, int size) {
         StringBuilder where = new StringBuilder(" where 1=1");
         Map<String, Object> params = new HashMap<>();
         if (estado != null) { where.append(" and m.estado=:estado"); params.put("estado", estado.name()); }
         if (tipo != null) { where.append(" and m.tipo=:tipo"); params.put("tipo", tipo.name()); }
+        if (loteId != null) {
+            where.append(" and (m.origen_lote_id=:lote or m.destino_lote_id=:lote or exists ("
+                    + "select 1 from movimiento_detalle d where d.movimiento_id=m.id "
+                    + "and (d.lote_antes=:lote or d.lote_despues=:lote)))");
+            params.put("lote", loteId.toString());
+        }
         long total = jdbc.sql("select count(*) from movimiento m" + where).params(params).query(Long.class).single();
         params.put("limit", size);
         params.put("offset", (long) page * size);
         List<Movimiento> values = jdbc.sql("select m.* from movimiento m" + where
-                        + " order by m.created_at desc limit :limit offset :offset")
+                        + " order by m.created_at desc, m.id desc limit :limit offset :offset")
                 .params(params).query(this::map).list();
         return MovimientoPage.of(values, page, size, total);
     }

@@ -75,20 +75,20 @@ export function SanidadPage() {
     </nav>
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
     {loading && <LoadingState message="Cargando información de sanidad…" />}
-    {!loading && seccion === 'resumen' && <ResumenPanel planes={planes.data!} jornadas={jornadas.data!} casos={casos.data!} tratamientos={tratamientos.data!} catalogs={catalogs.data} onIrA={setSeccion} />}
+    {!loading && seccion === 'resumen' && <ResumenPanel planes={planes.data ?? []} jornadas={jornadas.data ?? []} casos={casos.data ?? []} tratamientos={tratamientos.data ?? []} catalogs={catalogs.data} onIrA={setSeccion} />}
     {!loading && seccion === 'planes' && <>
       <nav className="tabs" aria-label="Subsecciones de planes sanitarios">
         <button type="button" className={`tab-button ${subSeccion === 'planes' ? 'active' : ''}`} onClick={() => setSubSeccion('planes')} aria-current={subSeccion === 'planes' ? 'page' : undefined}><ClipboardList size={16} aria-hidden="true" />Planes</button>
         <button type="button" className={`tab-button ${subSeccion === 'enfermedades' ? 'active' : ''}`} onClick={() => setSubSeccion('enfermedades')} aria-current={subSeccion === 'enfermedades' ? 'page' : undefined}><Activity size={16} aria-hidden="true" />Enfermedades</button>
       </nav>
       {subSeccion === 'planes' && <ConfiguracionSanitariaPanel />}
-      {subSeccion === 'planes' && <PlanesPanel planes={planes.data!} isLoading={planes.isPending} error={planes.error} catalogs={catalogs.data} refresh={refresh} />}
+      {subSeccion === 'planes' && <PlanesPanel planes={planes.data ?? []} isLoading={planes.isPending} error={planes.error} catalogs={catalogs.data} refresh={refresh} />}
       {subSeccion === 'enfermedades' && <EnfermedadesPanel />}
     </>}
-    {!loading && seccion === 'jornadas' && <JornadasPanel jornadas={jornadas.data!} isLoading={jornadas.isPending} error={jornadas.error} catalogs={catalogs.data} refresh={refresh} tipoJornadaSugerida={tipoJornadaSugerida} />}
+    {!loading && seccion === 'jornadas' && <JornadasPanel jornadas={jornadas.data ?? []} isLoading={jornadas.isPending} error={jornadas.error} catalogs={catalogs.data} refresh={refresh} tipoJornadaSugerida={tipoJornadaSugerida} />}
     {!loading && seccion === 'calendario' && <CalendarioExternoPanel />}
     {!loading && seccion === 'controles' && <ControlesPanel catalogs={catalogs.data} initialAnimalId={animalIdSugerido} />}
-    {!loading && seccion === 'casos' && <CasosPanel casos={casos.data!} isLoading={casos.isPending} error={casos.error} catalogs={catalogs.data} refresh={refresh} />}
-    {!loading && seccion === 'tratamientos' && <TratamientosPanel tratamientos={tratamientos.data!} isLoading={tratamientos.isPending} error={tratamientos.error} catalogs={catalogs.data} refresh={refresh} />}
+    {!loading && seccion === 'casos' && <CasosPanel casos={casos.data ?? []} isLoading={casos.isPending} error={casos.error} catalogs={catalogs.data} refresh={refresh} />}
+    {!loading && seccion === 'tratamientos' && <TratamientosPanel tratamientos={tratamientos.data ?? []} isLoading={tratamientos.isPending} error={tratamientos.error} catalogs={catalogs.data} refresh={refresh} />}
   </div>
 }

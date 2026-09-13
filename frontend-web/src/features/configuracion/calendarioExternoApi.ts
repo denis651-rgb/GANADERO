@@ -27,7 +27,8 @@ export async function guardarConfiguracionCalendarioExterno(input: Pick<Configur
   return (await http.put<ApiResponse<ConfiguracionCalendarioExterno>>('/api/v1/integraciones/calendario', input)).data.data
 }
 export async function getEstadoSincronizacionCalendario() {
-  return (await http.get<ApiResponse<EstadoSincronizacionCalendario>>('/api/v1/integraciones/calendario/electron/estado')).data.data
+  const result = (await http.get<ApiResponse<EstadoSincronizacionCalendario>>('/api/v1/integraciones/calendario/electron/estado')).data.data
+  return { ...result, cola: result.cola ?? [] }
 }
 export async function reintentarSincronizacionCalendario() {
   return (await http.post<ApiResponse<EstadoSincronizacionCalendario>>('/api/v1/integraciones/calendario/reintentar')).data.data
@@ -48,7 +49,7 @@ export interface EstadoOcurrenciaCalendario {
   error?: string
 }
 export async function listarEstadoOcurrenciasCalendario() {
-  return (await http.get<ApiResponse<EstadoOcurrenciaCalendario[]>>('/api/v1/integraciones/calendario/ocurrencias')).data.data
+  return (await http.get<ApiResponse<EstadoOcurrenciaCalendario[]>>('/api/v1/integraciones/calendario/ocurrencias')).data.data ?? []
 }
 export async function reintentarOcurrenciaCalendario(id: string) {
   await http.post(`/api/v1/integraciones/calendario/ocurrencias/${id}/reintentar`)

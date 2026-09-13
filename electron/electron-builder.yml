@@ -13,7 +13,7 @@ files:
 extraResources:
   - from: ../frontend-web/dist
     to: frontend
-  - from: ../backend/target/ganadero-backend-0.0.1-SNAPSHOT.jar
+  - from: ../backend/target/ganadero-backend-1.0.0.jar
     to: backend/ganadero-backend.jar
   - from: runtime
     to: jre
@@ -30,3 +30,11 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
+
+# "npm run release" publica el instalador + los metadatos que electron-updater necesita
+# (latest.yml) como GitHub Release del propio repo. Requiere GH_TOKEN al publicar; los clientes
+# solo LEEN releases públicas, sin token (ver electron/src/updater.ts).
+publish:
+  provider: github
+  owner: denis651-rgb
+  repo: GANADERO

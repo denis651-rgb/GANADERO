@@ -41,7 +41,7 @@ class RespaldoServiceTest {
                 Set.of("RESPALDOS_VER", "RESPALDOS_CREAR", "RESPALDOS_ELIMINAR", "RESPALDOS_RESTAURAR", "RESPALDOS_CONFIGURAR"),
                 Set.of(), true);
         service = new RespaldoService(repo, new UserContext(() -> user), new ObjectMapper(), mock(JdbcClient.class),
-                "./data/ganadero.db", "", "0.0.1-TEST");
+                "./data/ganadero.db", "", "./data/media", "0.0.1-TEST");
     }
 
     @ParameterizedTest

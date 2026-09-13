@@ -3,6 +3,7 @@ import {
   Activity,
   Bell,
   Beef,
+  BookOpen,
   Boxes,
   ClipboardList,
   FileBarChart,
@@ -59,6 +60,7 @@ export const appModules: AppModuleDefinition[] = [
   { key: 'alertas', label: 'Alertas', path: '/alertas', icon: Bell, phase: 0, status: 'LISTO' },
   { key: 'ventas', label: 'Ventas', path: '/ventas', icon: ShoppingCart, phase: 0, status: 'LISTO' },
   { key: 'reportes', label: 'Reportes', path: '/reportes', icon: FileBarChart, phase: 0, status: 'LISTO' },
+  { key: 'manual', label: 'Manual de usuario', path: '/manual', icon: BookOpen, phase: 0, status: 'LISTO' },
 ]
 
 export const MODULE_STATUS_LABEL: Record<ModuleStatus, string> = {

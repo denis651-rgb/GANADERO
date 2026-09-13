@@ -1,5 +1,5 @@
 import { http } from '@/shared/api/http'
-import type { ApiResponse, Page } from '@/shared/api/types'
+import { normalizePage, type ApiResponse, type Page } from '@/shared/api/types'
 
 export interface AuditoriaRegistro {
   id: string
@@ -34,7 +34,7 @@ export interface AuditoriaFilters {
 }
 
 export async function listAuditoria(filters: AuditoriaFilters) {
-  return (await http.get<ApiResponse<Page<AuditoriaRegistro>>>('/api/v1/auditoria', {
+  return normalizePage((await http.get<ApiResponse<Page<AuditoriaRegistro>>>('/api/v1/auditoria', {
     params: {
       usuarioId: filters.usuarioId || undefined,
       modulo: filters.modulo || undefined,
@@ -47,5 +47,5 @@ export async function listAuditoria(filters: AuditoriaFilters) {
       page: filters.page,
       size: filters.size,
     },
-  })).data.data
+  })).data.data)
 }

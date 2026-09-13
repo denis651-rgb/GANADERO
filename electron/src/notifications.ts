@@ -35,8 +35,11 @@ export function startNotificationPolling(getPort: () => number, focusApp: () => 
           })
           notification.on('click', focusApp)
           notification.show()
+          await fetch(`http://127.0.0.1:${port}/api/v1/alertas/${alerta.id}/marcar-enviada`, { method: 'POST' }).catch(() => undefined)
+        } else {
+          const error = encodeURIComponent('Notificaciones nativas no soportadas por este sistema operativo.')
+          await fetch(`http://127.0.0.1:${port}/api/v1/alertas/${alerta.id}/marcar-error?error=${error}`, { method: 'POST' }).catch(() => undefined)
         }
-        await fetch(`http://127.0.0.1:${port}/api/v1/alertas/${alerta.id}/marcar-enviada`, { method: 'POST' }).catch(() => undefined)
       }
     } catch (error) {
       console.error('[notifications] error consultando alertas pendientes', error)

@@ -28,6 +28,7 @@ import { SanidadPage } from '@/features/sanidad/pages/SanidadPage'
 import { VentasPage } from '@/features/ventas/pages/VentasPage'
 import { AlertasPage } from '@/features/alertas/pages/AlertasPage'
 import { ReportesPage } from '@/features/reportes/pages/ReportesPage'
+import { ManualPage } from '@/features/manual/pages/ManualPage'
 import { NotFoundPage } from '@/shared/pages/NotFoundPage'
 
 export function AppRouter() {
@@ -60,6 +61,8 @@ export function AppRouter() {
         <Route path="ventas" element={<VentasPage />} />
         <Route path="alertas" element={<AlertasPage />} />
         <Route path="reportes" element={<ReportesPage />} />
+        <Route path="manual" element={<ManualPage />} />
+        <Route path="manual/:chapterId" element={<ManualPage />} />
         <Route path="animales/qr/imprimir" element={<QrPrintPage />} />
         <Route path="qr/escanear" element={<QrScannerPage />} />
       </Route>

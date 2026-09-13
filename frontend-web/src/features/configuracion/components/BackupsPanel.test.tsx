@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { BackupInfo, BackupSettings, BackupsDesktopBridge } from '@/shared/api/http'
+import type { BackupInfo, BackupSettings, BackupsDesktopBridge, DiagnosticsDesktopBridge } from '@/shared/api/http'
 import { BackupsPanel } from './BackupsPanel'
 
 const settings: BackupSettings = {
@@ -35,8 +35,16 @@ function mockBridge(overrides: Partial<BackupsDesktopBridge> = {}): BackupsDeskt
   }
 }
 
-function renderPanel(bridge?: BackupsDesktopBridge) {
-  ;(window as unknown as { ganadero: unknown }).ganadero = bridge ? { backups: bridge } : undefined
+function mockDiagnosticsBridge(overrides: Partial<DiagnosticsDesktopBridge> = {}): DiagnosticsDesktopBridge {
+  return {
+    export: vi.fn().mockResolvedValue({ cancelado: false, path: 'C:\\diagnostico.zip' }),
+    openLogsFolder: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  }
+}
+
+function renderPanel(bridge?: BackupsDesktopBridge, diagnostics: DiagnosticsDesktopBridge = mockDiagnosticsBridge()) {
+  ;(window as unknown as { ganadero: unknown }).ganadero = bridge ? { backups: bridge, diagnostics } : undefined
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   return render(<QueryClientProvider client={client}><BackupsPanel /></QueryClientProvider>)
 }
@@ -105,5 +113,26 @@ describe('BackupsPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar' }))
 
     await waitFor(() => expect(bridge.deleteBackup).toHaveBeenCalledWith(backup.nombreArchivo))
+  })
+
+  it('exporta la información de diagnóstico y muestra dónde se guardó', async () => {
+    const diagnostics = mockDiagnosticsBridge()
+    renderPanel(mockBridge(), diagnostics)
+    await screen.findByText(backup.nombreArchivo)
+
+    fireEvent.click(screen.getByRole('button', { name: /Exportar información de diagnóstico/ }))
+
+    await waitFor(() => expect(diagnostics.export).toHaveBeenCalled())
+    await screen.findByText(/C:\\diagnostico\.zip/)
+  })
+
+  it('abre la carpeta de logs al hacer click', async () => {
+    const diagnostics = mockDiagnosticsBridge()
+    renderPanel(mockBridge(), diagnostics)
+    await screen.findByText(backup.nombreArchivo)
+
+    fireEvent.click(screen.getByRole('button', { name: /Abrir carpeta de logs/ }))
+
+    await waitFor(() => expect(diagnostics.openLogsFolder).toHaveBeenCalled())
   })
 })

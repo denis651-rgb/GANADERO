@@ -24,6 +24,7 @@ spring:
     mixed: true
 
 server:
+  address: 127.0.0.1
   port: ${PORT:8080}
   shutdown: graceful
 
@@ -73,4 +74,4 @@ info:
   app:
     name: GANADERO
     architecture: modular-monolith
-    version: 0.0.1-SNAPSHOT
+    version: 1.0.0

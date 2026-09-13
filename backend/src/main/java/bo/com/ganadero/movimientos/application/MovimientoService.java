@@ -79,6 +79,17 @@ public class MovimientoService {
     }
 
     @Transactional(readOnly = true)
+    public MovimientoPage list(EstadoMovimiento estado, TipoMovimiento tipo, UUID loteId, int page, int size) {
+        CurrentUser user = context.requirePermission("MOVIMIENTO_VER");
+        if (loteId != null) {
+            var lote = lotes.findById(loteId, user.empresaId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.LOT_NOT_FOUND));
+            context.requirePropertyAccess(user, lote.propiedadId());
+        }
+        return movimientos.findAll(user.empresaId(), estado, tipo, loteId, page, size);
+    }
+
+    @Transactional(readOnly = true)
     public Movimiento get(UUID id) {
         CurrentUser user = context.requirePermission("MOVIMIENTO_VER");
         return require(id, user.empresaId());

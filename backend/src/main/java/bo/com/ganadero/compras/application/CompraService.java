@@ -94,7 +94,7 @@ public class CompraService {
     }
 
     /** Resumen de compra para la ficha del animal (tarjeta "Compra"): un solo viaje, sin exponer todo el encabezado. */
-    public record ResumenCompraAnimal(String codigo, Instant fechaRecepcion, String modalidad, String moneda,
+    public record ResumenCompraAnimal(UUID id, String codigo, Instant fechaRecepcion, String modalidad, String moneda,
                                       BigDecimal precioAsignado, String proveedorNombre, String proveedorTelefono,
                                       String proveedorDocumento) {}
 
@@ -105,7 +105,7 @@ public class CompraService {
             CompraDetalle detalle = compras.findDetalles(c.id()).stream()
                     .filter(d -> animalId.equals(d.animalId())).findFirst().orElse(null);
             Proveedor proveedor = proveedores.get(c.proveedorId());
-            return new ResumenCompraAnimal(c.codigo(), c.fechaRecepcion(), c.modalidad().name(), c.moneda(),
+            return new ResumenCompraAnimal(c.id(), c.codigo(), c.fechaRecepcion(), c.modalidad().name(), c.moneda(),
                     detalle == null ? null : detalle.precioAsignado(), proveedor.nombre(), proveedor.telefono(),
                     proveedor.documento());
         });

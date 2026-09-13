@@ -9,6 +9,7 @@ import { listPropiedades } from '@/features/propiedades/api'
 import { listAllPotreros } from '@/features/potreros/api'
 import { ControlEctoparasitarioModal } from '@/features/sanidad/components/ControlEctoparasitarioModal'
 import { MoverLoteWizard } from '@/features/lotes/components/MoverLoteWizard'
+import { LoteMovimientosPanel } from '@/features/lotes/components/LoteMovimientosPanel'
 import type { ResultadoMovimientoLote } from '@/features/movimientolote/types'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
@@ -178,6 +179,7 @@ export function LoteDetailPage() {
       })}</tbody></table></div>}
     </Card>
     {historicos.data && historicos.data.some((item) => item.fechaSalida) && <Card><h3>Historial de entradas y salidas</h3><div className="table-wrapper"><table><caption className="visually-hidden">Historial de animales del lote</caption><thead><tr><th scope="col">Animal</th><th scope="col">Ingreso</th><th scope="col">Salida</th><th scope="col">Motivo de ingreso</th><th scope="col">Motivo de salida</th></tr></thead><tbody>{historicos.data.filter((item) => item.fechaSalida).map((item) => { const animal = { codigo: item.animalCodigo, nombre: item.animalNombre }; return <tr key={item.id}><td><strong>{animal.nombre?.trim() || animal.codigo || 'Animal sin nombre'}</strong></td><td>{new Date(item.fechaIngreso).toLocaleString('es-BO')}</td><td>{item.fechaSalida ? new Date(item.fechaSalida).toLocaleString('es-BO') : '—'}</td><td>{item.motivoIngreso ?? '—'}</td><td>{item.motivoSalida ?? '—'}</td></tr> })}</tbody></table></div></Card>}
+    <LoteMovimientosPanel key={id} loteId={id} />
     {value.estado === 'CERRADO' && <Alert tone="info">Este lote está cerrado y no admite más animales.</Alert>}
 
     <Modal open={showCapacity} title="Cantidad máxima del lote" onClose={() => { if (!capacity.isPending) setShowCapacity(false) }}>
@@ -196,7 +198,10 @@ export function LoteDetailPage() {
         {add.error && <Alert tone="danger">{normalizeApiError(add.error).message}</Alert>}
         {disponiblesQuery.isPending && <LoadingState message="Buscando animales…" />}
         {candidatos.length === 0 && !disponiblesQuery.isPending && <EmptyState title="Sin animales disponibles" description="No hay animales activos de esta propiedad fuera del lote." />}
-        {candidatos.length > 0 && <div className="checkbox-stack">{candidatos.map((animal) => <label key={animal.id}><input type="checkbox" checked={addSelected.has(animal.id)} onChange={() => toggleAdd(animal.id)} /> {animal.nombre?.trim() || animal.codigo}</label>)}</div>}
+        {candidatos.length > 0 && <div className="checkbox-stack">{candidatos.map((animal) => <label key={animal.id}><input type="checkbox" checked={addSelected.has(animal.id)} onChange={() => toggleAdd(animal.id)} /> {animal.nombre?.trim() || animal.codigo}{animal.loteActualId && <>
+          <span className="candidato-otro-lote-dot" title="Ya pertenece a otro lote; al agregarlo se moverá a este." aria-hidden="true" />
+          <span className="visually-hidden"> (ya pertenece a otro lote; al agregarlo se moverá a este)</span>
+        </>}</label>)}</div>}
         <div className="form-grid">
           <Field label="Modo"><select value={addModo} onChange={(event) => setAddModo(event.target.value as ModoIngreso)}><option value="PARCIAL">Parcial (procesa el resto)</option><option value="ATOMICO">Atómico (todo o nada)</option></select></Field>
           <Field label="Fecha de ingreso"><input type="datetime-local" value={addFechaIngreso} onChange={(event) => setAddFechaIngreso(event.target.value)} /></Field>

@@ -94,6 +94,8 @@ public enum ErrorCode {
     INVALID_MOVEMENT_STATE_TRANSITION(HttpStatus.CONFLICT, "La transición de estado del movimiento no está permitida."),
     MOVEMENT_CUARENTENA_SIN_PRUEBA_DIAGNOSTICA(HttpStatus.UNPROCESSABLE_CONTENT,
             "El animal no tiene una prueba diagnóstica registrada desde su ingreso; no puede salir de cuarentena."),
+    MOVEMENT_TIPO_RESTRINGIDO(HttpStatus.UNPROCESSABLE_CONTENT,
+            "Los movimientos de compra o venta se registran desde los módulos de Compras y Ventas."),
     VERSION_CONFLICT(HttpStatus.CONFLICT, "El registro fue modificado por otro usuario."),
     PESAJE_NOT_FOUND(HttpStatus.NOT_FOUND, "El pesaje no existe."),
     PESAJE_ALREADY_ANNULLED(HttpStatus.CONFLICT, "El pesaje ya fue anulado."),

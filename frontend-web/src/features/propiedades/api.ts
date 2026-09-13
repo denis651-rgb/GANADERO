@@ -28,7 +28,7 @@ export interface Sector {
 export type CreatePropiedad = Pick<Propiedad, 'nombre'> & Partial<Pick<Propiedad, 'codigo' | 'descripcion' | 'departamento' | 'municipio' | 'localidad' | 'direccionReferencia' | 'superficieHa'>>
 
 export async function listPropiedades() {
-  return (await http.get<ApiResponse<Propiedad[]>>('/api/v1/propiedades')).data.data
+  return (await http.get<ApiResponse<Propiedad[]>>('/api/v1/propiedades')).data.data ?? []
 }
 
 export async function createPropiedad(input: CreatePropiedad) {
@@ -40,7 +40,7 @@ export async function updatePropiedad(id: string, input: Partial<Propiedad> & { 
 }
 
 export async function listSectores(propiedadId: string) {
-  return (await http.get<ApiResponse<Sector[]>>(`/api/v1/propiedades/${propiedadId}/sectores`)).data.data
+  return (await http.get<ApiResponse<Sector[]>>(`/api/v1/propiedades/${propiedadId}/sectores`)).data.data ?? []
 }
 
 export async function createSector(propiedadId: string, input: { codigo?: string; nombre: string; descripcion?: string }) {

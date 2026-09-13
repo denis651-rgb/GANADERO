@@ -25,7 +25,7 @@ export function AnimalPicker({ value, onChange, error }: AnimalPickerProps) {
   const results = query.data?.content
 
   return (
-    <>
+    <div className="picker-root">
       <Field
         label="Animal"
         error={error}
@@ -57,6 +57,6 @@ export function AnimalPicker({ value, onChange, error }: AnimalPickerProps) {
           ))}
         </div>
       )}
-    </>
+    </div>
   )
 }

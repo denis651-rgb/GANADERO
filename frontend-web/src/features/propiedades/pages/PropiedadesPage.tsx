@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MapPinned, Pencil, Plus, Power } from 'lucide-react'
 import { useAuth } from '@/auth/auth-context'
+import { PropiedadEditModal } from '@/features/propiedades/components/PropiedadEditModal'
 import { PropiedadFormModal } from '@/features/propiedades/components/PropiedadFormModal'
 import { SectorAddModal } from '@/features/propiedades/components/SectorAddModal'
 import { SectorEditModal } from '@/features/propiedades/components/SectorEditModal'
@@ -15,12 +16,15 @@ import { EmptyState } from '@/shared/components/EmptyState'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { normalizeApiError } from '@/shared/api/errors'
+import { useToast } from '@/shared/toast/useToast'
 
 export function PropiedadesPage() {
   const client = useQueryClient()
   const { can } = useAuth()
+  const { showToast } = useToast()
   const [showForm, setShowForm] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [editTarget, setEditTarget] = useState<Propiedad | null>(null)
   const [toggleTarget, setToggleTarget] = useState<Propiedad | null>(null)
   const [showAddSector, setShowAddSector] = useState(false)
   const [editSector, setEditSector] = useState<Sector | null>(null)
@@ -34,11 +38,15 @@ export function PropiedadesPage() {
       const data = new FormData(form)
       return createPropiedad({ nombre: String(data.get('nombre')), departamento: String(data.get('departamento') ?? ''), municipio: String(data.get('municipio') ?? ''), superficieHa: Number(data.get('superficieHa')) || undefined })
     },
-    onSuccess: () => { setShowForm(false); client.invalidateQueries({ queryKey: ['propiedades'] }) },
+    onSuccess: () => { setShowForm(false); showToast('Propiedad creada correctamente.'); client.invalidateQueries({ queryKey: ['propiedades'] }) },
+  })
+  const edit = useMutation({
+    mutationFn: (input: Parameters<typeof updatePropiedad>[1]) => updatePropiedad(editTarget!.id, input),
+    onSuccess: () => { setEditTarget(null); showToast('Propiedad actualizada correctamente.'); void client.invalidateQueries({ queryKey: ['propiedades'] }) },
   })
   const toggle = useMutation({
     mutationFn: ({ id, activo, version }: { id: string; activo: boolean; version: number }) => updatePropiedad(id, { activo, version }),
-    onSuccess: () => { setToggleTarget(null); client.invalidateQueries({ queryKey: ['propiedades'] }) },
+    onSuccess: (_data, variables) => { setToggleTarget(null); showToast(variables.activo ? 'Propiedad activada.' : 'Propiedad desactivada.'); client.invalidateQueries({ queryKey: ['propiedades'] }) },
   })
   const addSector = useMutation({
     mutationFn: (form: HTMLFormElement) => {
@@ -70,9 +78,13 @@ export function PropiedadesPage() {
         {query.data && query.data.length > 0 && <><div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Propiedades registradas</caption><thead><tr><th scope="col">Código</th><th scope="col">Nombre</th><th scope="col">Ubicación</th><th scope="col" className="numeric">Superficie</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead><tbody>
           {query.data.map((property) => <tr key={property.id} className={selectedId === property.id ? 'selected-row' : undefined}>
             <td><strong>{property.codigo}</strong></td><td>{property.nombre}</td><td>{[property.departamento, property.municipio].filter(Boolean).join(' / ') || '—'}</td><td className="numeric">{property.superficieHa ? `${property.superficieHa} ha` : '—'}</td><td><span className={`status-badge ${property.activo ? 'status-activo' : 'status-inactivo'}`}>{property.activo ? 'ACTIVA' : 'INACTIVA'}</span></td>
-            <td><div className="inline-actions"><Button variant="ghost" onClick={() => setSelectedId(property.id)}><MapPinned size={16} />Sectores</Button><Button variant="ghost" loading={toggle.isPending && toggleTarget?.id === property.id} onClick={() => setToggleTarget(property)}><Power size={16} />{property.activo ? 'Desactivar' : 'Activar'}</Button></div></td>
+            <td><div className="actions-cell">
+              {canEditSectors && <button type="button" className="button button-ghost jornada-icon-action" title="Editar propiedad" aria-label="Editar propiedad" onClick={() => setEditTarget(property)}><Pencil size={16} aria-hidden="true" /></button>}
+              <button type="button" className="button button-ghost jornada-icon-action" title="Ver sectores" aria-label="Ver sectores" onClick={() => setSelectedId(property.id)}><MapPinned size={16} aria-hidden="true" /></button>
+              <Button variant="ghost" className="jornada-icon-action" title={property.activo ? 'Desactivar propiedad' : 'Activar propiedad'} aria-label={property.activo ? 'Desactivar propiedad' : 'Activar propiedad'} loading={toggle.isPending && toggleTarget?.id === property.id} onClick={() => setToggleTarget(property)}><Power size={16} aria-hidden="true" /></Button>
+            </div></td>
           </tr>)}
-        </tbody></table></div><div className="mobile-only"><div className="mobile-entity-list">{query.data.map((property) => <MobileEntityCard key={property.id} title={`${property.codigo} · ${property.nombre}`} status={<span className={`status-badge ${property.activo ? 'status-activo' : 'status-inactivo'}`}>{property.activo ? 'ACTIVA' : 'INACTIVA'}</span>} metadata={<><span>{[property.departamento, property.municipio].filter(Boolean).join(' / ') || 'Ubicación no registrada'}</span><span>{property.superficieHa ? `${property.superficieHa} ha` : 'Superficie no registrada'}</span></>} action={<><Button variant="ghost" onClick={() => setSelectedId(property.id)}>Sectores</Button><Button variant="ghost" onClick={() => setToggleTarget(property)}>{property.activo ? 'Desactivar' : 'Activar'}</Button></>} />)}</div></div></>}
+        </tbody></table></div><div className="mobile-only"><div className="mobile-entity-list">{query.data.map((property) => <MobileEntityCard key={property.id} title={`${property.codigo} · ${property.nombre}`} status={<span className={`status-badge ${property.activo ? 'status-activo' : 'status-inactivo'}`}>{property.activo ? 'ACTIVA' : 'INACTIVA'}</span>} metadata={<><span>{[property.departamento, property.municipio].filter(Boolean).join(' / ') || 'Ubicación no registrada'}</span><span>{property.superficieHa ? `${property.superficieHa} ha` : 'Superficie no registrada'}</span></>} action={<>{canEditSectors && <Button variant="ghost" onClick={() => setEditTarget(property)}><Pencil size={16} aria-hidden="true" />Editar</Button>}<Button variant="ghost" onClick={() => setSelectedId(property.id)}><MapPinned size={16} aria-hidden="true" />Sectores</Button><Button variant="ghost" onClick={() => setToggleTarget(property)}><Power size={16} aria-hidden="true" />{property.activo ? 'Desactivar' : 'Activar'}</Button></>} />)}</div></div></>}
       </Card>
       {selectedId && <Card><div className="section-heading"><h3>Sectores de {query.data?.find((item) => item.id === selectedId)?.nombre}</h3>{canCreateSectors && <Button variant="secondary" onClick={() => setShowAddSector(true)}><Plus size={16} aria-hidden="true" />Añadir sector</Button>}</div>
         {sectors.isPending && <LoadingState message="Cargando sectores…" />}
@@ -97,6 +109,7 @@ export function PropiedadesPage() {
         </dl><p className="muted">{toggleTarget.activo ? 'La propiedad dejará de estar disponible para nuevas operaciones mientras permanezca inactiva.' : 'La propiedad volverá a estar disponible para las operaciones permitidas.'}</p></div>}
       </ConfirmDialog>
       <PropiedadFormModal open={showForm} loading={create.isPending} error={create.error} onClose={() => setShowForm(false)} onSubmit={(form) => create.mutate(form)} />
+      <PropiedadEditModal propiedad={editTarget} loading={edit.isPending} error={edit.error} onClose={() => setEditTarget(null)} onSubmit={(input) => edit.mutate(input)} onReload={() => { setEditTarget(null); void client.invalidateQueries({ queryKey: ['propiedades'] }) }} />
       <SectorAddModal open={showAddSector} loading={addSector.isPending} error={addSector.error} onClose={() => setShowAddSector(false)} onSubmit={(form) => addSector.mutate(form)} />
       <SectorEditModal sector={editSector} loading={editSectorMutation.isPending} error={editSectorMutation.error} onClose={() => setEditSector(null)} onSubmit={(input) => { if (editSector) editSectorMutation.mutate({ id: editSector.id, input }) }} onReload={() => { setEditSector(null); void client.invalidateQueries({ queryKey: ['sectores', selectedId] }) }} />
       <ConfirmDialog open={Boolean(toggleSectorTarget)} title={toggleSectorTarget?.activo ? 'Desactivar sector' : 'Activar sector'} confirmLabel={toggleSectorTarget?.activo ? 'Desactivar sector' : 'Activar sector'} variant={toggleSectorTarget?.activo ? 'danger' : 'warning'} loading={toggleSectorMutation.isPending} error={toggleSectorMutation.error} onClose={() => setToggleSectorTarget(null)} onConfirm={() => { if (toggleSectorTarget && !toggleSectorMutation.isPending) toggleSectorMutation.mutate(toggleSectorTarget) }}>

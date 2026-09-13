@@ -1,5 +1,5 @@
 import { http } from '@/shared/api/http'
-import type { ApiResponse, Page } from '@/shared/api/types'
+import { normalizePage, type ApiResponse, type Page } from '@/shared/api/types'
 import type { AnimalEvent, AnimalFilters, AnimalState, AnimalSummary, ActualizarIdentificadorInput, AsignarIdentificadorInput, CategoriaAnimal, CrearAnimalesLoteInput, CreateAnimalInput, CrearParentescoInput, HistorialCategoriaAnimal, Identificador, Parentesco, Raza, TimelineEvent, UpdateAnimalInput } from '@/features/animales/types'
 
 export async function listAnimals(filters: AnimalFilters) {
@@ -15,7 +15,7 @@ export async function listAnimals(filters: AnimalFilters) {
       size: filters.size,
     },
   })
-  return response.data.data
+  return normalizePage(response.data.data)
 }
 
 export async function getAnimal(id: string) { return (await http.get<ApiResponse<AnimalSummary>>(`/api/v1/animales/${id}`)).data.data }
@@ -50,11 +50,11 @@ export async function getAnimalesResumen(filters?: Omit<AnimalFilters, 'page' | 
   return response.data.data
 }
 
-export async function listRazas() { return (await http.get<ApiResponse<Raza[]>>('/api/v1/razas')).data.data }
-export async function listCategorias() { return (await http.get<ApiResponse<CategoriaAnimal[]>>('/api/v1/categorias-animal')).data.data }
+export async function listRazas() { return (await http.get<ApiResponse<Raza[]>>('/api/v1/razas')).data.data ?? [] }
+export async function listCategorias() { return (await http.get<ApiResponse<CategoriaAnimal[]>>('/api/v1/categorias-animal')).data.data ?? [] }
 
 export async function getAnimalTimeline(id: string, params: { tipo?: string; modulo?: string; desde?: string; hasta?: string; page: number; size: number }) {
-  return (await http.get<ApiResponse<Page<TimelineEvent>>>(`/api/v1/animales/${id}/timeline`, { params })).data.data
+  return normalizePage((await http.get<ApiResponse<Page<TimelineEvent>>>(`/api/v1/animales/${id}/timeline`, { params })).data.data)
 }
 
 export async function listIdentificadores(animalId: string) { return (await http.get<ApiResponse<Identificador[]>>(`/api/v1/animales/${animalId}/identificadores`)).data.data }

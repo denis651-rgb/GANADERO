@@ -92,7 +92,7 @@ export function AnimalDetailPage() {
   const historialPesos = useQuery({ queryKey: ['pesaje-history', id], queryFn: () => getPesajeHistory(id), enabled: Boolean(id) })
   const catalogs = useQuery({ queryKey: ['animal-detail-catalogs'], queryFn: async () => {
     const [breeds, categories, properties, paddocks] = await Promise.all([listRazas(), listCategorias(), listPropiedades(), listAllPotreros()])
-    return { breeds, categories, properties, paddocks }
+    return { breeds: breeds ?? [], categories: categories ?? [], properties: properties ?? [], paddocks: paddocks ?? [] }
   } })
   const stateMutation = useMutation({
     mutationFn: ({ estado, motivo }: { estado: AnimalState; motivo: string }) =>

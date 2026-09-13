@@ -38,6 +38,7 @@ class MoverLoteServiceTest {
     @SuppressWarnings("unchecked")
     private final ObjectProvider<RestriccionSanitariaPort> restriccionProvider = mock(ObjectProvider.class);
     private MoverLoteService service;
+    private final java.util.ArrayList<bo.com.ganadero.timeline.application.RegistrarEventoTimeline> eventos = new java.util.ArrayList<>();
 
     private UUID empresa, loteId, propiedadOrigen, potreroOrigen, propiedadDestino, potreroDestino, actorId;
     private CurrentUser user;
@@ -60,7 +61,7 @@ class MoverLoteServiceTest {
         user = new CurrentUser(actorId, empresa, UUID.randomUUID(), Set.of(), Set.of("LOTE_MOVER"), Set.of(), true);
         UserContext context = new UserContext(() -> user);
         service = new MoverLoteService(preparaciones, lotes, animales, movimientos, movimientoService, context, codigos,
-                mock(ApplicationEventPublisher.class), evento -> { }, restriccionProvider);
+                mock(ApplicationEventPublisher.class), eventos::add, restriccionProvider);
 
         when(preparaciones.crear(any(), any(), any())).thenAnswer(inv -> inv.getArgument(0));
         when(animales.validLocation(eq(empresa), any(), any())).thenReturn(true);
@@ -71,13 +72,13 @@ class MoverLoteServiceTest {
 
     private Lote lote() {
         return new Lote(loteId, empresa, propiedadOrigen, "LOT-001", "Lote A", null, EstadoLote.ACTIVO,
-                LocalDate.now(), null, 0, null, 1, potreroOrigen);
+                LocalDate.now(java.time.ZoneId.of("America/La_Paz")), null, 0, null, 1, potreroOrigen);
     }
 
     private Animal animal(UUID id, EstadoAnimal estado, long version) {
         return new Animal(id, empresa, "ANI-" + id.toString().substring(0, 4), null, SexoAnimal.HEMBRA, null, false,
                 UUID.randomUUID(), UUID.randomUUID(), null, PropositoAnimal.CARNE, OrigenAnimal.COMPRADO,
-                propiedadOrigen, potreroOrigen, loteId, estado, LocalDate.now(), null, null, null, null, null, version);
+                propiedadOrigen, potreroOrigen, loteId, estado, LocalDate.now(java.time.ZoneId.of("America/La_Paz")), null, null, null, null, null, version);
     }
 
     private MembresiaLote membresia(UUID animalId) {
@@ -152,6 +153,25 @@ class MoverLoteServiceTest {
     // ---------- confirmar() ----------
 
     @Test
+    void registraUnSoloMovimientoParaTodosLosAnimalesYVinculaSusTimelines() {
+        List<UUID> ids = List.of(UUID.randomUUID(), UUID.randomUUID());
+        PreparacionMovimientoLote prep = preparacionVigente(AccionLote.MANTENER_LOTE, propiedadOrigen, potreroDestino, ids, 2);
+        prepararMocksConfirmar(prep, ids);
+        ResultadoMovimientoLote resultado = service.confirmar(prep.id(), confirmarCommand(prep.version(), ids));
+
+        verify(movimientos, times(1)).saveConfirmed(argThat(m -> m.origenLoteId().equals(loteId)
+                && m.destinoLoteId().equals(loteId)), argThat(detalles -> detalles.size() == 2), eq(actorId));
+        verify(movimientos).saveDetalleUbicaciones(eq(resultado.movimientoId()), argThat(detalles -> detalles.size() == 2
+                && detalles.stream().allMatch(d -> d.movimientoId().equals(resultado.movimientoId())
+                && d.potreroAntes().equals(potreroOrigen) && d.potreroDespues().equals(potreroDestino))));
+        assertThat(eventos).hasSize(2);
+        assertThat(eventos).extracting(e -> e.animalId()).containsExactlyInAnyOrderElementsOf(ids);
+        assertThat(eventos).allSatisfy(e -> assertThat(e.registroOrigenId()).isEqualTo(resultado.movimientoId()));
+        verify(preparaciones).confirmar(prep.id(), resultado.movimientoId(), null, prep.version(), actorId);
+        verify(lotes, never()).openMembership(any(), any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
     void confirmaCambioDePotreroDentroDeLaMismaPropiedad() {
         UUID animalId = UUID.randomUUID();
         PreparacionMovimientoLote prep = preparacionVigente(AccionLote.MANTENER_LOTE, propiedadOrigen, potreroDestino, List.of(animalId), 1);
@@ -200,7 +220,7 @@ class MoverLoteServiceTest {
         UUID animalId = UUID.randomUUID();
         UUID loteDestinoId = UUID.randomUUID();
         Lote loteDestino = new Lote(loteDestinoId, empresa, propiedadDestino, "LOT-002", "Lote B", null,
-                EstadoLote.ACTIVO, LocalDate.now(), null, 0);
+                EstadoLote.ACTIVO, LocalDate.now(java.time.ZoneId.of("America/La_Paz")), null, 0);
         when(lotes.findById(loteDestinoId, empresa)).thenReturn(Optional.of(loteDestino));
 
         PreparacionMovimientoLote prep = new PreparacionMovimientoLote(UUID.randomUUID(), loteId, propiedadOrigen,
@@ -223,7 +243,7 @@ class MoverLoteServiceTest {
         UUID noSeleccionado = UUID.randomUUID();
         UUID loteDestinoId = UUID.randomUUID();
         Lote loteDestino = new Lote(loteDestinoId, empresa, propiedadOrigen, "LOT-002", "Lote B", null,
-                EstadoLote.ACTIVO, LocalDate.now(), null, 0);
+                EstadoLote.ACTIVO, LocalDate.now(java.time.ZoneId.of("America/La_Paz")), null, 0);
         when(lotes.findById(loteDestinoId, empresa)).thenReturn(Optional.of(loteDestino));
         PreparacionMovimientoLote prep = new PreparacionMovimientoLote(UUID.randomUUID(), loteId, propiedadOrigen,
                 potreroOrigen, ModalidadMovimientoLote.SELECCION_PARCIAL, propiedadOrigen, potreroDestino,
@@ -247,7 +267,7 @@ class MoverLoteServiceTest {
         UUID nuevoLoteId = UUID.randomUUID();
         when(codigos.paraCreacion(eq(user), eq(TipoCodigo.LOTE), isNull(), anyInt(), any())).thenReturn("LOT-003");
         Lote creado = new Lote(nuevoLoteId, empresa, propiedadDestino, "LOT-003", "Lote nuevo", null,
-                EstadoLote.ACTIVO, LocalDate.now(), null, 0);
+                EstadoLote.ACTIVO, LocalDate.now(java.time.ZoneId.of("America/La_Paz")), null, 0);
         when(lotes.create(any(), eq(actorId))).thenReturn(creado);
 
         PreparacionMovimientoLote prep = new PreparacionMovimientoLote(UUID.randomUUID(), loteId, propiedadOrigen,
@@ -361,7 +381,7 @@ class MoverLoteServiceTest {
         when(preparaciones.findById(prep.id())).thenReturn(Optional.of(prep));
         when(lotes.findById(loteId, empresa)).thenReturn(Optional.of(lote()));
         Movimiento original = new Movimiento(movimientoId, empresa, TipoMovimiento.CAMBIO_POTRERO,
-                EstadoMovimiento.CONFIRMADO, LocalDate.now(), "motivo", null, propiedadOrigen, potreroOrigen, loteId,
+                EstadoMovimiento.CONFIRMADO, LocalDate.now(java.time.ZoneId.of("America/La_Paz")), "motivo", null, propiedadOrigen, potreroOrigen, loteId,
                 propiedadOrigen, potreroDestino, loteId, actorId, actorId, null, Instant.now(), null, null, null,
                 null, null, null, null, 3);
         when(movimientos.findById(movimientoId, empresa)).thenReturn(Optional.of(original));
@@ -371,7 +391,7 @@ class MoverLoteServiceTest {
                         loteId, "OK", null)));
         when(animales.findById(animalId, empresa)).thenReturn(Optional.of(animal(animalId, EstadoAnimal.ACTIVO, 1)));
         Movimiento revertido = new Movimiento(movimientoId, empresa, TipoMovimiento.CAMBIO_POTRERO,
-                EstadoMovimiento.REVERTIDO, LocalDate.now(), "motivo", null, propiedadOrigen, potreroOrigen, loteId,
+                EstadoMovimiento.REVERTIDO, LocalDate.now(java.time.ZoneId.of("America/La_Paz")), "motivo", null, propiedadOrigen, potreroOrigen, loteId,
                 propiedadOrigen, potreroDestino, loteId, actorId, actorId, null, Instant.now(), null, null, actorId,
                 Instant.now(), "ya no aplica", null, UUID.randomUUID(), 4);
         when(movimientoService.revert(movimientoId, "ya no aplica", 3)).thenReturn(revertido);
@@ -392,7 +412,7 @@ class MoverLoteServiceTest {
         when(preparaciones.findById(prep.id())).thenReturn(Optional.of(prep));
         when(lotes.findById(loteId, empresa)).thenReturn(Optional.of(lote()));
         Movimiento original = new Movimiento(movimientoId, empresa, TipoMovimiento.CAMBIO_POTRERO,
-                EstadoMovimiento.CONFIRMADO, LocalDate.now(), "motivo", null, propiedadOrigen, potreroOrigen, loteId,
+                EstadoMovimiento.CONFIRMADO, LocalDate.now(java.time.ZoneId.of("America/La_Paz")), "motivo", null, propiedadOrigen, potreroOrigen, loteId,
                 propiedadOrigen, potreroDestino, loteId, actorId, actorId, null, Instant.now(), null, null, null,
                 null, null, null, null, 3);
         when(movimientos.findById(movimientoId, empresa)).thenReturn(Optional.of(original));
@@ -417,7 +437,7 @@ class MoverLoteServiceTest {
         when(preparaciones.findById(prep.id())).thenReturn(Optional.of(prep));
         when(lotes.findById(loteId, empresa)).thenReturn(Optional.of(lote()));
         Movimiento original = new Movimiento(movimientoId, empresa, TipoMovimiento.CAMBIO_LOTE,
-                EstadoMovimiento.CONFIRMADO, LocalDate.now(), "motivo", null, propiedadOrigen, potreroOrigen, loteId,
+                EstadoMovimiento.CONFIRMADO, LocalDate.now(java.time.ZoneId.of("America/La_Paz")), "motivo", null, propiedadOrigen, potreroOrigen, loteId,
                 propiedadOrigen, potreroDestino, loteNuevoId, actorId, actorId, null, Instant.now(), null, null, null,
                 null, null, null, null, 3);
         when(movimientos.findById(movimientoId, empresa)).thenReturn(Optional.of(original));
@@ -443,7 +463,7 @@ class MoverLoteServiceTest {
         when(preparaciones.findById(prep.id())).thenReturn(Optional.of(prep));
         when(lotes.findById(loteId, empresa)).thenReturn(Optional.of(lote()));
         Movimiento original = new Movimiento(movimientoId, empresa, TipoMovimiento.TRANSFERENCIA_PROPIEDAD,
-                EstadoMovimiento.CONFIRMADO, LocalDate.now(), "motivo", null, propiedadOrigen, potreroOrigen, loteId,
+                EstadoMovimiento.CONFIRMADO, LocalDate.now(java.time.ZoneId.of("America/La_Paz")), "motivo", null, propiedadOrigen, potreroOrigen, loteId,
                 propiedadDestino, potreroDestino, loteId, actorId, actorId, null, Instant.now(), null, null, null,
                 null, null, null, null, 3);
         when(movimientos.findById(movimientoId, empresa)).thenReturn(Optional.of(original));
@@ -517,7 +537,7 @@ class MoverLoteServiceTest {
             when(lotes.findActiveMembership(id, empresa)).thenReturn(Optional.of(membresia(id)));
         }
         Movimiento guardado = new Movimiento(UUID.randomUUID(), empresa, TipoMovimiento.CAMBIO_POTRERO,
-                EstadoMovimiento.CONFIRMADO, LocalDate.now(), null, null, propiedadOrigen, potreroOrigen, loteId,
+                EstadoMovimiento.CONFIRMADO, LocalDate.now(java.time.ZoneId.of("America/La_Paz")), null, null, propiedadOrigen, potreroOrigen, loteId,
                 prep.destinoPropiedadId(), prep.destinoPotreroId(), null, actorId, actorId, null, Instant.now(),
                 null, null, null, null, null, null, null, 0);
         when(movimientos.saveConfirmed(any(), any(), any())).thenReturn(guardado);
@@ -535,7 +555,7 @@ class MoverLoteServiceTest {
     }
 
     private Movimiento movimientoCuarentena(TipoMovimiento tipo) {
-        return new Movimiento(UUID.randomUUID(), empresa, tipo, EstadoMovimiento.CONFIRMADO, LocalDate.now(), null,
+        return new Movimiento(UUID.randomUUID(), empresa, tipo, EstadoMovimiento.CONFIRMADO, LocalDate.now(java.time.ZoneId.of("America/La_Paz")), null,
                 null, propiedadOrigen, potreroOrigen, loteId, propiedadOrigen, UUID.randomUUID(), loteId,
                 actorId, actorId, null, Instant.now(), null, null, null, null, null, null, null, 0);
     }

@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 import { VentasPage } from './VentasPage'
 
@@ -34,7 +35,7 @@ function renderPage() {
     { id: `pesaje-${id}`, animalId: id, fecha: '2026-08-01', pesoKg: id === 'animal-1' ? 380 : 400, tipo: 'RUTINA', tipoPeso: 'MEDIDO', estado: 'ACTIVO', version: 0 },
   ]))
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-  render(<QueryClientProvider client={client}><VentasPage /></QueryClientProvider>)
+  render(<QueryClientProvider client={client}><MemoryRouter><VentasPage /></MemoryRouter></QueryClientProvider>)
 }
 
 describe('VentasPage — venta por lote', () => {
