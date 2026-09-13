@@ -80,7 +80,7 @@ class CompraServiceTest {
 
     private CompraDetalleCommand detalle(BigDecimal override, BigDecimal peso, TipoPeso tipoPeso) {
         return new CompraDetalleCommand(null, "Animal", SexoAnimal.HEMBRA, raza, PropositoAnimal.CARNE, null, null,
-                18, bo.com.ganadero.animales.domain.UnidadEdadDeclarada.MESES, java.time.LocalDate.now(),
+                18, bo.com.ganadero.animales.domain.UnidadEdadDeclarada.MESES, java.time.LocalDate.now(java.time.ZoneId.of("America/La_Paz")),
                 bo.com.ganadero.animales.domain.FuenteEdadDeclarada.PROVEEDOR, null, null, null, override, peso,
                 tipoPeso, null, null, null, null, null);
     }
@@ -274,12 +274,12 @@ class CompraServiceTest {
     private Animal animalConEstado(UUID id, EstadoAnimal estado) {
         return new Animal(id, UUID.randomUUID(), "ANI-00000" + id.toString().charAt(0), null, SexoAnimal.HEMBRA,
                 null, false, raza, UUID.randomUUID(), null, PropositoAnimal.CARNE, OrigenAnimal.COMPRADO, propiedad,
-                potrero, null, estado, java.time.LocalDate.now(), new BigDecimal("100"), null, null, null, null, 0);
+                potrero, null, estado, java.time.LocalDate.now(java.time.ZoneId.of("America/La_Paz")), new BigDecimal("100"), null, null, null, null, 0);
     }
 
     private Movimiento movimiento() {
         return new Movimiento(UUID.randomUUID(), UUID.randomUUID(), TipoMovimiento.INGRESO_COMPRA,
-                EstadoMovimiento.CONFIRMADO, java.time.LocalDate.now(), null, null, null, null, null,
+                EstadoMovimiento.CONFIRMADO, java.time.LocalDate.now(java.time.ZoneId.of("America/La_Paz")), null, null, null, null, null,
                 propiedad, potrero, null, actorId, actorId, null, Instant.now(), null, null, null, null, null,
                 null, null, 0);
     }

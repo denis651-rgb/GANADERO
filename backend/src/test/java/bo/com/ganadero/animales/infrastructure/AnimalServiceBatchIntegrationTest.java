@@ -63,7 +63,7 @@ class AnimalServiceBatchIntegrationTest {
         LocalDate nacimiento = LocalDate.of(2026, 8, 20);
         AnimalCommand comando = new AnimalCommand(null, "NACIDO-001", "Cria", SexoAnimal.HEMBRA,
                 nacimiento, false, f.razaId(), f.categoriaId(), null, PropositoAnimal.CARNE,
-                OrigenAnimal.NACIDO, PROPIEDAD_ID, f.potreroId(), null, LocalDate.now(),
+                OrigenAnimal.NACIDO, PROPIEDAD_ID, f.potreroId(), null, LocalDate.now(java.time.ZoneId.of("America/La_Paz")),
                 null, null, null, null, null, 0L);
 
         Animal creado = f.tx().execute(status -> f.service().create(comando));
@@ -134,7 +134,7 @@ class AnimalServiceBatchIntegrationTest {
     void rechazaUnPesoSinIndicarSiEsEstimadoOMedido(@TempDir Path tempDir) {
         Fixture f = fixture(tempDir);
         var request = new CrearAnimalesLoteRequest(f.razaId(), PropositoAnimal.CARNE,
-                PROPIEDAD_ID, f.potreroId(), LocalDate.now(), null, List.of(
+                PROPIEDAD_ID, f.potreroId(), LocalDate.now(java.time.ZoneId.of("America/La_Paz")), null, List.of(
                 new CrearAnimalesLoteRequest.AnimalLoteItemRequest(null, null, SexoAnimal.HEMBRA,
                         f.categoriaId(), null, null, false, new BigDecimal("150"), null, null, null)));
         assertThatThrownBy(() -> f.tx().execute(status -> f.service().createBatch(request.commands())))
@@ -145,7 +145,7 @@ class AnimalServiceBatchIntegrationTest {
     private AnimalCommand comando(Fixture f, String codigo) {
         return new AnimalCommand(null, codigo, null, SexoAnimal.HEMBRA, null, false, f.razaId(), f.categoriaId(),
                 null, PropositoAnimal.CARNE, OrigenAnimal.COMPRADO, PROPIEDAD_ID, f.potreroId(), null,
-                LocalDate.now(), new BigDecimal("2500"), null, null, null, "Compra de prueba", 0L);
+                LocalDate.now(java.time.ZoneId.of("America/La_Paz")), new BigDecimal("2500"), null, null, null, "Compra de prueba", 0L);
     }
 
     private Fixture fixture(Path tempDir) {

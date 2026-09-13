@@ -35,7 +35,7 @@ describe('ManualPage', () => {
 
   it('muestra el enlace al capítulo siguiente', () => {
     const { container } = renderAt('/manual/compras')
-    const navigation = container.querySelector('.manual-navigation')
+    const navigation = container.querySelector<HTMLElement>('.manual-navigation')
     expect(navigation).not.toBeNull()
     expect(within(navigation!).getByText('Lotes').closest('a')).toHaveAttribute('href', '/manual/lotes')
   })

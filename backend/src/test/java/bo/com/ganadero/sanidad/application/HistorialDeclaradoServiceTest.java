@@ -63,7 +63,7 @@ class HistorialDeclaradoServiceTest {
         HistorialDeclaradoService service = new HistorialDeclaradoService(jornadas, planes, animales,
                 userContext(), alertasProvider, mock(ApplicationEventPublisher.class));
 
-        LocalDate fecha = LocalDate.now();
+        LocalDate fecha = LocalDate.now(java.time.ZoneId.of("America/La_Paz"));
         var command = new RegistrarHistorialDeclaradoLoteCommand(List.of(primero.id(), segundo.id()), List.of(
                 new RegistrarHistorialDeclaradoLoteCommand.Actividad(TipoActividadSanitaria.VACUNACION,
                         null, fecha, null, null, "Vacuna declarada", "Certificado 123"),
@@ -89,7 +89,7 @@ class HistorialDeclaradoServiceTest {
         UUID actor = UUID.randomUUID();
 
         PlanSanitario plan = planes.crearPlan(new PlanSanitario(UUID.randomUUID(), null, "Plan 2026", null,
-                LocalDate.now(), null, EstadoPlanSanitario.ACTIVO, null, null, 0), actor);
+                LocalDate.now(java.time.ZoneId.of("America/La_Paz")), null, EstadoPlanSanitario.ACTIVO, null, null, 0), actor);
         PlanSanitarioItem item = planes.crearItem(new PlanSanitarioItem(UUID.randomUUID(), null, plan.id(),
                 TipoActividadSanitaria.VACUNACION, null, "Brucelosis Cepa 19", null, null, null, null, null, null,
                 180, 7, null, true, true, 0, OrigenRegulatorioActividad.OBLIGATORIO_SENASAG, "BOVINO"), actor);
@@ -176,10 +176,10 @@ class HistorialDeclaradoServiceTest {
                 + "values(:id,:cod,'HEMBRA',:raza,:cat,'CARNE','COMPRADO',:pot,:ingreso)")
                 .param("id", animalId.toString()).param("cod", "ANI-" + animalId)
                 .param("raza", razaId.toString()).param("cat", categoriaId.toString())
-                .param("pot", potreroId.toString()).param("ingreso", LocalDate.now().toString()).update();
+                .param("pot", potreroId.toString()).param("ingreso", LocalDate.now(java.time.ZoneId.of("America/La_Paz")).toString()).update();
         return new Animal(animalId, null, "ANI-" + animalId, null, SexoAnimal.HEMBRA, null, false, razaId,
                 categoriaId, null, PropositoAnimal.CARNE, OrigenAnimal.COMPRADO, PROPIEDAD_ID, potreroId, null,
-                EstadoAnimal.ACTIVO, LocalDate.now(), null, null, null, null, null, 0);
+                EstadoAnimal.ACTIVO, LocalDate.now(java.time.ZoneId.of("America/La_Paz")), null, null, null, null, null, 0);
     }
 
     private UserContext userContext() {
