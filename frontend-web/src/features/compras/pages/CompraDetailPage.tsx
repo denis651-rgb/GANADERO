@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, ArrowLeft, Ban, CheckCircle2 } from 'lucide-react'
 import { anularCompra, confirmarCompra, getCompra, getCompraDependencias, getCompraDetalles } from '@/features/compras/api'
+import type { EstadoCompra } from '@/features/compras/types'
 import { getProveedor } from '@/features/proveedores/api'
 import { formatDate } from '@/shared/utils/date'
 import { Alert } from '@/shared/components/Alert'
@@ -15,6 +16,7 @@ import { normalizeApiError } from '@/shared/api/errors'
 import { useToast } from '@/shared/toast/useToast'
 
 const modalidadLabel: Record<string, string> = { POR_UNIDAD: 'Por unidad', POR_TROPA: 'Por tropa o punta' }
+const estadoTone: Record<EstadoCompra, string> = { BORRADOR: 'status-badge-pending', CONFIRMADA: 'status-badge-confirmed', ANULADA: 'status-badge-annulled' }
 
 export function CompraDetailPage() {
   const { id = '' } = useParams()
@@ -77,10 +79,10 @@ export function CompraDetailPage() {
       <Card>
         <div className="section-heading">
           <h3>Datos de la compra</h3>
-          <div style={{ display: 'flex', gap: '.5rem' }}>
-            <span className={`status-badge status-${value.estado.toLowerCase()}`}>{value.estado}</span>
+          <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+            <span className={`status-badge ${estadoTone[value.estado]}`}>{value.estado}</span>
             {value.estado === 'BORRADOR' && <Button onClick={() => setConfirmando(true)}><CheckCircle2 size={17} aria-hidden="true" />Confirmar compra</Button>}
-            {value.estado === 'CONFIRMADA' && <Button variant="danger" onClick={() => setAnulando(true)}><Ban size={17} aria-hidden="true" />Anular compra</Button>}
+            {value.estado === 'CONFIRMADA' && <Button variant="danger" className="jornada-icon-action" title="Anular compra" aria-label="Anular compra" onClick={() => setAnulando(true)}><Ban size={17} aria-hidden="true" /></Button>}
           </div>
         </div>
         <dl className="definition-list grid">

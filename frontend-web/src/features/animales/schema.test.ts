@@ -72,4 +72,20 @@ describe('createAnimalSchema', () => {
       razaPrincipalId: id, categoriaActualId: id, propiedadActualId: id, potreroActualId: id,
     }).success).toBe(false)
   })
+
+  it('acepta color, peso al nacer y condición corporal soportados por CrearAnimalRequest', () => {
+    expect(createAnimalSchema.safeParse({
+      sexo: 'HEMBRA', proposito: 'CARNE', origen: 'NACIDO', fechaNacimiento: '2026-09-03',
+      color: 'Colorado', pesoNacimientoKg: 32.5, condicionCorporalActual: 3.5,
+      razaPrincipalId: id, categoriaActualId: id, propiedadActualId: id, potreroActualId: id,
+    }).success).toBe(true)
+  })
+
+  it('rechaza una condición corporal fuera de la escala 1 a 5 del backend', () => {
+    expect(createAnimalSchema.safeParse({
+      sexo: 'HEMBRA', proposito: 'CARNE', origen: 'NACIDO', fechaNacimiento: '2026-09-03',
+      condicionCorporalActual: 5.5,
+      razaPrincipalId: id, categoriaActualId: id, propiedadActualId: id, potreroActualId: id,
+    }).success).toBe(false)
+  })
 })

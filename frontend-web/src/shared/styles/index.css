@@ -359,6 +359,21 @@ button.text-link { background: none; border: 0; padding: 0; cursor: pointer; fon
 .record-help { display: grid; gap: 8px; padding: 14px 16px; border: 1px solid var(--green-100); border-radius: 12px; background: #f8fbf8; }
 .record-help-title { display: flex; align-items: center; gap: 8px; color: var(--green-800); font-size: .8rem; font-weight: 800; }
 .record-help p { margin: 0; color: var(--muted); font-size: .76rem; line-height: 1.55; }
+.record-steps-panel { padding: 18px 20px; }
+.record-steps-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.record-steps-panel-title { display: flex; align-items: center; gap: 8px; color: var(--green-800); font-size: .84rem; font-weight: 800; }
+.record-steps-panel-pct { color: var(--green-700); font-size: .78rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.record-steps-panel .record-progress-track { margin-top: 12px; }
+.record-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 14px 0 0; padding: 0; list-style: none; }
+.record-steps-item button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer; text-align: left; font: inherit; transition: border-color .15s ease, background .15s ease; }
+.record-steps-item button:hover { border-color: var(--green-100); background: var(--green-50); }
+.record-steps-index { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #edf1ee; color: var(--muted); font-size: .7rem; font-weight: 800; }
+.record-steps-label { font-size: .74rem; font-weight: 700; color: var(--muted); line-height: 1.25; }
+.record-steps-item.is-current button { border-color: var(--green-600); background: var(--green-50); }
+.record-steps-item.is-current .record-steps-index { background: var(--green-600); color: #fff; }
+.record-steps-item.is-current .record-steps-label { color: var(--green-800); }
+.record-steps-item.is-done .record-steps-index { background: var(--green-700); color: #fff; }
+.record-steps-item.is-done .record-steps-label { color: var(--green-700); }
 .save-hint-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green-600); flex: 0 0 auto; }
 .candidato-otro-lote-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); margin-left: 6px; vertical-align: middle; }
 .age-range-panel { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: #f8faf8; }
@@ -825,6 +840,7 @@ th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-s
   .connection-pill, .pending-pill { min-height: 40px; }
   .pwa-toast { bottom: calc(84px + env(safe-area-inset-bottom)); }
   .install-toast { bottom: calc(148px + env(safe-area-inset-bottom)); }
+  .record-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 580px) {
@@ -853,6 +869,7 @@ th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-s
   .attention-list li > a, .attention-list li > button.text-link { grid-column: 2; min-height: 36px; align-items: center; }
   .form-grid { grid-template-columns: 1fr; }
   .form-full { grid-column: auto; }
+  .record-steps { grid-template-columns: 1fr; }
   .age-range-heading, .age-range-fields { grid-template-columns: 1fr; }
   .movement-picker-toolbar { align-items: stretch; flex-direction: column; }
   .movement-picker-toolbar .search-box { width: 100%; }

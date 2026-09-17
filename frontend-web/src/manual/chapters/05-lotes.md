@@ -127,18 +127,25 @@ observaciones. La ocupación se actualiza y se respeta el cupo máximo.
 ### Procedimiento
 
 1. Abre la ficha del lote y presiona **Agregar animales**.
-2. Busca con el campo "Buscar por código o nombre…" y marca con la casilla a
-   los animales que quieras. El contador muestra cuántos llevas.
-3. Revisa los **cupos disponibles**: si la selección supera el máximo, la
+2. Busca con el campo "Buscar por código o nombre…" y, si querés acotar más
+   la lista, usa los selectores **Sexo** y **Raza**. Los tres filtros se
+   combinan entre sí.
+3. Marca con la casilla a los animales que quieras. El contador muestra
+   cuántos llevas.
+4. Revisa los **cupos disponibles**: si la selección supera el máximo, la
    pantalla lo avisa y no se incorporará ningún animal.
-4. En **Modo**, elige:
+5. En **Modo**, elige:
    - **Parcial (procesa el resto)**: agrega los que pueda y avisa cuáles
      no entraron.
    - **Atómico (todo o nada)**: si alguno no se puede agregar, no se
      incorpora ninguno.
-5. Completa la **Fecha de ingreso** (opcional), el **Motivo** y la
+6. Completa la **Fecha de ingreso** (opcional), el **Motivo** y la
    **Observación**.
-6. Presiona **Agregar {n} animal(es)**.
+7. Presiona **Agregar {n} animal(es)**.
+
+> Si cambiás el buscador, el sexo o la raza después de marcar animales, la
+> selección se limpia — por eso conviene ajustar los filtros primero y recién
+> después marcar las casillas.
 
 ### Ejemplo
 

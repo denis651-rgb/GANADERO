@@ -6,6 +6,8 @@ import bo.com.ganadero.alertas.application.ProgramarAlertaCommand;
 import bo.com.ganadero.alertas.application.TipoAlerta;
 import bo.com.ganadero.animales.domain.AnimalRepository;
 import bo.com.ganadero.animales.domain.EstadoAnimal;
+import bo.com.ganadero.animales.domain.Raza;
+import bo.com.ganadero.animales.domain.RazaRepository;
 import bo.com.ganadero.lotes.domain.EstadoLote;
 import bo.com.ganadero.lotes.domain.Lote;
 import bo.com.ganadero.lotes.domain.LoteRepository;
@@ -47,6 +49,7 @@ public class MovimientoService {
     private final TimelineEventPublisher timeline;
     private final ObjectProvider<EstadoSanitarioIngresoPort> estadoSanitario;
     private ObjectProvider<MotorAlertas> alertas;
+    private RazaRepository razas;
 
     @Value("${ganadero.sanidad.cuarentena-requiere-prueba:true}")
     private boolean cuarentenaRequierePrueba = true;
@@ -67,9 +70,10 @@ public class MovimientoService {
     public MovimientoService(MovimientoRepository movimientos, AnimalRepository animales, LoteRepository lotes,
                              UserContext context, ApplicationEventPublisher events, TimelineEventPublisher timeline,
                              ObjectProvider<EstadoSanitarioIngresoPort> estadoSanitario,
-                             ObjectProvider<MotorAlertas> alertas) {
+                             ObjectProvider<MotorAlertas> alertas, RazaRepository razas) {
         this(movimientos, animales, lotes, context, events, timeline, estadoSanitario);
         this.alertas = alertas;
+        this.razas = razas;
     }
 
     @Transactional(readOnly = true)
@@ -187,7 +191,7 @@ public class MovimientoService {
         movimientos.saveDetalleUbicaciones(id, snapshots);
         Movimiento saved = movimientos.confirm(id, user.empresaId(), version, user.userId());
         resolverAlertasMovimiento(user, detalles);
-        if (saved.tipo() == TipoMovimiento.INGRESO_COMPRA) recordarCuarentena(user, saved);
+        if (saved.tipo() == TipoMovimiento.INGRESO_COMPRA) recordarCuarentena(user, saved, detalles);
         audit(user, "CONFIRMAR", saved.id());
         return saved;
     }
@@ -497,13 +501,29 @@ public class MovimientoService {
      * "MOVIMIENTO_DETALLE") para no pisar el recordatorio genérico de pendientes que ya
      * resolvió resolverAlertasMovimiento() unas líneas arriba.
      */
-    private void recordarCuarentena(CurrentUser user, Movimiento movimiento) {
+    private void recordarCuarentena(CurrentUser user, Movimiento movimiento, List<MovimientoDetalle> detalles) {
         MotorAlertas motor = alertas == null ? null : alertas.getIfAvailable();
         if (motor == null) return;
         Map<String, Object> metadata = new HashMap<>();
-        metadata.put("tituloPersonalizado", "Sugerencia: enviar el lote a cuarentena");
-        metadata.put("mensajePersonalizado", "El lote recién ingresado por compra puede enviarse a cuarentena y, "
-                + "si corresponde, registrar una prueba diagnóstica antes de incorporarlo al hato.");
+        String titulo;
+        String mensaje;
+        if (detalles.size() == 1) {
+            Animal animal = animales.findById(detalles.get(0).animalId(), user.empresaId()).orElse(null);
+            String nombreAnimal = animal == null ? "el animal ingresado"
+                    : (animal.nombre() != null && !animal.nombre().isBlank() ? animal.nombre() : animal.codigo());
+            String raza = animal == null || razas == null ? null
+                    : razas.findById(animal.razaPrincipalId(), user.empresaId()).map(Raza::nombre).orElse(null);
+            titulo = "Sugerencia: enviar " + nombreAnimal + " a cuarentena";
+            mensaje = "El animal " + nombreAnimal + (raza != null ? " (raza " + raza + ")" : "")
+                    + " recién ingresado por compra puede enviarse a cuarentena y, si corresponde, "
+                    + "registrar una prueba diagnóstica antes de incorporarlo al hato.";
+        } else {
+            titulo = "Sugerencia: enviar el lote a cuarentena";
+            mensaje = "El lote de " + detalles.size() + " animales recién ingresado por compra puede enviarse a "
+                    + "cuarentena y, si corresponde, registrar una prueba diagnóstica antes de incorporarlo al hato.";
+        }
+        metadata.put("tituloPersonalizado", titulo);
+        metadata.put("mensajePersonalizado", mensaje);
         motor.programar(new ProgramarAlertaCommand(user.empresaId(), null, TipoAlerta.MOVIMIENTO_PENDIENTE,
                 Instant.now(), "INGRESO_COMPRA_CUARENTENA", movimiento.id(), metadata));
     }

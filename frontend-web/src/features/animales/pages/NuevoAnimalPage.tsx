@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useWatch } from 'react-hook-form'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, FileText, Info, ListChecks, Save } from 'lucide-react'
+import { ArrowLeft, Check, FileText, Info, ListChecks, Save } from 'lucide-react'
 import { createAnimalSchema } from '@/features/animales/schema'
 import { calcularNacimientoEstimado, categoriaSugerida } from '@/features/animales/edad'
 import { createAnimal, listCategorias, listRazas } from '@/features/animales/api'
@@ -78,6 +78,9 @@ export function NuevoAnimalPage() {
   const edadDeclaradaValor = useWatch({ control, name: 'edadDeclaradaValor' })
   const edadDeclaradaUnidad = useWatch({ control, name: 'edadDeclaradaUnidad' })
   const categoriaActualId = useWatch({ control, name: 'categoriaActualId' })
+  const color = useWatch({ control, name: 'color' })
+  const pesoNacimientoKg = useWatch({ control, name: 'pesoNacimientoKg' })
+  const condicionCorporalActual = useWatch({ control, name: 'condicionCorporalActual' })
   const referenciaEdad = origen === 'NACIDO' ? todayInBolivia() : fechaIngreso
   const nacimientoCalculado = calcularNacimientoEstimado(referenciaEdad, edadDeclaradaValor, edadDeclaradaUnidad)
   useEffect(() => {
@@ -115,6 +118,22 @@ export function NuevoAnimalPage() {
 
   const nacimientoParaFicha = tipoNacimiento === 'CONOCIDA' ? fechaNacimiento : nacimientoCalculado
   const nombreParaFicha = nombre?.trim() || 'Sin nombre'
+
+  // color, peso al nacer y condición corporal solo viajan en POST /animales: el alta por
+  // compra pasa por CompraDetalleRequest, que no tiene esos campos (ver CompraDetalleRequest.java).
+  const datosNacimientoCompraSoportados = origen !== 'COMPRADO'
+  const steps = [
+    { id: 'paso-identificacion', label: 'Identificación básica', done: Boolean(sexo && (tipoNacimiento === 'CONOCIDA' ? fechaNacimiento : tipoNacimiento === 'EDAD_APROXIMADA' ? edadDeclaradaValor : true)) },
+    { id: 'paso-clasificacion', label: 'Clasificación y raza', done: Boolean(proposito && origen && razaPrincipalId && categoriaActualId) },
+    { id: 'paso-ubicacion', label: 'Ubicación y potrero', done: Boolean(propertyId && potreroActualId) },
+    { id: 'paso-ingreso', label: 'Ingreso y peso', done: origen === 'NACIDO' ? true : Boolean(fechaIngreso) },
+    ...(origen === 'COMPRADO' ? [{ id: 'paso-compra', label: 'Datos de la compra', done: proveedorDefinido }] : []),
+  ]
+  const activeStepIndex = steps.findIndex((step) => !step.done)
+
+  function scrollToStep(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   async function submit(values: CreateAnimalInput) {
     setMessage(null)
@@ -223,7 +242,30 @@ export function NuevoAnimalPage() {
       <form onSubmit={handleSubmit(submit)} noValidate>
         <div className="record-layout">
           <div className="record-main">
-            <Card className="record-card">
+            <Card className="record-steps-panel">
+              <div className="record-steps-panel-head">
+                <span className="record-steps-panel-title"><ListChecks size={16} aria-hidden="true" />Progreso del registro</span>
+                <span className="record-steps-panel-pct">{progreso}% completado</span>
+              </div>
+              <div className="record-progress-track" role="progressbar" aria-valuenow={progreso} aria-valuemin={0} aria-valuemax={100}>
+                <span className="record-progress-bar" style={{ width: `${progreso}%` }} />
+              </div>
+              <ol className="record-steps">
+                {steps.map((step, index) => {
+                  const state = activeStepIndex === -1 || index < activeStepIndex ? 'is-done' : index === activeStepIndex ? 'is-current' : ''
+                  return (
+                    <li key={step.id} className={`record-steps-item ${state}`}>
+                      <button type="button" onClick={() => scrollToStep(step.id)} aria-current={state === 'is-current' ? 'step' : undefined}>
+                        <span className="record-steps-index">{state === 'is-done' ? <Check size={13} aria-hidden="true" /> : index + 1}</span>
+                        <span className="record-steps-label">{step.label}</span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ol>
+            </Card>
+
+            <Card className="record-card" id="paso-identificacion">
               <div className="record-card-head">
                 <span className="record-step" aria-hidden="true">01</span>
                 <div><h2>Información básica</h2><p>Nombre, sexo y datos de nacimiento del animal.</p></div>
@@ -245,10 +287,16 @@ export function NuevoAnimalPage() {
                   <Field label="Nacimiento calculado" hint="Se guardará expresamente como fecha estimada."><input value={nacimientoCalculado ?? ''} readOnly placeholder="Se calcula con la edad" /></Field>
                   <Field label="Detalle de la estimación"><input {...register('observacionEstimacion')} placeholder={origen === 'COMPRADO' ? 'Dato informado por el proveedor' : 'Criterio usado en campo'} /></Field>
                 </>}
+                {datosNacimientoCompraSoportados && <Field label="Peso al nacer (kg)" hint="Opcional. Si no lo conoces, déjalo vacío." error={errors.pesoNacimientoKg?.message}>
+                  <input type="number" min="0" step="0.01" {...register('pesoNacimientoKg', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                </Field>}
+                {datosNacimientoCompraSoportados && <Field label="Color" hint="Opcional, para identificarlo a simple vista." error={errors.color?.message}>
+                  <input {...register('color')} placeholder="Ej. Colorado, Overo negro" />
+                </Field>}
               </div>
             </Card>
 
-            <Card className="record-card">
+            <Card className="record-card" id="paso-clasificacion">
               <div className="record-card-head">
                 <span className="record-step" aria-hidden="true">02</span>
                 <div><h2>Clasificación</h2><p>Propósito, origen, raza y categoría del animal.</p></div>
@@ -262,7 +310,7 @@ export function NuevoAnimalPage() {
                 <Field label="Origen" error={errors.origen?.message}>
                   <select {...register('origen', { onChange: (event) => {
                     if (event.target.value === 'NACIDO' && tipoNacimiento === 'DESCONOCIDA') setTipoNacimiento('EDAD_APROXIMADA')
-                    if (event.target.value !== 'NACIDO' && !fechaNacimiento) setTipoNacimiento('DESCONOCIDA')
+                    if (event.target.value !== 'NACIDO' && tipoNacimiento === 'CONOCIDA' && !fechaNacimiento) setTipoNacimiento('DESCONOCIDA')
                   } })}><option value="NACIDO">Nacido</option><option value="COMPRADO">Comprado</option><option value="TRANSFERIDO">Transferido</option></select>
                 </Field>
                 <Field label="Raza" error={errors.razaPrincipalId?.message}>
@@ -273,11 +321,11 @@ export function NuevoAnimalPage() {
                     ? [<input key="categoria-visible" value={categoriaAutomatica.nombre} readOnly />, <input key="categoria-valor" type="hidden" {...register('categoriaActualId')} />]
                     : <select {...register('categoriaActualId')}><option value="">Selecciona…</option>{catalogs.data?.categories.filter((item) => item.activo && (item.sexoAplicable === 'AMBOS' || item.sexoAplicable === sexo)).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>}
                 </Field>
-                {!categoriaAutomatica && <Field label="Motivo de la categoría manual" hint="Queda registrado en el historial de categorías del animal."><input {...register('categoriaManualMotivo')} placeholder="Ej. edad desconocida, criterio del encargado" /></Field>}
+                {!categoriaAutomatica && <Field label="Motivo de la categoría manual" hint="Queda registrado en el historial de categorías del animal." error={errors.categoriaManualMotivo?.message}><input {...register('categoriaManualMotivo')} placeholder="Ej. edad desconocida, criterio del encargado" /></Field>}
               </div>
             </Card>
 
-            <Card className="record-card">
+            <Card className="record-card" id="paso-ubicacion">
               <div className="record-card-head">
                 <span className="record-step" aria-hidden="true">03</span>
                 <div><h2>Ubicación</h2><p>Propiedad y potrero donde quedará asignado el animal.</p></div>
@@ -292,7 +340,7 @@ export function NuevoAnimalPage() {
               </div>
             </Card>
 
-            <Card className="record-card">
+            <Card className="record-card" id="paso-ingreso">
               <div className="record-card-head">
                 <span className="record-step" aria-hidden="true">04</span>
                 <div><h2>Información adicional</h2><p>Ingreso al hato, peso y observaciones complementarias.</p></div>
@@ -303,6 +351,9 @@ export function NuevoAnimalPage() {
                   : <Field label="Fecha de recepción" error={errors.fechaIngreso?.message}><input type="date" max={todayInBolivia()} defaultValue={todayInBolivia()} required {...register('fechaIngreso')} /></Field>}
                 <Field label="Peso al ingreso (kg)" hint="No corresponde al peso al nacer." error={errors.pesoIngresoKg?.message}><input type="number" min="0.001" step="0.001" {...register('pesoIngresoKg', { setValueAs: (value) => value === '' ? undefined : Number(value) })} /></Field>
                 <Field label="Tipo de peso al ingreso"><select {...register('pesoIngresoEstimado', { setValueAs: (value) => value === true || value === 'true' })}><option value="true">Estimado</option><option value="false">Medido</option></select></Field>
+                {datosNacimientoCompraSoportados && <Field label="Condición corporal (1 a 5)" hint="Escala de condición corporal (BCS). Opcional." error={errors.condicionCorporalActual?.message}>
+                  <input type="number" min="1" max="5" step="0.5" {...register('condicionCorporalActual', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                </Field>}
                 <div className="form-full">
                   <Field label="Observaciones" error={errors.observaciones?.message}>
                     <textarea rows={4} {...register('observaciones')} />
@@ -311,7 +362,7 @@ export function NuevoAnimalPage() {
               </div>
             </Card>
 
-            {origen === 'COMPRADO' && <Card className="record-card">
+            {origen === 'COMPRADO' && <Card className="record-card" id="paso-compra">
               <div className="record-card-head">
                 <span className="record-step" aria-hidden="true">05</span>
                 <div><h2>Datos de la compra</h2><p>Proveedor y precio pagado por este animal.</p></div>
@@ -333,18 +384,13 @@ export function NuevoAnimalPage() {
                 <div><dt>Origen</dt><dd>{ORIGEN_LABEL[origen ?? 'NACIDO']}</dd></div>
                 <div><dt>Propósito</dt><dd>{PROPOSITO_LABEL[proposito ?? 'CARNE']}</dd></div>
                 <div><dt>Raza</dt><dd>{razaNombre ?? '—'}</dd></div>
+                {color?.trim() && <div><dt>Color</dt><dd>{color}</dd></div>}
                 <div><dt>Categoría</dt><dd>{categoriaAutomatica?.nombre ?? 'Por definir'}</dd></div>
                 <div><dt>Nacimiento</dt><dd>{formatFecha(nacimientoParaFicha)}</dd></div>
+                {pesoNacimientoKg != null && <div><dt>Peso al nacer</dt><dd>{pesoNacimientoKg} kg</dd></div>}
+                {condicionCorporalActual != null && <div><dt>Condición corporal</dt><dd>{condicionCorporalActual}</dd></div>}
                 <div><dt>Ubicación</dt><dd>{propiedadNombre ? `${propiedadNombre}${potreroNombre ? ` · ${potreroNombre}` : ''}` : '—'}</dd></div>
               </dl>
-            </Card>
-
-            <Card className="record-aside-card">
-              <div className="record-aside-head"><span className="record-aside-icon"><ListChecks size={16} aria-hidden="true" /></span><div><h3>Avance del registro</h3><p>Campos obligatorios</p></div></div>
-              <div className="record-progress">
-                <div className="record-progress-track" role="progressbar" aria-valuenow={progreso} aria-valuemin={0} aria-valuemax={100}><span className="record-progress-bar" style={{ width: `${progreso}%` }} /></div>
-                <p className="record-progress-note"><strong>{camposCompletos}</strong> de {camposObligatorios} completados</p>
-              </div>
             </Card>
 
             <div className="record-help">

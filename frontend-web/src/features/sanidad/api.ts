@@ -780,6 +780,16 @@ export async function listPlanItems(planId: string, incluirInactivos = false) {
   return (await http.get<ApiResponse<PlanSanitarioItem[]>>(`/api/v1/sanidad/planes/${planId}/items`, { params: { incluirInactivos } })).data.data
 }
 
+/** Ítems activos de todos los planes activos, para vincular un antecedente declarado a uno
+ * concreto (registrarAplicacionDeclarada/registrarHistorialDeclaradoLote): vincularlo hace que
+ * el calendario sanitario calcule la próxima aplicación desde la fecha declarada y no dispare
+ * VACUNA_PROXIMA/VACUNA_VENCIDA para ese ítem (ver ProyectarCalendarioSanitarioService). */
+export async function listActivePlanItems() {
+  const planes = (await listPlanes()).filter((plan) => plan.estado === 'ACTIVO')
+  const listas = await Promise.all(planes.map((plan) => listPlanItems(plan.id)))
+  return listas.flat().filter((item) => item.activo)
+}
+
 export async function crearPlanItem(planId: string, input: CrearItemInput) {
   return (await http.post<ApiResponse<PlanSanitarioItem>>(`/api/v1/sanidad/planes/${planId}/items`, input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
 }

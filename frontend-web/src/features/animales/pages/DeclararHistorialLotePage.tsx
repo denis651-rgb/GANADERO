@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { ArrowLeft, CheckCircle2, ClipboardCheck, Plus, Trash2 } from 'lucide-react'
-import { registrarHistorialDeclaradoLote, TIPO_ACTIVIDAD_LABELS, type TipoActividad } from '@/features/sanidad/api'
+import { listActivePlanItems, registrarHistorialDeclaradoLote, TIPO_ACTIVIDAD_LABELS, type TipoActividad } from '@/features/sanidad/api'
 import type { AnimalSummary } from '@/features/animales/types'
 import { normalizeApiError } from '@/shared/api/errors'
 import { Alert } from '@/shared/components/Alert'
@@ -16,6 +16,7 @@ import { todayInBolivia } from '@/shared/utils/date'
 interface ActividadRow {
   key: number
   tipoActividad: '' | TipoActividad
+  planItemId: string
   fechaAplicacion: string
   productoTexto: string
   observaciones: string
@@ -23,7 +24,7 @@ interface ActividadRow {
 
 let nextKey = 0
 const nuevaActividad = (): ActividadRow => ({
-  key: nextKey++, tipoActividad: '', fechaAplicacion: '', productoTexto: '', observaciones: '',
+  key: nextKey++, tipoActividad: '', planItemId: '', fechaAplicacion: '', productoTexto: '', observaciones: '',
 })
 
 export function DeclararHistorialLotePage() {
@@ -34,11 +35,13 @@ export function DeclararHistorialLotePage() {
   const [seleccionados, setSeleccionados] = useState<Set<string>>(() => new Set(animales.map((animal) => animal.id)))
   const [actividades, setActividades] = useState<ActividadRow[]>(() => [nuevaActividad()])
   const [guardados, setGuardados] = useState(0)
+  const planItems = useQuery({ queryKey: ['sanidad-plan-items-activos'], queryFn: listActivePlanItems })
   const registrar = useMutation({
     mutationFn: () => registrarHistorialDeclaradoLote({
       animalIds: [...seleccionados],
-      actividades: actividades.map(({ tipoActividad, fechaAplicacion, productoTexto, observaciones }) => ({
+      actividades: actividades.map(({ tipoActividad, planItemId, fechaAplicacion, productoTexto, observaciones }) => ({
         tipoActividad: tipoActividad as TipoActividad,
+        planItemId: planItemId || undefined,
         fechaAplicacion,
         productoTexto: productoTexto.trim() || undefined,
         observaciones: observaciones.trim() || undefined,
@@ -60,7 +63,8 @@ export function DeclararHistorialLotePage() {
 
   function actualizarActividad(key: number, campo: keyof Omit<ActividadRow, 'key'>, valor: string) {
     setActividades((actuales) => actuales.map((actividad) => actividad.key === key
-      ? { ...actividad, [campo]: valor }
+      // Cambiar el tipo invalida el ítem del plan elegido: puede ya no ser del tipo correcto.
+      ? { ...actividad, [campo]: valor, ...(campo === 'tipoActividad' ? { planItemId: '' } : {}) }
       : actividad))
   }
 
@@ -117,6 +121,12 @@ actions={<Button variant="ghost" onClick={() => navigate('/animales')}><ArrowLef
               {actividades.map((actividad, index) => <div className="bulk-activity-card" key={actividad.key}>
                 <div className="bulk-activity-number">Actividad {index + 1}</div>
                 <Field label="Tipo" required><select required value={actividad.tipoActividad} onChange={(event) => actualizarActividad(actividad.key, 'tipoActividad', event.target.value)}><option value="" disabled>Selecciona…</option>{(Object.keys(TIPO_ACTIVIDAD_LABELS) as TipoActividad[]).map((tipo) => <option key={tipo} value={tipo}>{TIPO_ACTIVIDAD_LABELS[tipo]}</option>)}</select></Field>
+                {actividad.tipoActividad && <Field label="Ítem del plan" hint="Opcional. Actualiza el calendario sanitario y evita alertas de vacuna próxima/vencida para este ítem.">
+                  <select value={actividad.planItemId} onChange={(event) => actualizarActividad(actividad.key, 'planItemId', event.target.value)}>
+                    <option value="">Sin vincular</option>
+                    {(planItems.data ?? []).filter((item) => item.tipoActividad === actividad.tipoActividad).map((item) => <option key={item.id} value={item.id}>{item.nombre}{item.productoRecomendadoTexto ? ` · ${item.productoRecomendadoTexto}` : ''}</option>)}
+                  </select>
+                </Field>}
                 <Field label="Fecha" required><input type="date" required max={todayInBolivia()} value={actividad.fechaAplicacion} onChange={(event) => actualizarActividad(actividad.key, 'fechaAplicacion', event.target.value)} /></Field>
                 <Field label="Producto o medicamento"><input placeholder="Nombre informado por el proveedor…" maxLength={300} value={actividad.productoTexto} onChange={(event) => actualizarActividad(actividad.key, 'productoTexto', event.target.value)} /></Field>
                 <Field label="Observaciones"><input placeholder="Certificado, fuente o detalle…" maxLength={1000} value={actividad.observaciones} onChange={(event) => actualizarActividad(actividad.key, 'observaciones', event.target.value)} /></Field>

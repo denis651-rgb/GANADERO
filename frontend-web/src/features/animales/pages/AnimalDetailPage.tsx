@@ -10,6 +10,7 @@ import { FotosTab } from '@/features/animales/components/FotosTab'
 import type { AnimalState } from '@/features/animales/types'
 import { listPropiedades } from '@/features/propiedades/api'
 import { listAllPotreros } from '@/features/potreros/api'
+import { listLotes } from '@/features/lotes/api'
 import { ESTADO_CALOSTRADO_LABELS, listControlesEctoparasitarios, listControlesNeonatales, listExamenesReproductivos, listTratamientos, MOMENTO_CONTROL_NEONATAL_LABELS, NIVEL_CARGA_PARASITARIA_LABELS, RESULTADO_EXAMEN_REPRODUCTIVO_LABELS, TIPO_ECTOPARASITO_LABELS, type ControlEctoparasitario, type ControlNeonatal, type ExamenReproductivo, type Tratamiento } from '@/features/sanidad/api'
 import { getResumenCompraAnimal } from '@/features/compras/api'
 import { getPesajeHistory } from '@/features/pesajes/api'
@@ -91,9 +92,26 @@ export function AnimalDetailPage() {
   const compraResumen = useQuery({ queryKey: ['animal-compra-resumen', id], queryFn: () => getResumenCompraAnimal(id), enabled: Boolean(id) })
   const historialPesos = useQuery({ queryKey: ['pesaje-history', id], queryFn: () => getPesajeHistory(id), enabled: Boolean(id) })
   const catalogs = useQuery({ queryKey: ['animal-detail-catalogs'], queryFn: async () => {
-    const [breeds, categories, properties, paddocks] = await Promise.all([listRazas(), listCategorias(), listPropiedades(), listAllPotreros()])
-    return { breeds: breeds ?? [], categories: categories ?? [], properties: properties ?? [], paddocks: paddocks ?? [] }
+    const [breeds, categories, properties, paddocks, lots] = await Promise.all([
+      listRazas(), listCategorias(), listPropiedades(), listAllPotreros(),
+      listLotes({ estado: '', search: '', page: 0, size: 500 }),
+    ])
+    return { breeds: breeds ?? [], categories: categories ?? [], properties: properties ?? [], paddocks: paddocks ?? [], lots: lots.content ?? [] }
   } })
+  const referencedAnimalIds = [...new Set((history.data?.content ?? [])
+    .flatMap((event) => METADATA_ANIMAL_KEYS.map((key) => event.metadata?.[key]))
+    .filter((value): value is string => typeof value === 'string' && UUID_PATTERN.test(value)))]
+  const referencedAnimals = useQuery({
+    queryKey: ['animal-timeline-referenced-animals', referencedAnimalIds],
+    queryFn: async () => {
+      const pairs = await Promise.all(referencedAnimalIds.map(async (animalId) => {
+        const found = await getAnimal(animalId).catch(() => null)
+        return found ? [animalId, `${found.codigo}${found.nombre ? ` · ${found.nombre}` : ''}`] as const : null
+      }))
+      return new Map(pairs.filter((pair): pair is readonly [string, string] => pair != null))
+    },
+    enabled: referencedAnimalIds.length > 0,
+  })
   const stateMutation = useMutation({
     mutationFn: ({ estado, motivo }: { estado: AnimalState; motivo: string }) =>
       changeAnimalState(id, estado, motivo, animal.data!.version),
@@ -113,6 +131,14 @@ export function AnimalDetailPage() {
   if (!animal.data) return <Alert tone="danger">No se encontró el animal solicitado.</Alert>
   const value = animal.data
   const location = [catalogs.data?.properties.find((item) => item.id === value.propiedadActualId)?.nombre, catalogs.data?.paddocks.find((item) => item.id === value.potreroActualId)?.nombre].filter(Boolean).join(' / ')
+  const metadataLookups: MetadataLookups = {
+    propiedad: new Map((catalogs.data?.properties ?? []).map((item) => [item.id, item.nombre])),
+    potrero: new Map((catalogs.data?.paddocks ?? []).map((item) => [item.id, item.nombre])),
+    lote: new Map((catalogs.data?.lots ?? []).map((item) => [item.id, item.nombre])),
+    raza: new Map((catalogs.data?.breeds ?? []).map((item) => [item.id, item.nombre])),
+    categoria: new Map((catalogs.data?.categories ?? []).map((item) => [item.id, item.nombre])),
+    animal: referencedAnimals.data ?? new Map(),
+  }
   const pesosActivos = (historialPesos.data ?? []).filter((p) => p.estado === 'ACTIVO')
   const ultimoMedido = [...pesosActivos].filter((p) => p.tipoPeso === 'MEDIDO').sort((a, b) => b.fecha.localeCompare(a.fecha))[0]
   const ultimoEstimado = [...pesosActivos].filter((p) => p.tipoPeso === 'ESTIMADO').sort((a, b) => b.fecha.localeCompare(a.fecha))[0]
@@ -263,8 +289,14 @@ export function AnimalDetailPage() {
       {history.isPending && <LoadingState message="Cargando línea de tiempo…" />}
       {history.data?.content.length === 0 && <EmptyState title="Sin eventos" description="Todavía no existen eventos para este animal." />}
       {history.data && history.data.content.length > 0 && <ol className="timeline">{history.data.content.map((event) => {
-        const metadata = Object.entries(event.metadata ?? {})
-          .filter(([key, val]) => key !== 'origenSync' && (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean'))
+        const metadataKeys = Object.keys(event.metadata ?? {}).filter((key) => key !== 'origenSync')
+        const resolved = new Map(metadataKeys.map((key) => [key, resolveMetadataEntry(key, event.metadata?.[key], metadataLookups)]))
+        const metadata = metadataKeys
+          // Si el *Id ya se resolvió a un nombre, el código guardado aparte queda redundante;
+          // si no se pudo resolver (p. ej. el lote ya no existe), se muestra el código como respaldo.
+          .filter((key) => !(METADATA_ID_COMPANION_OF[key] && resolved.get(METADATA_ID_COMPANION_OF[key])))
+          .map((key) => resolved.get(key))
+          .filter((entry): entry is { key: string; label: string; text: string } => entry != null)
         return <li key={event.id}><span className="timeline-dot" /><div>
           <strong>{event.titulo ?? event.tipo.replaceAll('_', ' ')}</strong>
           <time>{new Date(event.fechaTecnica ?? event.fechaEvento).toLocaleString('es-BO')}</time>
@@ -272,7 +304,7 @@ export function AnimalDetailPage() {
           {event.origenSync && <span className="status-badge">Sincronizado</span>}
           <p>{event.descripcion ?? 'Sin detalle adicional.'}</p>
           {event.usuarioNombre && <span className="table-secondary">Registrado por: {event.usuarioNombre}</span>}
-          {metadata.map(([key, val]) => <span key={key} className="table-secondary">{timelineMetadataLabel(key)}: {key === 'pesoIngresoEstimado' ? (val ? 'Estimado' : 'Medido') : typeof val === 'boolean' ? (val ? 'Sí' : 'No') : String(val)}</span>)}
+          {metadata.map(({ key, label, text }) => <span key={key} className="table-secondary">{label}: {text}</span>)}
         </div></li>
       })}</ol>}
       {history.data && history.data.content.length > 0 && <div className="pagination"><span>Página {history.data.page + 1} de {Math.max(history.data.totalPages, 1)}</span><div><Button variant="ghost" disabled={page === 0 || history.isFetching} onClick={() => setPage((value) => value - 1)}>Anterior</Button><Button variant="ghost" disabled={page + 1 >= history.data.totalPages || history.isFetching} onClick={() => setPage((value) => value + 1)}>Siguiente</Button></div></div>}
@@ -288,8 +320,70 @@ function timelineMetadataLabel(key: string) {
     correccionPesoCompraConfirmada: 'Corrección de peso de compra confirmada',
     pesoNacimientoAnteriorKg: 'Peso registrado antes como nacimiento (kg)',
     nacimientoDesconocido: 'Nacimiento desconocido',
+    destinoPropiedadId: 'Propiedad destino',
+    destinoPotreroId: 'Potrero destino',
+    destinoLoteId: 'Lote destino',
+    loteOrigenId: 'Lote de origen',
+    loteDestinoId: 'Lote destino',
+    loteAnteriorId: 'Lote anterior',
+    loteNuevoId: 'Lote nuevo',
+    loteId: 'Lote',
+    propiedadId: 'Propiedad',
+    potreroId: 'Potrero',
+    razaId: 'Raza',
+    machoId: 'Padre (macho)',
+    tipo: 'Tipo de movimiento',
   }
   return labels[key] ?? key.replaceAll('_', ' ')
+}
+
+/** Referencias UUID a otro animal (no a un catálogo) — se resuelven con getAnimal, no con metadataLookups. */
+const METADATA_ANIMAL_KEYS = ['machoId']
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+type CatalogKind = 'propiedad' | 'potrero' | 'lote' | 'raza' | 'categoria' | 'animal'
+type MetadataLookups = Record<CatalogKind, Map<string, string>>
+
+/** Cada entrada aquí es un UUID que se resuelve contra un catálogo (ver metadataLookups). */
+const METADATA_ID_KEYS: Record<string, CatalogKind> = {
+  destinoPropiedadId: 'propiedad',
+  propiedadId: 'propiedad',
+  destinoPotreroId: 'potrero',
+  potreroId: 'potrero',
+  destinoLoteId: 'lote',
+  loteOrigenId: 'lote',
+  loteDestinoId: 'lote',
+  loteAnteriorId: 'lote',
+  loteNuevoId: 'lote',
+  loteId: 'lote',
+  razaId: 'raza',
+  categoriaId: 'categoria',
+  machoId: 'animal',
+}
+
+/** Códigos que ya acompañan a un *Id de METADATA_ID_KEYS: mapea la clave del código a la clave
+ * del id del que depende, para ocultarlo solo cuando ese id sí se resolvió a un nombre. */
+const METADATA_ID_COMPANION_OF: Record<string, string> = {
+  loteCodigo: 'loteId',
+  loteNuevoCodigo: 'loteNuevoId',
+}
+
+function resolveMetadataEntry(key: string, value: unknown, lookups: MetadataLookups): { key: string; label: string; text: string } | null {
+  if (value == null || value === '') return null
+  const label = timelineMetadataLabel(key)
+  const catalogKind = METADATA_ID_KEYS[key]
+  if (catalogKind) {
+    if (typeof value !== 'string') return null
+    const name = lookups[catalogKind].get(value)
+    return name ? { key, label, text: name } : null
+  }
+  // Cualquier otro UUID (preparacionId, celoId, fotoId, movimientoInverso, etc.) no es
+  // resoluble a un nombre legible: mejor ocultarlo que mostrar el id crudo.
+  if (typeof value === 'string' && UUID_PATTERN.test(value)) return null
+  if (key === 'pesoIngresoEstimado') return { key, label, text: value ? 'Estimado' : 'Medido' }
+  if (typeof value === 'boolean') return { key, label, text: value ? 'Sí' : 'No' }
+  if (typeof value === 'string' || typeof value === 'number') return { key, label, text: String(value) }
+  return null
 }
 
 function ultimoControlNeonatal(controles?: ControlNeonatal[]) {
