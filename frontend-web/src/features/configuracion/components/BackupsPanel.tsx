@@ -11,6 +11,7 @@ import { Field } from '@/shared/components/Field'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { formatDate } from '@/shared/utils/date'
 import { formatBytes } from '@/shared/utils/bytes'
+import { useToast } from '@/shared/toast/useToast'
 
 const FRECUENCIA_LABEL: Record<BackupSettings['frecuencia'], string> = { DIARIA: 'Diaria', SEMANAL: 'Semanal', MENSUAL: 'Mensual' }
 const ESTADO_LABEL: Record<BackupInfo['estado'], string> = {
@@ -25,6 +26,7 @@ export function BackupsPanel() {
   const desktop = window.ganadero?.backups
   const diagnostics = window.ganadero?.diagnostics
   const client = useQueryClient()
+  const { showToast } = useToast()
   const [draft, setForm] = useState<BackupSettings | null>(null)
   const [restoreTarget, setRestoreTarget] = useState<{ path: string; manifest: BackupManifestInfo } | null>(null)
   const [confirmText, setConfirmText] = useState('')
@@ -55,6 +57,17 @@ export function BackupsPanel() {
       for (const respaldo of lista) await desktop!.verify(respaldo.nombreArchivo)
     },
     onSuccess: () => client.invalidateQueries({ queryKey: ['backups-list'] }),
+  })
+  const verificarUno = useMutation({
+    mutationFn: (nombre: string) => desktop!.verify(nombre),
+    onSuccess: (info) => {
+      client.invalidateQueries({ queryKey: ['backups-list'] })
+      showToast(
+        info.integridad === 'VALIDA' ? `${info.nombreArchivo}: respaldo íntegro.` : `${info.nombreArchivo}: el respaldo está corrupto.`,
+        info.integridad === 'VALIDA' ? 'success' : 'danger',
+      )
+    },
+    onError: (reason: Error) => showToast(`No se pudo verificar el respaldo: ${reason.message}`, 'danger'),
   })
   const eliminar = useMutation({
     mutationFn: (nombre: string) => desktop!.deleteBackup(nombre),
@@ -89,7 +102,7 @@ export function BackupsPanel() {
     </Card>
   }
 
-  const operacionEnCurso = crear.isPending || verificarTodos.isPending || restaurar.isPending || guardarConfig.isPending || eliminar.isPending
+  const operacionEnCurso = crear.isPending || verificarTodos.isPending || verificarUno.isPending || restaurar.isPending || guardarConfig.isPending || eliminar.isPending
   const error = settingsQuery.error ?? listQuery.error ?? guardarConfig.error ?? crear.error ?? verificarTodos.error ?? eliminar.error ?? elegirRestaurar.error ?? exportarDiagnostico.error
   const lista = listQuery.data ?? []
   const ultimoRespaldo = lista[0]
@@ -159,7 +172,9 @@ export function BackupsPanel() {
       <td>{ESTADO_LABEL[respaldo.estado]}{respaldo.ultimoError ? ` — ${respaldo.ultimoError}` : ''}</td>
       <td className="inline-actions">
         <Button variant="ghost" title="Verificar integridad" aria-label={`Verificar ${respaldo.nombreArchivo}`}
-          onClick={() => desktop.verify(respaldo.nombreArchivo).then(() => client.invalidateQueries({ queryKey: ['backups-list'] }))}>
+          loading={verificarUno.isPending && verificarUno.variables === respaldo.nombreArchivo}
+          disabled={operacionEnCurso}
+          onClick={() => verificarUno.mutate(respaldo.nombreArchivo)}>
           <Eye size={16} aria-hidden="true" />
         </Button>
         <a className="button button-ghost" title="Descargar" aria-label={`Descargar ${respaldo.nombreArchivo}`}

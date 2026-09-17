@@ -1,10 +1,11 @@
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Beef, CircleCheck, ChevronLeft, ChevronRight, Eye, Layers, Mars, Plus, Printer, Search, SlidersHorizontal, Venus } from 'lucide-react'
 import { getAnimalesResumen, listAnimals, listCategorias, listIdentificadores, listRazas } from '@/features/animales/api'
 import type { AnimalSummary, AnimalState } from '@/features/animales/types'
 import { calcularEdadMeses, formatearEdadMeses } from '@/features/animales/edad'
+import { reclasificarCategoriasEdad } from '@/features/configuracion/categoriasEdadApi'
 import { listPropiedades } from '@/features/propiedades/api'
 import { listAllPotreros } from '@/features/potreros/api'
 import { listLotes } from '@/features/lotes/api'
@@ -23,6 +24,7 @@ const states: AnimalState[] = ['ACTIVO', 'VENDIDO', 'MUERTO', 'PERDIDO', 'TRANSF
 
 export function AnimalesPage() {
   const navigate = useNavigate()
+  const client = useQueryClient()
   const [search, setSearch] = useState('')
   const deferredSearch = useDeferredValue(search)
   const [page, setPage] = useState(0)
@@ -46,6 +48,24 @@ export function AnimalesPage() {
     return { categories, properties, paddocks, breeds }
   } })
   const lotesQuery = useQuery({ queryKey: ['lotes-select'], queryFn: () => listLotes({ estado: 'ACTIVO', page: 0, size: 500 }), staleTime: 60_000 })
+  const reclasificar = useMutation({
+    mutationFn: reclasificarCategoriasEdad,
+    onSuccess: (resultado) => {
+      if (resultado.actualizados > 0) {
+        void client.invalidateQueries({ queryKey: ['animals'] })
+        void client.invalidateQueries({ queryKey: ['animals-resumen'] })
+      }
+    },
+    onError: (error) => console.error('[animales] no se pudo reclasificar por edad al entrar a la pantalla:', error),
+  })
+  /**
+   * La categoría automática también se recalcula al iniciar la app y todos los días a las
+   * 00:20 (ver CategoriaEdadScheduler en el backend), pero la app de escritorio no siempre
+   * queda prendida a esa hora — entrar a Animales es un tercer disparador, silencioso, para
+   * no depender solo de esos dos momentos.
+   */
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar; reclasificar cambia de identidad cada render
+  useEffect(() => { reclasificar.mutate() }, [])
   const cats = catalogs.data
   const displayData = query.data
   const error = query.error ?? catalogs.error

@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, RefreshCw, RotateCw, Save, Unlink, Upload } from 'lucide-react'
+import { Link, RefreshCw, RotateCw, Save, Unlink, Upload, X } from 'lucide-react'
 import { getConfiguracionCalendarioExterno, getEstadoSincronizacionCalendario, guardarConfiguracionCalendarioExterno, reintentarSincronizacionCalendario } from '@/features/configuracion/calendarioExternoApi'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
 import { Card } from '@/shared/components/Card'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { normalizeApiError } from '@/shared/api/errors'
+import type { GoogleCalendarSyncResult, GoogleOAuthDesktopStatus } from '@/shared/api/http'
 
 async function withStatusTimeout<T>(request: () => Promise<T>): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -37,36 +38,54 @@ export function GoogleCalendarPanel() {
     retry: false,
     enabled: Boolean(desktop),
   })
-  const action = useMutation({
-    mutationFn: async (action: { kind: 'import'; file: File } | { kind: 'connect' | 'change' | 'revoke' | 'sync' | 'retry' }) => {
+  function onActionSuccess({ status, sync }: { status: GoogleOAuthDesktopStatus; sync?: GoogleCalendarSyncResult }) {
+    client.setQueryData(['google-calendar-oauth-desktop'], status)
+    if (sync) {
+      setSyncMessage(sync.claimed === 0
+        ? 'No había eventos pendientes. Recuerda que las actividades Manuales no generan eventos; usa Por edad, Periódica o Fecha programada.'
+        : `Sincronización terminada: ${sync.completed} evento(s) enviado(s)${sync.failed ? ` y ${sync.failed} con error` : ''}.`)
+    }
+    void client.invalidateQueries({ queryKey: QUERY_KEY })
+    void client.invalidateQueries({ queryKey: ['estado-sincronizacion-calendario'] })
+  }
+
+  // Cada acción es su propia mutación (en vez de una sola compartida) porque "Conectar"/"Cambiar
+  // cuenta" esperan a que el usuario termine el consentimiento en el navegador de Google: pueden
+  // quedar pendientes varios minutos (o hasta que expire el intento) si el usuario no completa el
+  // flujo. Con una sola mutación compartida, ese estado "pendiente" prolongado desactivaba TODOS
+  // los botones del panel -- incluido "Importar JSON OAuth" (para probar con otro archivo) y
+  // "Revocar acceso" (la salida natural de un intento de conexión atascado) -- dando la sensación
+  // de que la pantalla se congeló.
+  const importar = useMutation({
+    mutationFn: async (file: File) => {
       if (!desktop) throw new Error('La conexión con Google Calendar sólo está disponible en Ganadero Desktop.')
-      if (action.kind === 'import') {
-        if (action.file.size > 64 * 1024) throw new Error('El archivo OAuth supera el tamaño permitido de 64 KB.')
-        return { status: await desktop.importClientConfig(await action.file.text(), action.file.name) }
-      }
-      if (action.kind === 'connect') return { status: await desktop.connect() }
-      if (action.kind === 'change') return { status: await desktop.changeAccount() }
-      if (action.kind === 'retry') {
-        await reintentarSincronizacionCalendario()
-        const sync = await desktop.syncNow()
-        return { status: await desktop.status(), sync }
-      }
-      if (action.kind === 'sync') {
-        const sync = await desktop.syncNow()
-        return { status: await desktop.status(), sync }
-      }
+      if (file.size > 64 * 1024) throw new Error('El archivo OAuth supera el tamaño permitido de 64 KB.')
+      return { status: await desktop.importClientConfig(await file.text(), file.name) }
+    },
+    onSuccess: onActionSuccess,
+  })
+  const conectar = useMutation({
+    mutationFn: async (kind: 'connect' | 'change') => {
+      if (!desktop) throw new Error('La conexión con Google Calendar sólo está disponible en Ganadero Desktop.')
+      return { status: kind === 'connect' ? await desktop.connect() : await desktop.changeAccount() }
+    },
+    onSuccess: onActionSuccess,
+  })
+  const sincronizar = useMutation({
+    mutationFn: async (kind: 'sync' | 'retry') => {
+      if (!desktop) throw new Error('La conexión con Google Calendar sólo está disponible en Ganadero Desktop.')
+      if (kind === 'retry') await reintentarSincronizacionCalendario()
+      const sync = await desktop.syncNow()
+      return { status: await desktop.status(), sync }
+    },
+    onSuccess: onActionSuccess,
+  })
+  const revocar = useMutation({
+    mutationFn: async () => {
+      if (!desktop) throw new Error('La conexión con Google Calendar sólo está disponible en Ganadero Desktop.')
       return { status: await desktop.revoke() }
     },
-    onSuccess: ({ status, sync }) => {
-      client.setQueryData(['google-calendar-oauth-desktop'], status)
-      if (sync) {
-        setSyncMessage(sync.claimed === 0
-          ? 'No había eventos pendientes. Recuerda que las actividades Manuales no generan eventos; usa Por edad, Periódica o Fecha programada.'
-          : `Sincronización terminada: ${sync.completed} evento(s) enviado(s)${sync.failed ? ` y ${sync.failed} con error` : ''}.`)
-      }
-      void client.invalidateQueries({ queryKey: QUERY_KEY })
-      void client.invalidateQueries({ queryKey: ['estado-sincronizacion-calendario'] })
-    },
+    onSuccess: onActionSuccess,
   })
   const save = useMutation({
     mutationFn: guardarConfiguracionCalendarioExterno,
@@ -76,7 +95,7 @@ export function GoogleCalendarPanel() {
     },
   })
 
-  const error = backend.error ?? oauth.error ?? syncState.error ?? action.error ?? save.error
+  const error = backend.error ?? oauth.error ?? syncState.error ?? importar.error ?? conectar.error ?? sincronizar.error ?? revocar.error ?? save.error
   const connected = Boolean(oauth.data?.connected)
   const counts = new Map(syncState.data?.cola.map(item => [item.estado, item.cantidad]) ?? [])
   const pending = (counts.get('PENDIENTE') ?? 0) + (counts.get('REINTENTO') ?? 0) + (counts.get('PROCESANDO') ?? 0)
@@ -119,17 +138,18 @@ export function GoogleCalendarPanel() {
         <input ref={fileInputRef} type="file" accept="application/json,.json" hidden onChange={(event) => {
           const file = event.currentTarget.files?.[0]
           event.currentTarget.value = ''
-          if (file) action.mutate({ kind: 'import', file })
+          if (file) importar.mutate(file)
         }} />
-        <Button type="button" variant="secondary" loading={action.isPending} disabled={!desktop} onClick={() => fileInputRef.current?.click()}><Upload size={17} aria-hidden="true" />Importar JSON OAuth</Button>
+        <Button type="button" variant="secondary" loading={importar.isPending} disabled={!desktop} onClick={() => fileInputRef.current?.click()}><Upload size={17} aria-hidden="true" />Importar JSON OAuth</Button>
       </>}
-      {!connected && <Button type="button" loading={action.isPending} disabled={!desktop || oauth.data?.available===false} onClick={() => action.mutate({ kind: 'connect' })}><Link size={17} aria-hidden="true" />Conectar Google</Button>}
+      {!connected && <Button type="button" loading={conectar.isPending} disabled={!desktop || oauth.data?.available===false} onClick={() => conectar.mutate('connect')}><Link size={17} aria-hidden="true" />Conectar Google</Button>}
       {connected && <>
-        <Button type="button" loading={action.isPending} onClick={() => { setSyncMessage(undefined); action.mutate({ kind: 'sync' }) }}><RotateCw size={17} aria-hidden="true" />Sincronizar ahora</Button>
-        {failed > 0 && <Button type="button" variant="secondary" loading={action.isPending} onClick={() => action.mutate({ kind: 'retry' })}><RotateCw size={17} aria-hidden="true" />Reintentar errores</Button>}
-        <Button type="button" variant="secondary" loading={action.isPending} onClick={() => action.mutate({ kind: 'change' })}><RefreshCw size={17} aria-hidden="true" />Cambiar cuenta</Button>
-        <Button type="button" variant="danger" loading={action.isPending} onClick={() => action.mutate({ kind: 'revoke' })}><Unlink size={17} aria-hidden="true" />Revocar acceso</Button>
+        <Button type="button" loading={sincronizar.isPending} onClick={() => { setSyncMessage(undefined); sincronizar.mutate('sync') }}><RotateCw size={17} aria-hidden="true" />Sincronizar ahora</Button>
+        {failed > 0 && <Button type="button" variant="secondary" loading={sincronizar.isPending} onClick={() => sincronizar.mutate('retry')}><RotateCw size={17} aria-hidden="true" />Reintentar errores</Button>}
+        <Button type="button" variant="secondary" loading={conectar.isPending} onClick={() => conectar.mutate('change')}><RefreshCw size={17} aria-hidden="true" />Cambiar cuenta</Button>
+        <Button type="button" variant="danger" loading={revocar.isPending} onClick={() => revocar.mutate()}><Unlink size={17} aria-hidden="true" />Revocar acceso</Button>
       </>}
+      {conectar.isPending && <Button type="button" variant="ghost" onClick={() => void desktop?.cancelConnect()}><X size={17} aria-hidden="true" />Cancelar intento de conexión</Button>}
     </div>
     <p className="muted">Revocar elimina los tokens cifrados de este equipo. Registrar o atender una alarma no se considera una actividad sanitaria realizada.</p>
   </Card>

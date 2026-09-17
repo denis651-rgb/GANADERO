@@ -66,25 +66,47 @@ están **INACTIVOS** no aparecen en esas pantallas.
 ### Para qué sirve
 
 Ajustar los valores con los que funciona toda la aplicación: unidades de
-superficie, cuántos días antes se emiten las alertas y el nombre de usuario
-que se muestra en la barra lateral. También permite proteger la aplicación
-con un PIN.
+superficie, cuántos días antes se emiten las alertas de reproducción y
+pesaje, cómo se guardan las fotografías y el nombre de usuario que se
+muestra en la barra lateral. También permite proteger la aplicación con un
+PIN.
 
 ### Antes de comenzar
 
 Decidir la unidad de superficie (hectáreas, metros cuadrados o acres) y
-cuántos días antes de una fecha conviene avisar (parto, vacunación, destete,
-diagnóstico tras el servicio).
+cuántos días antes de cada evento (parto, pesaje, destete, diagnóstico tras
+el servicio) conviene recibir el aviso.
 
 ### Procedimiento
 
 1. Abre **Mi finca** → **Configuración general**.
-2. Revisa la **Unidad de superficie** y los campos de **días de alerta**:
-   antes del parto, de vacunación, sin pesaje, de destete, de diagnóstico
-   post-servicio y de gestación estimada.
-3. Escribe el **Nombre de usuario** que quieres ver en la aplicación y marca
-   **Comprimir fotos al subirlas** si las capturas son grandes.
-4. Presiona **Guardar configuración**.
+2. Ajusta la **Unidad de superficie** y los campos de días de alerta según
+   necesites:
+   - **Días de alerta antes del parto**: con cuánta anticipación aparece el
+     aviso de **Parto próximo**, contando desde la fecha probable de parto
+     calculada tras un diagnóstico de gestación positivo.
+   - **Días sin pesaje para alertar**: cuántos días pueden pasar sin
+     registrar un pesaje a un animal antes de que aparezca el aviso
+     **Pesaje atrasado**.
+   - **Días de alerta de destete**: con cuánta anticipación aparece el aviso
+     **Destete próximo**, contando desde la fecha estimada de destete de
+     cada cría.
+   - **Días para diagnóstico post-servicio**: cuántos días después de
+     registrar un servicio (monta o inseminación) el sistema recomienda
+     hacer el diagnóstico de gestación y muestra el aviso correspondiente.
+   - **Días de gestación estimada**: cuánto dura una gestación en tu
+     operación. Se usa para calcular la fecha probable de parto cuando
+     registras un diagnóstico positivo.
+3. Ajusta cómo se guardan las fotografías:
+   - **Calidad de imagen (1-100)**: qué tan comprimida queda cada foto
+     nueva al subirla. Un número más bajo ocupa menos espacio pero se ve
+     con menos nitidez; un número más alto conserva más detalle y pesa más.
+   - **Comprimir fotos al subirlas**: si está marcada, cada foto que subas
+     (por ejemplo en la ficha de un animal) se reduce de tamaño según la
+     **Calidad de imagen**. Si la desmarcas, las fotos se guardan tal como
+     las tomó la cámara, sin reducir su peso.
+4. Escribe el **Nombre de usuario** que quieres ver en la aplicación.
+5. Presiona **Guardar configuración**.
 
 **Proteger la aplicación con PIN**
 
@@ -95,21 +117,29 @@ diagnóstico tras el servicio).
 ### Ejemplo
 
 La finca maneja superficie en hectáreas y quiere enterarse del parto 30 días
-antes y de la vacunación 15 días antes. Con el PIN, solo la persona que lo
-conoce puede abrir Ganadero.
+antes y del destete 7 días antes. Como suele fotografiar con el celular y
+las fotos pesan mucho, deja marcada **Comprimir fotos al subirlas** con
+**Calidad de imagen** en 75. Con el PIN, solo la persona que lo conoce puede
+abrir Ganadero.
 
 > Sin PIN configurado, cualquiera que encienda la computadora puede abrir la
 > aplicación y ver los datos.
 
 ### Resultado esperado
 
-Los cambios aplican a partir de la próxima pantalla: alertas, unidad de
-superficie y nombre visible se actualizan. Si se configuró PIN, al abrir la
-aplicación se pide ingresarlo.
+Los cambios aplican de inmediato: las alertas futuras usan los nuevos días
+de anticipación, las fotos que subas después se comprimen (o no) según lo
+configurado, y el nombre visible se actualiza. Si se configuró PIN, al abrir
+la aplicación se pide ingresarlo.
 
-> La **Zona horaria**, **Moneda**, **Unidad de peso** y **Calidad de imagen**
-> se muestran fijas (con los valores configurados en la instalación y no
-> editables desde la interfaz).
+> La **Zona horaria**, **Moneda** y **Unidad de peso** se muestran fijas,
+> con los valores configurados en la instalación, y no son editables desde
+> la interfaz.
+
+> El plazo de aviso de cada vacunación o tratamiento sanitario no se
+> configura aquí: se define por actividad al armar el plan sanitario (ver
+> [Plan sanitario](./09-sanidad.md#plan-sanitario)), porque cada una puede
+> necesitar un plazo distinto.
 
 ## Categorías por edad
 
@@ -132,13 +162,18 @@ si tu clasificación es distinta.
    (**Automática** o **Manual**) y estado.
 3. Para crear una, presiona **Nueva categoría**, define **Nombre**, **Sexo
    aplicable** y las edades **mínima** y **máxima** (vacío = sin límite).
-4. Si dos categorías pueden coincidir, usa **Orden de evaluación** (menor
-   primero). Desmarca "Calcular automáticamente por edad" para excepciones
-   manuales como Buey.
-5. Presiona **Simular impacto** para ver cuántos animales cambiarían antes
+4. Desmarca "Calcular automáticamente por edad" para excepciones manuales
+   como Buey.
+5. La aplicación no te deja guardar rangos que se crucen con otra categoría
+   activa, así que normalmente no necesitas tocar nada más. Solo si en algún
+   momento dos categorías llegaran a aplicar a la misma edad (por ejemplo,
+   tras desactivar y reactivar una), abre **Opciones avanzadas** y escribe
+   un **Orden de evaluación** (0 o más; gana el número más bajo) para decidir
+   cuál tiene prioridad.
+6. Presiona **Simular impacto** para ver cuántos animales cambiarían antes
    de guardar, y después **Crear categoría** (o **Guardar cambios** al
    editar una existente).
-6. Cuando cambien los rangos, presiona **Aplicar reclasificación ahora** para
+7. Cuando cambien los rangos, presiona **Aplicar reclasificación ahora** para
    recalcular la categoría del hato con las nuevas reglas.
 
 ### Ejemplo
@@ -285,3 +320,11 @@ respaldo en estado **Corrupto** no debe usarse para restaurar.
 
 Las funciones de conectar y revocar solo están disponibles en la aplicación
 **Ganadero Desktop** (no en el navegador). Abre la pantalla desde ahí.
+
+### "Conectar Google" se queda cargando y no puedo hacer nada más
+
+Pasa cuando Google no completó la autorización en el navegador (por ejemplo,
+un cliente OAuth mal configurado que Google rechaza antes de volver a
+Ganadero). Presiona **Cancelar intento de conexión**, que aparece junto a los
+botones mientras la conexión está en curso, y vuelve a intentarlo (importando
+un JSON OAuth distinto si el problema era ese).

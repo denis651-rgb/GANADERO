@@ -64,7 +64,6 @@ export function PesajeDetailPage() {
   const { id } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
   const [anullng, setAnullng] = useState<Pesaje | null>(null)
-  const [message, setMessage] = useState<{ tone: 'success' | 'info' | 'danger'; text: string } | null>(null)
   const pesajeQuery = useQuery({ queryKey: ['pesaje', id], queryFn: () => getPesaje(id ?? ''), enabled: Boolean(id) })
   const pesaje = pesajeQuery.data
   const historyQuery = useQuery({
@@ -86,13 +85,11 @@ export function PesajeDetailPage() {
       description={pesaje ? `${pesaje.codigoAnimal ?? 'Animal'} · ${pesaje.pesoKg} kg · ${formatDate(pesaje.fecha)}` : 'Cargando…'}
       actions={<Link to="/pesajes"><Button variant="ghost"><ArrowLeft size={18} />Volver</Button></Link>}
     />
-    {message && <Alert tone={message.tone}>{message.text}</Alert>}
     {pesajeQuery.isPending && <LoadingState message="Cargando pesaje…" />}
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
     {pesaje && <>
       {anullng && <AnularPesajeForm pesaje={anullng} onCancel={() => setAnullng(null)} onAnnulled={() => {
         setAnullng(null)
-        setMessage({ tone: 'success', text: 'Pesaje anulado.' })
         void queryClient.invalidateQueries({ queryKey: ['pesaje', pesaje.id] })
         void queryClient.invalidateQueries({ queryKey: ['pesaje-history', pesaje.animalId] })
         void queryClient.invalidateQueries({ queryKey: ['pesaje-indicador', pesaje.animalId] })

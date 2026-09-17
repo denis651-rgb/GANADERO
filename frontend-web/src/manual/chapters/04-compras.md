@@ -21,6 +21,8 @@ Debes tener registrada una propiedad y al menos un potrero de esa propiedad.
    indica el precio pagado por este animal.
 8. Presiona **Guardar animal**.
 
+![Datos de la compra: proveedor "Estancia El Roble" y precio pagado](/manual-images/compras/compra-individual.jpg)
+
 ## Compra por lote
 
 1. Abre **Compras** en el menú lateral.
@@ -36,6 +38,40 @@ Debes tener registrada una propiedad y al menos un potrero de esa propiedad.
 6. Si corresponde, marca **Enviar a cuarentena** y elige el potrero de
    cuarentena.
 7. Presiona **Registrar lote**.
+
+### Declarar el historial sanitario del lote
+
+Al registrar el lote, la pantalla muestra los animales recién creados y te deja declarar el
+historial sanitario que haya informado el proveedor (vacunas, desparasitaciones,
+vitaminizaciones, etc.), si es que tiene. Es opcional: podés saltarlo con **Ir a Animales** sin
+perder el registro de la compra, que ya quedó guardado.
+
+Hay dos formas de declararlo, y podés combinarlas:
+
+**Declarar historial individual** (un animal a la vez, con lo justo)
+
+1. En la tabla de animales registrados, presiona **Declarar historial sanitario** en la fila
+   del animal.
+2. Elige el tipo de actividad (vacunación, desparasitación, vitaminización, prueba
+   diagnóstica, control ectoparasitario, vigilancia epidemiológica, tratamiento preventivo u
+   otra), la fecha, y si querés, una observación (por ejemplo, el dato del certificado).
+3. Presiona **Guardar**.
+
+La fila de ese animal pasa a mostrar **Declarado**.
+
+**Declarar historial grupal** (los mismos antecedentes para varios animales a la vez)
+
+1. Presiona **Declarar historial grupal**, arriba de la tabla.
+2. Selecciona los animales que comparten esos antecedentes (por defecto salen todos
+   marcados).
+3. Completa una fila por cada actividad — tipo, fecha, producto o medicamento informado por
+   el proveedor y observaciones — y presiona **Agregar actividad** si necesitás declarar más
+   de una.
+4. Presiona **Confirmar declaración**.
+
+> Cada actividad declarada se aplica a **todos** los animales que dejaste seleccionados: si
+> declarás 2 actividades para 3 animales, quedan 6 registros de historial, uno por animal y
+> actividad.
 
 ## Ejemplo
 

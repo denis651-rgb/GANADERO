@@ -38,7 +38,8 @@ class CriaRazaTest {
   var gestaciones=mock(GestacionService.class);
   when(gestaciones.cerrar(any(),any(),any(),any(),eq(true),any())).thenReturn(new GestacionCiclo(UUID.randomUUID(),madreId,null,null,true,LocalDate.now().minusDays(2),null,null,"ABIERTA",null,null));
   var service=new ReproduccionCicloService(repo,animales,mock(ParentescoRepository.class),mock(PesajeRepository.class),context,
-   mock(TimelineEventPublisher.class),mock(ApplicationEventPublisher.class),mock(ObjectProvider.class),mock(CodigoService.class),razas,categorias,gestaciones);
+   mock(TimelineEventPublisher.class),mock(ApplicationEventPublisher.class),mock(ObjectProvider.class),mock(CodigoService.class),razas,categorias,gestaciones,
+   mock(ObjectProvider.class));
   service.registrarParto(command(madreId,razaId));
   verify(animales).create(argThat(a->razaId.equals(a.razaPrincipalId())&&categoriaId.equals(a.categoriaActualId())),any());
   assertThrows(BusinessException.class,()->service.registrarParto(command(madreId,null)));

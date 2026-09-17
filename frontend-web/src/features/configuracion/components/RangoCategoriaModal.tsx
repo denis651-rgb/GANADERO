@@ -83,9 +83,17 @@ export function RangoCategoriaModal({ open, categoria, onClose, onSaved }: Rango
         <Field label="Sexo aplicable" required><select name="sexoAplicable" required defaultValue={categoria?.sexoAplicable ?? 'AMBOS'}><option value="MACHO">Macho</option><option value="HEMBRA">Hembra</option><option value="AMBOS">Ambos</option></select></Field>
         <Field label="Edad mínima (meses)"><input name="edadMinMeses" type="number" min="0" step="1" defaultValue={categoria?.edadMinMeses ?? 0} /></Field>
         <Field label="Edad máxima (meses)" hint="Vacío = sin límite (categoría abierta)."><input name="edadMaxMeses" type="number" min="0" step="1" defaultValue={categoria?.edadMaxMeses} /></Field>
-        <Field label="Orden de evaluación" hint="Menor primero cuando haya empates."><input name="ordenEvaluacion" type="number" min="0" step="1" defaultValue={categoria?.ordenEvaluacion ?? 0} /></Field>
         <div className="form-full"><Field label="Descripción"><textarea name="descripcion" rows={2} defaultValue={categoria?.descripcion} /></Field></div>
         <label className="checkbox-line form-full"><input name="clasificacionAutomatica" type="checkbox" defaultChecked={categoria?.clasificacionAutomatica ?? true} /> Calcular automáticamente por edad (desactiva para excepciones manuales, como Buey)</label>
+        <details className="form-full form-advanced-details" open={Boolean(categoria?.ordenEvaluacion)}>
+          <summary>Opciones avanzadas</summary>
+          <Field
+            label="Orden de evaluación"
+            hint="Solo importa si, por algún error de configuración, dos categorías llegaran a aplicar a la misma edad: gana la de número más bajo. Si no sabes para qué es, déjalo en 0."
+          >
+            <input name="ordenEvaluacion" type="number" min="0" max="999" step="1" defaultValue={categoria?.ordenEvaluacion ?? 0} />
+          </Field>
+        </details>
       </div>
       {simulacion != null && <Alert tone="info">{simulacion} animal(es) cambiarían de categoría si aplicas este rango.</Alert>}
       <div className="form-actions">

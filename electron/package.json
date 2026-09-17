@@ -7,9 +7,9 @@
   "scripts": {
     "build": "tsc -b",
     "test": "vitest run",
-    "dev": "npm run build && electron .",
+    "dev": "npm run build && npm run package:backend && electron .",
     "package:frontend": "cd ../frontend-web && npm run build",
-    "package:backend": "cd ../backend && ./mvnw -q -o clean package -DskipTests",
+    "package:backend": "node scripts/package-backend.js",
     "package:runtime": "node scripts/build-runtime.js",
     "dist": "npm run build && npm run package:frontend && npm run package:backend && npm run package:runtime && electron-builder",
     "release": "npm run build && npm run package:frontend && npm run package:backend && npm run package:runtime && electron-builder --publish always"

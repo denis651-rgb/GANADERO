@@ -7,7 +7,6 @@ export interface Configuracion {
   unidadPeso: string
   unidadSuperficie: string
   diasAlertaPreparto: number
-  diasAlertaVacunacion: number
   diasSinPesaje: number
   diasAlertaDestete: number
   diasDiagnosticoPostServicio: number

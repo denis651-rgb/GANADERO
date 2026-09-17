@@ -51,6 +51,8 @@ ganadero:
 
 app:
   frontend-url: ${APP_FRONTEND_URL:http://localhost:5173}
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:}
   bootstrap:
     enabled: ${APP_BOOTSTRAP_ENABLED:false}
     token: ${APP_BOOTSTRAP_TOKEN:}

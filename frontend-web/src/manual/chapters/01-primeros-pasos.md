@@ -40,6 +40,8 @@ basta con dejar bien cargada la primera.
 > El código de la propiedad y del sector lo asigna el sistema. No hace
 > falta que los tengas preparados.
 
+![Formulario para editar los datos de la propiedad "Mi finca"](/manual-images/primeros-pasos/editar-propiedad.jpg)
+
 Cada propiedad guardada aparece con el estado **ACTIVA** y queda disponible
 para registrar potreros y animales.
 
@@ -59,6 +61,8 @@ fecha de nacimiento, la categoría se asigna sola usando estos rangos.
 > Un animal solo queda como Buey si lo seleccionas tú al registrarlo o
 > editarlo.
 
+![Lista de categorías por edad predefinidas, con su rango de meses y estado](/manual-images/primeros-pasos/categorias-edad.jpg)
+
 Las categorías predefinidas alcanzan para la mayoría de las fincas. Esto
 solo lo revisas si tu forma de clasificar es distinta.
 
@@ -77,6 +81,8 @@ pertenecer a un sector de tu propiedad.
    sola; pode ajustarla al valor que prefieras.
 6. Deja el **Estado** en **DISPONIBLE** y presiona **Crear potrero**.
 
+![Formulario "Nuevo potrero" completo, con la capacidad recomendada calculada sola](/manual-images/primeros-pasos/nuevo-potrero.jpg)
+
 El potrero queda con un código propio (p. ej. `PRP-001-POT-001`) y su
 estado inicial **DISPONIBLE**. Después puedes cambiarlo a **OCUPADO**,
 **DESCANSO** o **MANTENIMIENTO** según la rotación de pastoreo.
@@ -93,9 +99,13 @@ Con la finca y los potreros cargados, ya puedes registrar animales.
    una excepción manual como **Buey**, escribe el motivo.
 5. Elige el potrero donde se encuentra y presiona **Guardar animal**.
 
+![Formulario "Registrar animal": la categoría "Ternera" se asignó sola a partir del sexo y la fecha de nacimiento](/manual-images/primeros-pasos/nuevo-animal-categoria-automatica.jpg)
+
 El animal aparece en la lista de **Animales** con su código, su categoría
 y el potrero asignado. Desde ese mismo registro puedes abrir su ficha para
 ver el historial completo.
+
+![Lista de Animales con el animal recién registrado](/manual-images/primeros-pasos/lista-animales.jpg)
 
 > Si compras varios animales juntos, en lugar de registrar uno por uno
 > usa **Ingreso por lote de compra** desde la pantalla de **Animales**
@@ -105,6 +115,8 @@ ver el historial completo.
 
 Después de estos pasos, en el **Panel principal** verás los totales de tu
 operación: animales, potreros, lotes y las alertas que necesitan atención.
+
+![Panel principal con los animales registrados y las alertas de atención requerida](/manual-images/primeros-pasos/panel-principal.jpg)
 
 Para seguir, lee los capítulos en el orden de tu día a día:
 

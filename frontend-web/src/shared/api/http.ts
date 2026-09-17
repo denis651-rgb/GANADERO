@@ -6,10 +6,12 @@ declare global {
     ganadero?: {
       apiBaseUrl?: string
       quit?: () => Promise<void>
+      onBackendStatus?: (callback: (status: BackendStatus) => void) => () => void
       googleCalendar?: {
         status: () => Promise<GoogleOAuthDesktopStatus>
         importClientConfig: (jsonText: string, fileName: string) => Promise<GoogleOAuthDesktopStatus>
         connect: () => Promise<GoogleOAuthDesktopStatus>
+        cancelConnect: () => Promise<boolean>
         revoke: () => Promise<GoogleOAuthDesktopStatus>
         changeAccount: () => Promise<GoogleOAuthDesktopStatus>
         syncNow: () => Promise<GoogleCalendarSyncResult>
@@ -19,8 +21,22 @@ declare global {
         exportarPlanilla: (input: PlanillaSanitariaInput) => Promise<ExportarPlanillaResult>
       }
       diagnostics?: DiagnosticsDesktopBridge
+      manual?: {
+        exportPdf: () => Promise<ManualExportPdfResult>
+      }
     }
   }
+}
+
+export type ManualExportPdfResult =
+  | { ok: true; cancelled?: false; path: string }
+  | { ok: false; cancelled: true }
+  | { ok: false; cancelled?: false; message: string }
+
+export interface BackendStatus {
+  state: 'reconnecting' | 'restored' | 'failed'
+  attempt?: number
+  maxAttempts?: number
 }
 
 export interface PlanillaSanitariaAnimal {

@@ -13,7 +13,7 @@ import java.time.Instant; import java.util.*;
  @Transactional public Configuracion update(ConfiguracionCommand c){
   CurrentUser u=context.requirePermission("CONFIGURACION_EDITAR");
   Configuracion patch=new Configuracion(null,c.zonaHoraria(),c.moneda(),c.unidadPeso(),c.unidadSuperficie(),
-   c.diasAlertaPreparto(),c.diasAlertaVacunacion(),c.diasSinPesaje(),c.diasAlertaDestete(),
+   c.diasAlertaPreparto(),c.diasSinPesaje(),c.diasAlertaDestete(),
    c.diasDiagnosticoPostServicio(),c.diasGestacionEstimada(),c.comprimirImagenes(),c.calidadImagen(),c.nombreUsuario(),
    false,c.diasToleranciaPesoCompra(),Objects.requireNonNull(c.version()));
   Configuracion saved=repo.update(patch,u.userId());

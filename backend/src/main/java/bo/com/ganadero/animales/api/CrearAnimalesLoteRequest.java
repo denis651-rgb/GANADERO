@@ -54,7 +54,7 @@ public record CrearAnimalesLoteRequest(
                     lote.precioAdquisicion(), null, condicionCorporalActual, null, observaciones, 0L,
                     pesoIngresoKg, pesoIngresoEstimado, false, false,
                     edad.valorDeclarado(), edad.unidad(), edad.fechaReferencia(), edad.fuente(), edad.detalle(),
-                    categoriaManualMotivo, false);
+                    categoriaManualMotivo, false, null);
         }
 
         public AnimalLoteItemRequest(String codigo, String nombre, SexoAnimal sexo, UUID categoriaActualId,

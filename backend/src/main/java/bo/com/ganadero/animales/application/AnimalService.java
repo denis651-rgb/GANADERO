@@ -15,6 +15,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.Normalizer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -187,7 +188,7 @@ public class AnimalService {
         boolean moves = !property.equals(old.propiedadActualId()) || !paddock.equals(old.potreroActualId());
         if (moves && old.estado() != EstadoAnimal.ACTIVO) throw new BusinessException(ErrorCode.ANIMAL_NOT_ACTIVE);
         SexoAnimal sex = c.sexo() == null ? old.sexo() : c.sexo();
-        UUID breed = c.razaPrincipalId() == null ? old.razaPrincipalId() : c.razaPrincipalId();
+        UUID breed = resolveBreed(c, old.razaPrincipalId());
         LocalDate nacimiento = quitarNacimiento ? null : c.fechaNacimiento() == null ? old.fechaNacimiento() : c.fechaNacimiento();
         UUID categoriaSolicitada = c.categoriaActualId() == null ? old.categoriaActualId() : c.categoriaActualId();
         CategoriaResuelta categoriaResuelta = categoriaSegunEdad(sex, nacimiento, categoriaSolicitada, u);
@@ -301,6 +302,35 @@ public class AnimalService {
         Animal a = require(animalId, u.empresaId());
         context.requirePropertyAccess(u, a.propiedadActualId());
         animals.updateFotoPrincipal(animalId, u.empresaId(), null, u.userId());
+    }
+
+    /**
+     * Si el formulario mandó un nombre de raza nueva (opción "Otra" del campo Raza en Editar
+     * animal), la reutiliza si ya existe una con ese nombre o la crea. Si no, se comporta como
+     * antes: usa razaPrincipalId si vino, o mantiene la raza actual del animal.
+     */
+    private UUID resolveBreed(AnimalCommand c, UUID currentBreedId) {
+        if (c.razaNueva() != null && !c.razaNueva().isBlank()) {
+            String nombre = c.razaNueva().trim();
+            return breeds.findByNombre(nombre).map(Raza::id)
+                    .orElseGet(() -> breeds.crear(new Raza(UUID.randomUUID(), null, generarCodigoRaza(nombre), nombre, "BOVINO", null, true)).id());
+        }
+        return c.razaPrincipalId() == null ? currentBreedId : c.razaPrincipalId();
+    }
+
+    private String generarCodigoRaza(String nombre) {
+        String base = Normalizer.normalize(nombre, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toUpperCase(Locale.ROOT)
+                .replaceAll("[^A-Z0-9]+", "_")
+                .replaceAll("^_+|_+$", "");
+        if (base.isBlank()) base = "RAZA";
+        String candidato = base;
+        int sufijo = 2;
+        while (breeds.existeCodigo(candidato)) {
+            candidato = base + "_" + sufijo++;
+        }
+        return candidato;
     }
 
     private void validateReferences(UUID breed, UUID category, SexoAnimal sex, UUID property, UUID paddock,

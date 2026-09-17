@@ -114,7 +114,12 @@ export interface CrearAnimalesLoteInput {
   animales: AnimalLoteItemInput[]
 }
 
-export interface UpdateAnimalInput extends Omit<CreateAnimalInput, 'origen'> {
+export interface UpdateAnimalInput extends Omit<CreateAnimalInput, 'origen' | 'razaPrincipalId'> {
+  /** Ausente cuando se manda razaNueva en su lugar (opción "Otra" del campo Raza). */
+  razaPrincipalId?: string
+  /** Nombre de una raza que todavía no existe en el catálogo: el backend la crea (o reutiliza
+   * si ya existe una con ese nombre) y la usa para este animal. */
+  razaNueva?: string
   quitarFechaNacimiento?: boolean
   confirmarFechaNacimiento?: boolean
   corregirPesoCompra?: boolean

@@ -184,7 +184,7 @@ public class CompraService {
                     null, null, null, d.observaciones(), 0L, d.pesoIngresoKg(),
                     d.pesoIngresoKg() == null ? null : d.tipoPeso() == TipoPeso.ESTIMADO, false, false,
                     d.edadDeclaradaValor(), d.edadDeclaradaUnidad(), d.fechaReferenciaEdad(),
-                    d.fuenteEdadDeclarada(), d.observacionEstimacion(), d.categoriaManualMotivo(), false);
+                    d.fuenteEdadDeclarada(), d.observacionEstimacion(), d.categoriaManualMotivo(), false, null);
             Animal creado = animales.create(cmd);
             compras.asignarAnimal(d.id(), creado.id());
             animalesCreados.add(creado);

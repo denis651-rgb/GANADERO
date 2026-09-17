@@ -140,14 +140,24 @@ export class BackupManager {
     return resultado.sort((a, b) => b.fechaCreacion.localeCompare(a.fechaCreacion))
   }
 
+  /**
+   * A diferencia de list() (que cae a lectura local ante cualquier error, incluida una respuesta
+   * de error del backend, porque es de solo lectura y así funciona la ventana de recuperación sin
+   * backend), aquí solo se cae al cálculo local cuando el backend es inalcanzable (fetch lanza,
+   * p. ej. el proceso no arrancó). Si el backend respondió pero con un error real (archivo
+   * borrado del disco, etc.), ese error se debe propagar: el cálculo local no persiste su
+   * resultado en la tabla `respaldos`, así que enmascararlo como éxito dejaba al respaldo mostrando
+   * "Sin verificar" de nuevo en el próximo refresco, pese al aviso de éxito que veía el usuario.
+   */
   async verify(nombreArchivo: string): Promise<RespaldoInfo> {
+    let response: Response
     try {
-      const response = await fetch(`${this.baseUrl()}/api/v1/respaldos/${encodeURIComponent(nombreArchivo)}/verificar`, { method: 'POST' })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      return await leerRespuesta<RespaldoInfo>(response)
+      response = await fetch(`${this.baseUrl()}/api/v1/respaldos/${encodeURIComponent(nombreArchivo)}/verificar`, { method: 'POST' })
     } catch {
       return this.verificarDesdeCarpetaLocal(nombreArchivo)
     }
+    if (!response.ok) throw new Error(await mensajeError(response, 'No se pudo verificar el respaldo.'))
+    return await leerRespuesta<RespaldoInfo>(response)
   }
 
   private async verificarDesdeCarpetaLocal(nombreArchivo: string): Promise<RespaldoInfo> {

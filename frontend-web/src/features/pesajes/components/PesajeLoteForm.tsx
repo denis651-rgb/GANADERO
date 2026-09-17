@@ -21,7 +21,7 @@ interface PesajeLoteFormProps {
 
 export function PesajeLoteForm({ onSaved, onCancel }: PesajeLoteFormProps) {
   const queryClient = useQueryClient()
-  const [message, setMessage] = useState<{ tone: 'success' | 'info' | 'danger'; text: string } | null>(null)
+  const [message, setMessage] = useState<{ tone: 'info' | 'danger'; text: string } | null>(null)
   const [ultimoEnvio, setUltimoEnvio] = useState<PesajeMasivoInput | null>(null)
   const [resultado, setResultado] = useState<PesajeMasivoResultado | null>(null)
   const [reintentando, setReintentando] = useState(false)
@@ -44,7 +44,6 @@ export function PesajeLoteForm({ onSaved, onCancel }: PesajeLoteFormProps) {
       setResultado(res)
       void queryClient.invalidateQueries({ queryKey: ['pesajes'] })
       if (res.conError === 0) {
-        setMessage({ tone: 'success', text: `Pesaje registrado para ${res.registrados} animal(es) del lote.` })
         onSaved?.(res.registrados)
       } else {
         setMessage({ tone: 'info', text: `${res.registrados} animal(es) pesado(s), ${res.conError} con error.` })

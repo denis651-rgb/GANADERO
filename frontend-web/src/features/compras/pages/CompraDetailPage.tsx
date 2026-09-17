@@ -12,16 +12,17 @@ import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { normalizeApiError } from '@/shared/api/errors'
+import { useToast } from '@/shared/toast/useToast'
 
 const modalidadLabel: Record<string, string> = { POR_UNIDAD: 'Por unidad', POR_TROPA: 'Por tropa o punta' }
 
 export function CompraDetailPage() {
   const { id = '' } = useParams()
   const client = useQueryClient()
+  const { showToast } = useToast()
   const [confirmando, setConfirmando] = useState(false)
   const [anulando, setAnulando] = useState(false)
   const [motivoAnulacion, setMotivoAnulacion] = useState('')
-  const [message, setMessage] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null)
 
   const compra = useQuery({ queryKey: ['compra', id], queryFn: () => getCompra(id), enabled: Boolean(id) })
   const detalles = useQuery({ queryKey: ['compra-detalles', id], queryFn: () => getCompraDetalles(id), enabled: Boolean(id) })
@@ -36,7 +37,7 @@ export function CompraDetailPage() {
     mutationFn: () => confirmarCompra(id, compra.data!.version),
     onSuccess: async () => {
       setConfirmando(false)
-      setMessage({ tone: 'success', text: 'Compra confirmada: se crearon los animales, el ingreso y los pesos declarados.' })
+      showToast('Compra confirmada: se crearon los animales, el ingreso y los pesos declarados.')
       await Promise.all([
         client.invalidateQueries({ queryKey: ['compra', id] }),
         client.invalidateQueries({ queryKey: ['compra-detalles', id] }),
@@ -51,7 +52,7 @@ export function CompraDetailPage() {
     onSuccess: async () => {
       setAnulando(false)
       setMotivoAnulacion('')
-      setMessage({ tone: 'success', text: 'Compra anulada. Los animales asociados pasaron a estado Descartado.' })
+      showToast('Compra anulada. Los animales asociados pasaron a estado Descartado.')
       await Promise.all([
         client.invalidateQueries({ queryKey: ['compra', id] }),
         client.invalidateQueries({ queryKey: ['animals'] }),
@@ -70,7 +71,6 @@ export function CompraDetailPage() {
       description="Encabezado, animales incluidos y trazabilidad de la compra."
       actions={<Link className="button button-ghost" to="/compras"><ArrowLeft size={18} aria-hidden="true" />Volver</Link>}
     />
-    {message && <Alert tone={message.tone}>{message.text}</Alert>}
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
     {compra.isPending && <LoadingState message="Cargando compra…" />}
     {value && <>
