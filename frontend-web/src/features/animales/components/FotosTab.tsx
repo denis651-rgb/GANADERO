@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Image as ImageIcon, Maximize2, RefreshCw, Star, Trash2, Upload } from 'lucide-react'
 import { eliminarDocumento, listDocumentos, marcarPrincipalDocumento, subirDocumento, type Documento } from '@/features/archivos/api'
 import { compressImages } from '@/features/archivos/utils/imageCompress'
+import { getConfiguracion } from '@/features/configuracion/api'
 import { normalizeApiError } from '@/shared/api/errors'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
@@ -22,6 +23,7 @@ export function FotosTab({ animalId }: { animalId: string }) {
   const [lastError, setLastError] = useState<string | null>(null)
 
   const fotos = useQuery({ queryKey: ['animal-documentos', animalId], queryFn: () => listDocumentos('ANIMAL', animalId), enabled: Boolean(animalId) })
+  const config = useQuery({ queryKey: ['configuracion'], queryFn: getConfiguracion })
 
   const invalidateFotos = async () => {
     await Promise.all([
@@ -33,7 +35,11 @@ export function FotosTab({ animalId }: { animalId: string }) {
 
   const upload = useMutation({
     mutationFn: async (files: File[]) => {
-      const compressed = await compressImages(files)
+      const comprimir = config.data?.comprimirImagenes ?? true
+      const calidad = (config.data?.calidadImagen ?? 82) / 100
+      const compressed = comprimir
+        ? await compressImages(files, 1280, calidad)
+        : files.map((file) => ({ blob: file, fileName: file.name, mimeType: file.type }))
       const failures: string[] = []
       for (const image of compressed) {
         try {

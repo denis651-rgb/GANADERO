@@ -69,8 +69,8 @@ export function CategoriasEdadPanel() {
             <td>{categoria.clasificacionAutomatica ? 'Automática' : 'Manual (excepción)'}</td>
             <td><span className={`status-badge ${categoria.activo ? 'status-activo' : 'status-inactivo'}`}>{categoria.activo ? 'ACTIVA' : 'INACTIVA'}</span></td>
             <td><div className="inline-actions">
-              <Button variant="ghost" onClick={() => setModalCategoria(categoria)}><Pencil size={16} aria-hidden="true" />Editar</Button>
-              <Button variant="ghost" loading={toggle.isPending} onClick={() => toggle.mutate({ id: categoria.id, activo: !categoria.activo })}><Power size={16} aria-hidden="true" />{categoria.activo ? 'Desactivar' : 'Activar'}</Button>
+              <Button variant="ghost" className="jornada-icon-action" title="Editar" aria-label={`Editar ${categoria.nombre}`} onClick={() => setModalCategoria(categoria)}><Pencil size={16} aria-hidden="true" /></Button>
+              <Button variant="ghost" className="jornada-icon-action" title={categoria.activo ? 'Desactivar' : 'Activar'} aria-label={`${categoria.activo ? 'Desactivar' : 'Activar'} ${categoria.nombre}`} loading={toggle.isPending} onClick={() => toggle.mutate({ id: categoria.id, activo: !categoria.activo })}><Power size={16} aria-hidden="true" /></Button>
             </div></td>
           </tr>)}</tbody>
         </table></div>

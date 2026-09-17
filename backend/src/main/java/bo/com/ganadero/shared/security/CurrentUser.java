@@ -12,6 +12,8 @@ public record CurrentUser(UUID userId, UUID empresaId, UUID miembroEmpresaId,
         propiedadesPermitidas = Set.copyOf(propiedadesPermitidas);
     }
 
-    // App de escritorio de un solo usuario local: acceso total siempre, no hay matriz de permisos.
+    // STUB-PERMISOS: app de escritorio de un solo usuario local, acceso total siempre, no hay
+    // matriz de permisos. Simetrico con can() en AuthContext.tsx en el frontend (misma
+    // decision). Si se agrega multiusuario, esta funcion debe empezar a verificar permisos reales.
     public boolean hasPermission(String permiso) { return true; }
 }

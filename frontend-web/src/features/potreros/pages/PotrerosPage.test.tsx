@@ -13,15 +13,13 @@ vi.mock('@/features/potreros/api', () => ({
 vi.mock('@/features/propiedades/api', () => ({ listPropiedades: vi.fn().mockResolvedValue([{ id: 'p-1', nombre: 'La Esperanza', activo: true }]), listSectores: vi.fn().mockResolvedValue([]) }))
 
 describe('PotrerosPage operational protection', () => {
-  it('destaca el nombre y coloca el código debajo en escritorio y móvil', async () => {
+  it('no muestra el código bajo el nombre en la tabla de escritorio, pero lo conserva en móvil', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={client}><PotrerosPage /></QueryClientProvider>)
-    const nombres = await screen.findAllByText('Norte', { selector: '.potrero-name' })
-    expect(nombres).toHaveLength(2)
-    nombres.forEach((nombre) => {
-      expect(nombre.nextElementSibling).toHaveClass('potrero-code')
-      expect(nombre.nextElementSibling).toHaveTextContent('P-01')
-    })
+    const [desktopNombre, mobileNombre] = await screen.findAllByText('Norte', { selector: '.potrero-name' })
+    expect(desktopNombre.nextElementSibling).toBeNull()
+    expect(mobileNombre.nextElementSibling).toHaveClass('potrero-code')
+    expect(mobileNombre.nextElementSibling).toHaveTextContent('P-01')
   })
 
   it('pide confirmación antes de aplicar un estado operativo', async () => {

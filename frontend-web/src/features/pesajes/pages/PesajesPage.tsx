@@ -17,6 +17,7 @@ import { PageHeader } from '@/shared/components/PageHeader'
 import { Alert } from '@/shared/components/Alert'
 import { MobileEntityCard } from '@/shared/components/MobileEntityCard'
 import { normalizeApiError } from '@/shared/api/errors'
+import { useToast } from '@/shared/toast/useToast'
 
 const tipoLabel: Record<string, string> = {
   RUTINA: 'Rutina',
@@ -31,11 +32,11 @@ const tipoLabel: Record<string, string> = {
 }
 
 export function PesajesPage() {
+  const { showToast } = useToast()
   const [propertyId, setPropertyId] = useState('')
   const [page, setPage] = useState(0)
   const [formMode, setFormMode] = useState<'individual' | 'lote' | null>(null)
   const [anularTarget, setAnularTarget] = useState<Pesaje | null>(null)
-  const [message, setMessage] = useState<{ tone: 'success' | 'info' | 'danger'; text: string } | null>(null)
   const size = 10
   const filters = { propiedadId: propertyId, page, size }
   const query = useQuery({ queryKey: ['pesajes', filters], queryFn: () => listPesajes(filters), placeholderData: keepPreviousData })
@@ -54,10 +55,9 @@ export function PesajesPage() {
         <Button onClick={() => { setFormMode('individual'); setAnularTarget(null) }}><Plus size={18} />Registrar pesaje</Button>
       </>}
     />
-    {message && <Alert tone={message.tone}>{message.text}</Alert>}
-    {formMode === 'individual' && <RegistrarPesajeForm onCancel={() => setFormMode(null)} onSaved={() => { setFormMode(null); setMessage({ tone: 'success', text: 'Pesaje registrado.' }) }} />}
-    {formMode === 'lote' && <PesajeLoteForm onCancel={() => setFormMode(null)} onSaved={() => { setFormMode(null); setMessage({ tone: 'success', text: 'Pesaje por lote registrado.' }) }} />}
-    {anularTarget && <AnularPesajeForm pesaje={anularTarget} onCancel={() => setAnularTarget(null)} onAnnulled={() => { setAnularTarget(null); setMessage({ tone: 'success', text: 'Pesaje anulado.' }) }} />}
+    {formMode === 'individual' && <RegistrarPesajeForm onCancel={() => setFormMode(null)} onSaved={() => setFormMode(null)} />}
+    {formMode === 'lote' && <PesajeLoteForm onCancel={() => setFormMode(null)} onSaved={() => { setFormMode(null); showToast('Pesaje por lote registrado.') }} />}
+    {anularTarget && <AnularPesajeForm pesaje={anularTarget} onCancel={() => setAnularTarget(null)} onAnnulled={() => setAnularTarget(null)} />}
     <Card>
       <div className="filter-heading"><span><SlidersHorizontal size={18} />Filtros</span>{query.data && <strong>{query.data.totalElements} pesajes</strong>}</div>
       <div className="animal-filters">

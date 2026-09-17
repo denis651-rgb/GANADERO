@@ -42,6 +42,7 @@ export interface GoogleOAuthStatus {
 
 export class GoogleOAuthManager {
   private activeFlow: Promise<GoogleOAuthStatus> | null = null
+  private activeCancel: (() => void) | null = null
 
   constructor(private readonly getBackendPort: () => number) {}
 
@@ -58,6 +59,18 @@ export class GoogleOAuthManager {
     if (this.activeFlow) return this.activeFlow
     this.activeFlow = this.authorize().finally(() => { this.activeFlow = null })
     return this.activeFlow
+  }
+
+  /**
+   * Permite abandonar un intento de conexión atascado (p. ej. Google mostró un error en el
+   * navegador por un client_id inválido y nunca llamó de vuelta al loopback local): sin esto, la
+   * única salida era esperar los 5 minutos de FLOW_TIMEOUT_MS antes de poder reintentar con un
+   * cliente OAuth corregido. Devuelve false si no había ningún intento en curso.
+   */
+  cancelConnect(): boolean {
+    if (!this.activeCancel) return false
+    this.activeCancel()
+    return true
   }
 
   async importClientConfig(jsonText: string, fileName: string): Promise<GoogleOAuthStatus> {
@@ -154,6 +167,7 @@ export class GoogleOAuthManager {
     const challenge = base64Url(createHash('sha256').update(verifier).digest())
     const state = base64Url(randomBytes(32))
     const callback = await this.listenForCallback(state)
+    this.activeCancel = callback.cancel
     const redirectUri = `http://127.0.0.1:${callback.port}${CALLBACK_PATH}`
     const url = new URL(AUTH_URL)
     url.search = new URLSearchParams({
@@ -207,10 +221,11 @@ export class GoogleOAuthManager {
       return { available: true, connected: true, email: identity.email, expiresAt: new Date(stored.expiresAt).toISOString() }
     } finally {
       callback.close()
+      this.activeCancel = null
     }
   }
 
-  private async listenForCallback(expectedState: string): Promise<{ port: number; code: Promise<string>; close: () => void }> {
+  private async listenForCallback(expectedState: string): Promise<{ port: number; code: Promise<string>; close: () => void; cancel: () => void }> {
     let server: Server
     let settled = false
     let resolveCode!: (code: string) => void
@@ -242,7 +257,16 @@ export class GoogleOAuthManager {
       if (!settled) { settled=true; rejectCode(new Error('La autorización de Google expiró.')) }
       server.close()
     },FLOW_TIMEOUT_MS)
-    return { port:address.port,code,close:()=>{ clearTimeout(timeout); server.close() } }
+    return {
+      port: address.port,
+      code,
+      close: () => { clearTimeout(timeout); server.close() },
+      cancel: () => {
+        if (!settled) { settled = true; rejectCode(new Error('Se canceló el intento de conexión.')) }
+        clearTimeout(timeout)
+        server.close()
+      },
+    }
   }
 
   private async saveTokens(tokens: StoredTokens): Promise<void> {

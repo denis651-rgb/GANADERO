@@ -29,6 +29,7 @@ import { VentasPage } from '@/features/ventas/pages/VentasPage'
 import { AlertasPage } from '@/features/alertas/pages/AlertasPage'
 import { ReportesPage } from '@/features/reportes/pages/ReportesPage'
 import { ManualPage } from '@/features/manual/pages/ManualPage'
+import { ManualPrintPage } from '@/features/manual/pages/ManualPrintPage'
 import { NotFoundPage } from '@/shared/pages/NotFoundPage'
 
 export function AppRouter() {
@@ -66,6 +67,10 @@ export function AppRouter() {
         <Route path="animales/qr/imprimir" element={<QrPrintPage />} />
         <Route path="qr/escanear" element={<QrScannerPage />} />
       </Route>
+
+      {/* Fuera de AppShell a propósito: es el destino que carga Electron en una ventana oculta
+          para generar el PDF del manual (ver electron/src/manual-export.ts), sin sidebar ni topbar. */}
+      <Route path="manual/imprimir" element={<ManualPrintPage />} />
 
       <Route path="/inicio" element={<Navigate to="/" replace />} />
       <Route path="*" element={<NotFoundPage />} />

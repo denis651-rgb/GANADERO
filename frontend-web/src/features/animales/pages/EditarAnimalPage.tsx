@@ -30,6 +30,9 @@ export function EditarAnimalPage() {
 
 type TipoNacimiento = 'CONOCIDA' | 'ESTIMADA_FECHA' | 'ESTIMADA_EDAD' | 'DESCONOCIDA'
 
+/** Valor centinela de la opción "Otra…" del campo Raza: nunca coincide con un id real (UUID). */
+const RAZA_OTRA = '__OTRA__'
+
 function AnimalEditForm({ animal, catalogs }: { animal: AnimalSummary; catalogs: Awaited<ReturnType<typeof loadCatalogShape>> }) {
   const { id = '' } = useParams()
   const navigate = useNavigate()
@@ -51,6 +54,7 @@ function AnimalEditForm({ animal, catalogs }: { animal: AnimalSummary; catalogs:
       ? 'CONOCIDA'
       : animal.edadDeclaradaValor != null ? 'ESTIMADA_EDAD' : 'ESTIMADA_FECHA'
   const [tipoNacimiento, setTipoNacimiento] = useState<TipoNacimiento>(initialBirth)
+  const [razaEsNueva, setRazaEsNueva] = useState(false)
   const corregirPeso = useWatch({ control, name: 'corregirPesoCompra' })
   const pesoIngreso = useWatch({ control, name: 'pesoIngresoKg' })
   const fechaNacimiento = useWatch({ control, name: 'fechaNacimiento' })
@@ -97,7 +101,7 @@ function AnimalEditForm({ animal, catalogs }: { animal: AnimalSummary; catalogs:
     {mutation.error && <Alert tone="danger">{normalizeApiError(mutation.error).message}</Alert>}
     <Card><form className="form-grid" onSubmit={handleSubmit(submit)}>
       <div className="form-section-title form-full"><h2>Información básica</h2></div>
-      <Field label="Código" hint="Identificador interno permanente"><input value={animal.codigo} readOnly /></Field><Field label="Nombre"><input {...register('nombre')} /></Field>
+      <Field label="Nombre"><input {...register('nombre')} /></Field>
       <Field label="Sexo"><select {...register('sexo')}><option value="HEMBRA">Hembra</option><option value="MACHO">Macho</option></select></Field>
       <Field label="Nacimiento"><select value={tipoNacimiento} onChange={(event) => setTipoNacimiento(event.target.value as TipoNacimiento)}><option value="DESCONOCIDA" disabled={animal.origen === 'NACIDO'}>Totalmente desconocido</option><option value="ESTIMADA_FECHA">Fecha estimada</option><option value="ESTIMADA_EDAD">Edad aproximada declarada</option><option value="CONOCIDA">Fecha confirmada</option></select></Field>
       {(tipoNacimiento === 'CONOCIDA' || tipoNacimiento === 'ESTIMADA_FECHA') && <Field label="Fecha de nacimiento" hint={tipoNacimiento === 'ESTIMADA_FECHA' ? 'Se guarda marcada como estimada.' : undefined}><input type="date" max={todayInBolivia()} required {...register('fechaNacimiento')} /></Field>}
@@ -109,7 +113,14 @@ function AnimalEditForm({ animal, catalogs }: { animal: AnimalSummary; catalogs:
       </>}
       <Field label="Propósito"><select {...register('proposito')}><option value="CARNE">Carne</option><option value="LECHE">Leche</option><option value="REPRODUCCION">Reproducción</option><option value="DOBLE_PROPOSITO">Doble propósito</option></select></Field>
       <div className="form-section-title form-full"><h2>Clasificación</h2></div>
-      <Field label="Raza"><select {...register('razaPrincipalId')} required>{catalogs.breeds.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field><Field label="Categoría" hint={categoriaManual ? 'Clasificación manual: por ejemplo, Buey requiere confirmar castración.' : categoriaAutomatica ? 'Actualizada automáticamente según sexo y edad.' : 'Selecciona manualmente porque no se conoce la edad.'}>{categoriaAutomatica ? [<input key="categoria-visible" value={categoriaAutomatica.nombre} readOnly />, <input key="categoria-valor" type="hidden" {...register('categoriaActualId')} />] : <select {...register('categoriaActualId')} required>{catalogs.categories.filter((item) => item.activo && (item.sexoAplicable === 'AMBOS' || item.sexoAplicable === sexo)).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>}</Field>
+      <Field label="Raza">{razaEsNueva
+        ? <input {...register('razaNueva')} required autoFocus placeholder="Nombre de la nueva raza" />
+        : <select {...register('razaPrincipalId', { onChange: (event) => { if (event.target.value === RAZA_OTRA) { setRazaEsNueva(true); setValue('razaPrincipalId', undefined) } } })} required>
+            {catalogs.breeds.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}
+            <option value={RAZA_OTRA}>Otra…</option>
+          </select>}
+        {razaEsNueva && <button type="button" className="button button-ghost button-small" onClick={() => { setRazaEsNueva(false); setValue('razaNueva', undefined); setValue('razaPrincipalId', animal.razaPrincipalId) }}>Elegir de la lista</button>}
+      </Field><Field label="Categoría" hint={categoriaManual ? 'Clasificación manual: por ejemplo, Buey requiere confirmar castración.' : categoriaAutomatica ? 'Actualizada automáticamente según sexo y edad.' : 'Selecciona manualmente porque no se conoce la edad.'}>{categoriaAutomatica ? [<input key="categoria-visible" value={categoriaAutomatica.nombre} readOnly />, <input key="categoria-valor" type="hidden" {...register('categoriaActualId')} />] : <select {...register('categoriaActualId')} required>{catalogs.categories.filter((item) => item.activo && (item.sexoAplicable === 'AMBOS' || item.sexoAplicable === sexo)).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>}</Field>
       {categoriaManual && <Field label="Motivo de la categoría manual" hint="Queda registrado en el historial de categorías del animal."><input {...register('categoriaManualMotivo')} placeholder="Ej. castración confirmada por el veterinario" /></Field>}
       <div className="form-section-title form-full"><h2>Ubicación</h2></div>
       <Field label="Propiedad"><select {...register('propiedadActualId')} required>{catalogs.properties.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field><Field label="Potrero"><select {...register('potreroActualId')} required>{catalogs.paddocks.filter((item) => item.activo && item.propiedadId === propertyId).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>

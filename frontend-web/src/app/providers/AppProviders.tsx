@@ -2,6 +2,7 @@ import type { PropsWithChildren } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { AuthProvider } from '@/auth/AuthContext'
+import { BackendStatusListener } from '@/app/BackendStatusListener'
 import { ToastProvider } from '@/shared/toast/ToastProvider'
 
 const queryClient = new QueryClient({
@@ -28,7 +29,10 @@ export function AppProviders({ children }: PropsWithChildren) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <BackendStatusListener />
+          {children}
+        </ToastProvider>
       </AuthProvider>
       {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>

@@ -77,7 +77,12 @@ async function waitForHealth(port: number): Promise<void> {
 export class BackendManager {
   private child: ChildProcess | null = null
   private pidFile: string | null = null
+  private stopping = false
   port = PREFERRED_PORT
+
+  /** Se dispara cuando el proceso muere solo (no por stop()/restart() pedidos desde acá), para
+   * que main.ts pueda reintentar el arranque y avisarle al usuario. */
+  onUnexpectedExit: ((code: number | null) => void) | null = null
 
   get dbPath(): string {
     return path.join(app.getPath('userData'), 'ganadero.db')
@@ -102,8 +107,11 @@ export class BackendManager {
     fs.mkdirSync(userData, { recursive: true })
     this.pidFile = path.join(userData, 'backend.pid')
     killOrphanFromPreviousRun(this.pidFile)
+    this.stopping = false
 
-    this.port = await findFreePort(PREFERRED_PORT)
+    // Prefiere el puerto que ya se venía usando (relevante en un reintento tras una caída
+    // inesperada): así el resto de la app, que ya conoce ese puerto, no necesita enterarse de uno nuevo.
+    this.port = await findFreePort(this.port)
     const javaBin = resolveJavaBinary()
     const jarPath = resolveJarPath()
 
@@ -124,8 +132,10 @@ export class BackendManager {
     this.child.stdout?.on('data', (chunk) => console.log(`[backend] ${chunk}`.trimEnd()))
     this.child.stderr?.on('data', (chunk) => console.error(`[backend] ${chunk}`.trimEnd()))
     this.child.once('exit', (code) => {
-      if (code !== null && code !== 0) console.error(`[backend] el proceso terminó con código ${code}`)
+      const unexpected = !this.stopping && code !== 0
+      if (unexpected) console.error(`[backend] el proceso terminó con código ${code}`)
       this.child = null
+      if (unexpected) this.onUnexpectedExit?.(code)
     })
 
     await waitForHealth(this.port)
@@ -138,6 +148,7 @@ export class BackendManager {
    * backend todavía lo tiene abierto. Si no termina solo, escala a SIGKILL tras 5s.
    */
   async stop(): Promise<void> {
+    this.stopping = true
     if (this.pidFile) fs.rmSync(this.pidFile, { force: true })
     const child = this.child
     if (!child) return

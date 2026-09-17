@@ -60,3 +60,10 @@ export function formatPesoKg(value?: number): string {
   if (value == null) return '—'
   return `${value.toLocaleString('es-BO', { maximumFractionDigits: 1 })} kg`
 }
+
+/** Mañana hasta las 12, tarde hasta las 19, noche el resto. */
+export function saludoPorHora(hora: number): string {
+  if (hora < 12) return 'Buenos días'
+  if (hora < 19) return 'Buenas tardes'
+  return 'Buenas noches'
+}

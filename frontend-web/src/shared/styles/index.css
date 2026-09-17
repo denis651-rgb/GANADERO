@@ -331,6 +331,9 @@ button.text-link { background: none; border: 0; padding: 0; cursor: pointer; fon
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .form-full { grid-column: 1 / -1; }
 .form-actions { display: flex; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 18px; }
+.form-advanced-details { border-top: 1px dashed var(--border); padding-top: 12px; }
+.form-advanced-details summary { cursor: pointer; color: var(--muted); font-size: .82rem; font-weight: 700; }
+.form-advanced-details[open] summary { margin-bottom: 12px; }
 
 /* ---------- Formulario institucional (registro por pasos + ficha en vivo) ---------- */
 .record-layout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 22px; align-items: start; }

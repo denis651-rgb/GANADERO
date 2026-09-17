@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+interface BackendStatus {
+  state: 'reconnecting' | 'restored' | 'failed'
+  attempt?: number
+  maxAttempts?: number
+}
+
 function readApiBaseUrl(): string | undefined {
   const flag = process.argv.find((arg) => arg.startsWith('--ganadero-api-base-url='))
   return flag?.slice('--ganadero-api-base-url='.length)
@@ -13,11 +19,17 @@ function readBackendStatus(): 'ok' | 'failed' {
 contextBridge.exposeInMainWorld('ganadero', {
   apiBaseUrl: readApiBaseUrl(),
   quit: () => ipcRenderer.invoke('app:quit'),
+  onBackendStatus: (callback: (status: BackendStatus) => void) => {
+    const listener = (_event: unknown, status: BackendStatus) => callback(status)
+    ipcRenderer.on('backend:status', listener)
+    return () => ipcRenderer.removeListener('backend:status', listener)
+  },
   googleCalendar: {
     status: () => ipcRenderer.invoke('google-calendar-oauth:status'),
     importClientConfig: (jsonText: string, fileName: string) =>
       ipcRenderer.invoke('google-calendar-oauth:import-client', jsonText, fileName),
     connect: () => ipcRenderer.invoke('google-calendar-oauth:connect'),
+    cancelConnect: () => ipcRenderer.invoke('google-calendar-oauth:cancel'),
     revoke: () => ipcRenderer.invoke('google-calendar-oauth:revoke'),
     changeAccount: () => ipcRenderer.invoke('google-calendar-oauth:change-account'),
     syncNow: () => ipcRenderer.invoke('google-calendar:sync-now'),
@@ -44,5 +56,8 @@ contextBridge.exposeInMainWorld('ganadero', {
   diagnostics: {
     export: () => ipcRenderer.invoke('diagnostics:export'),
     openLogsFolder: () => ipcRenderer.invoke('diagnostics:open-logs-folder'),
+  },
+  manual: {
+    exportPdf: () => ipcRenderer.invoke('manual:export-pdf'),
   },
 })

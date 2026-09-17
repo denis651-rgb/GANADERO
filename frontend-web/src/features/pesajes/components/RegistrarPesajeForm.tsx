@@ -16,6 +16,7 @@ import { Card } from '@/shared/components/Card'
 import { Field } from '@/shared/components/Field'
 import { Alert } from '@/shared/components/Alert'
 import { normalizeApiError } from '@/shared/api/errors'
+import { useToast } from '@/shared/toast/useToast'
 import type { Pesaje } from '@/features/pesajes/types'
 
 const tipos = [
@@ -37,8 +38,9 @@ interface RegistrarPesajeFormProps {
 
 export function RegistrarPesajeForm({ onSaved, onCancel }: RegistrarPesajeFormProps) {
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   const [selected, setSelected] = useState<AnimalSummary | null>(null)
-  const [message, setMessage] = useState<{ tone: 'success' | 'info' | 'danger'; text: string } | null>(null)
+  const [message, setMessage] = useState<{ tone: 'info' | 'danger'; text: string } | null>(null)
   const { register, handleSubmit, control, setValue, reset, formState: { errors, isSubmitting } } = useForm<RegistrarPesajeFormInput, unknown, RegistrarPesajeForm>({
     resolver: zodResolver(registrarPesajeSchema),
     shouldFocusError: true,
@@ -90,7 +92,7 @@ export function RegistrarPesajeForm({ onSaved, onCancel }: RegistrarPesajeFormPr
     try {
       const created = await registrarPesaje(input)
       void queryClient.invalidateQueries({ queryKey: ['pesajes'] })
-      setMessage({ tone: 'success', text: `Pesaje de ${created.pesoKg} kg registrado para ${created.codigoAnimal ?? created.animalId}.` })
+      showToast(`Pesaje de ${created.pesoKg} kg registrado para ${created.codigoAnimal ?? created.animalId}.`)
       reset({ animalId: '', tipo: 'RUTINA', tipoPeso: 'MEDIDO' })
       setSelected(null)
       onSaved?.(created)

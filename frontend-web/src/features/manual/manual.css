@@ -86,6 +86,25 @@
 }
 
 /*
+ * Destino de impresión del manual completo (/manual/imprimir, ver ManualPrintPage.tsx). No se
+ * navega ahí desde la UI normal — lo carga Electron en una ventana oculta para generar el PDF
+ * (ver electron/src/manual-export.ts). Estos estilos en pantalla son solo para poder revisarlo
+ * a mano durante desarrollo.
+ */
+.manual-print-page { max-width: 68ch; margin: 0 auto; padding: 24px; }
+.manual-print-cover { min-height: 80vh; display: flex; flex-direction: column; justify-content: center; }
+.manual-print-eyebrow { font-size: .8rem; font-weight: 700; letter-spacing: .08em; color: var(--primary); text-transform: uppercase; margin: 0 0 8px; }
+.manual-print-cover h1 { font-size: 2.4rem; margin: 0 0 24px; }
+.manual-print-cover-meta { display: grid; gap: 10px; list-style: none; padding: 0; }
+.manual-print-cover-meta div { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+.manual-print-cover-meta dt { color: var(--muted); }
+.manual-print-cover-meta dd { margin: 0; font-weight: 700; }
+.manual-print-index { margin: 0 0 24px; }
+.manual-print-index ol { padding-left: 1.4em; }
+.manual-print-index a { color: var(--ink); text-decoration: none; }
+.manual-print-index a:hover { text-decoration: underline; }
+
+/*
  * El resto de la app ya oculta todo al imprimir (`body * { visibility: hidden }` en
  * shared/styles/index.css) salvo lo que marque como visible explícitamente. Acá solo
  * mostramos el capítulo abierto: sin índice, sin botones, sin anterior/siguiente.
@@ -93,6 +112,9 @@
 @media print {
   .manual-content, .manual-content * { visibility: visible; }
   .manual-content { position: absolute; inset: 0; padding: 12mm; border: 0; box-shadow: none; max-width: none; }
+  /* Mismo truco que .manual-content de arriba, para /manual/imprimir en vez del capítulo suelto. */
+  .manual-print-page, .manual-print-page * { visibility: visible; }
+  .manual-print-page { position: absolute; inset: 0; padding: 14mm; max-width: none; }
   .manual-navigation, .manual-heading-anchor { display: none !important; }
   .manual-chapter { max-width: none; }
   /* El acordeón es una ayuda de lectura en pantalla; al imprimir se ve todo el contenido. */
@@ -100,4 +122,13 @@
   .manual-section-chevron { display: none; }
   .manual-section-toggle { cursor: default; }
   .manual-chapter a { color: inherit; text-decoration: underline; }
+  /* Saltos de página: portada e índice aparte, un capítulo por página, sin cortar en medio de
+     un encabezado, imagen, tabla o nota. Solo importan en /manual/imprimir — en el capítulo
+     suelto no hay más que un .manual-print-chapter para partir. */
+  .manual-print-cover { min-height: 0; break-after: page; }
+  .manual-print-index { break-after: page; }
+  .manual-print-chapter { break-before: page; }
+  .manual-print-chapter:first-of-type { break-before: avoid; }
+  .manual-chapter h1, .manual-chapter h2, .manual-chapter h3 { break-after: avoid; }
+  .manual-chapter img, .manual-chapter table, .manual-note { break-inside: avoid; }
 }

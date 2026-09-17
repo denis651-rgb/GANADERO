@@ -12,6 +12,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const config = useQuery({ queryKey: ['configuracion'], queryFn: getConfiguracion, staleTime: 60_000 })
   const value = useMemo<AuthContextValue>(() => ({
     user: { id: LOCAL_USER_ID, displayName: config.data?.nombreUsuario?.trim() || DEFAULT_DISPLAY_NAME },
+    // STUB-PERMISOS: app de escritorio de un solo usuario local, acceso total siempre, no hay
+    // matriz de permisos. Simetrico con CurrentUser.hasPermission() en el backend (misma
+    // decision). Si se agrega multiusuario, esta funcion debe empezar a leer permisos reales.
     can: () => true,
   }), [config.data?.nombreUsuario])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

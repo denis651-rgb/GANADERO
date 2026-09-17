@@ -78,9 +78,15 @@ sirve esto?" y a "¿qué ejemplo pondrías?", son forma A. Si no, son forma B.
 
 ## Imágenes
 
-- Se guardan en `images/<capítulo>/`, por ejemplo `images/compras/compra-lote.png`.
-- Siempre con texto alternativo descriptivo:
-  `![Formulario para registrar una compra individual](../images/compras/compra-individual.png)`.
+- Se guardan en `frontend-web/public/manual-images/<capítulo>/`, por ejemplo
+  `public/manual-images/compras/compra-lote.jpg` — **no** en `src/manual/images/`. Los
+  capítulos son texto plano (`?raw`) sin procesar por el bundler, así que una ruta relativa
+  tipo `../images/...` se resuelve contra la URL de la página (`/manual/compras`), no contra
+  el archivo del capítulo, y no carga nada; además `src/` no se copia al build de producción.
+  `public/` sí se sirve tal cual, tanto en dev como en el build empaquetado con Electron.
+- En el Markdown, la ruta va absoluta desde la raíz del sitio, con el mismo nombre de carpeta:
+  `![Formulario para registrar una compra individual](/manual-images/compras/compra-individual.jpg)`.
+- Siempre con texto alternativo descriptivo.
 - Recortadas para mostrar solo el área relevante, mismo tamaño/resolución
   dentro de un mismo capítulo.
 - Nunca con datos reales de un cliente/proveedor/animal — usar los mismos

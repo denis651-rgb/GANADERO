@@ -7,6 +7,6 @@ import java.util.UUID;
  * un patch parcial (un campo null significa "no modificar" en update()).
  */
 public record Configuracion(UUID id, String zonaHoraria, String moneda, String unidadPeso, String unidadSuperficie,
- Integer diasAlertaPreparto, Integer diasAlertaVacunacion, Integer diasSinPesaje, Integer diasAlertaDestete,
+ Integer diasAlertaPreparto, Integer diasSinPesaje, Integer diasAlertaDestete,
  Integer diasDiagnosticoPostServicio, Integer diasGestacionEstimada, Boolean comprimirImagenes, Integer calidadImagen,
  String nombreUsuario, boolean pinConfigurado, Integer diasToleranciaPesoCompra, long version) {}

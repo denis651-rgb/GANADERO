@@ -11,8 +11,8 @@ import { GoogleOAuthManager } from './google-oauth'
 import { startGoogleCalendarSync, type GoogleCalendarSyncHandle } from './google-calendar-sync'
 import { exportarPlanillaSanitaria, type PlanillaSanitariaInput } from './sanidad-export'
 import { buscarActualizacionesManualmente, initAutoUpdater } from './updater'
-
-const DEV_SERVER_URL = 'http://localhost:5173'
+import { exportManualPdf } from './manual-export'
+import { DEV_SERVER_URL } from './constants'
 const ICON_PATH = path.join(__dirname, '..', 'build', 'icon.ico')
 
 registerFrontendScheme()
@@ -27,6 +27,41 @@ let googleCalendarSync: GoogleCalendarSyncHandle | null = null
 let backupScheduler: BackupSchedulerHandle | null = null
 let quitting = false
 let backendFailed = false
+let backendRestartAttempt = 0
+
+const BACKEND_RESTART_DELAYS_MS = [2_000, 5_000, 10_000]
+
+function sendBackendStatus(status: { state: 'reconnecting' | 'restored' | 'failed'; attempt?: number; maxAttempts?: number }): void {
+  mainWindow?.webContents.send('backend:status', status)
+}
+
+/**
+ * El backend ya había arrancado bien y murió solo (crash, o alguien mató el proceso java a
+ * mano/con otra herramienta — nos pasó durante desarrollo). Reintenta con backoff en vez de
+ * dejar la ventana abierta pegándole en silencio a un backend que ya no existe.
+ */
+async function handleBackendCrash(): Promise<void> {
+  if (quitting) return
+  backendRestartAttempt += 1
+  const maxAttempts = BACKEND_RESTART_DELAYS_MS.length
+  sendBackendStatus({ state: 'reconnecting', attempt: backendRestartAttempt, maxAttempts })
+
+  if (backendRestartAttempt > maxAttempts) {
+    sendBackendStatus({ state: 'failed' })
+    return
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, BACKEND_RESTART_DELAYS_MS[backendRestartAttempt - 1]))
+  if (quitting) return
+  try {
+    await backend.start()
+    backendRestartAttempt = 0
+    sendBackendStatus({ state: 'restored' })
+  } catch (error) {
+    console.error('[main] reintento de arranque del backend falló:', error)
+    void handleBackendCrash()
+  }
+}
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -61,12 +96,20 @@ if (!app.requestSingleInstanceLock()) {
     registerBackupsIpc()
     registerDiagnosticsIpc()
     registerAppIpc()
-    createTray()
+    registerManualIpc()
+    try {
+      createTray()
+    } catch (error) {
+      // No debe tumbar el resto del arranque (notificaciones, respaldos, updater): sin bandeja
+      // la app pierde el ícono y el menú de "Salir", pero sigue siendo usable desde la ventana.
+      console.error('[main] no se pudo crear el ícono de la bandeja:', error)
+    }
     // Se busca incluso en modo recuperación: si el backend no arrancó, una actualización podría
     // ser justo el arreglo.
     initAutoUpdater()
 
     if (!backendFailed) {
+      backend.onUnexpectedExit = () => void handleBackendCrash()
       registerGoogleOAuthIpc()
       registerSanidadIpc()
       stopNotifications = startNotificationPolling(() => backend.port, focusWindow)
@@ -91,6 +134,7 @@ function registerGoogleOAuthIpc(): void {
     googleOAuth.importClientConfig(jsonText, fileName))
   ipcMain.handle('google-calendar-oauth:revoke', () => googleOAuth.revoke())
   ipcMain.handle('google-calendar-oauth:change-account', () => googleOAuth.changeAccount())
+  ipcMain.handle('google-calendar-oauth:cancel', () => googleOAuth.cancelConnect())
   ipcMain.handle('google-calendar:sync-now', () => googleCalendarSync?.syncNow())
 }
 
@@ -102,6 +146,11 @@ function registerSanidadIpc(): void {
 function registerDiagnosticsIpc(): void {
   ipcMain.handle('diagnostics:export', () => exportarDiagnostico(backend))
   ipcMain.handle('diagnostics:open-logs-folder', () => shell.openPath(getLogsDir()))
+}
+
+/** El PDF es contenido estático del manual, no depende de que el backend local haya arrancado. */
+function registerManualIpc(): void {
+  ipcMain.handle('manual:export-pdf', () => exportManualPdf(() => backend.port))
 }
 
 /**

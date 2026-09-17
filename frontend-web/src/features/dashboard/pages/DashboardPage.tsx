@@ -8,7 +8,7 @@ import {
   type DashboardPesajeReciente,
   type DashboardResumen,
 } from '@/features/dashboard/api'
-import { buildDashboardModel, formatPesoKg, type AttentionItem } from '@/features/dashboard/dashboardModel'
+import { buildDashboardModel, formatPesoKg, saludoPorHora, type AttentionItem } from '@/features/dashboard/dashboardModel'
 import { useAuth } from '@/auth/auth-context'
 import { Alert } from '@/shared/components/Alert'
 import { normalizeApiError } from '@/shared/api/errors'
@@ -47,6 +47,7 @@ export function DashboardPage() {
   const { resumen: r, attentionItems } = model
   const hasAttention = attentionItems.length > 0
   const nombre = user.displayName ? user.displayName.split(' ')[0] : ''
+  const saludo = saludoPorHora(new Date().getHours())
 
   return <div className="page-stack dashboard-page dashboard-institutional">
     {backendError && backendError.code !== 'NETWORK_ERROR' && <Alert tone="danger" title="No se pudo actualizar el resumen">{backendError.message}</Alert>}
@@ -54,7 +55,7 @@ export function DashboardPage() {
     <section className="dp-hero">
       <div className="dp-hero-text">
         <span className="eyebrow">Panorama operativo</span>
-        <h1>Buen día{nombre ? `, ${nombre}` : ''}</h1>
+        <h1>{saludo}{nombre ? `, ${nombre}` : ''}</h1>
         <p>{r.generadoEn ? `Resumen actualizado ${new Date(r.generadoEn).toLocaleString('es-BO')}` : 'Esto es lo más importante de tu operación ganadera.'}</p>
       </div>
       <div className="dp-hero-stats">

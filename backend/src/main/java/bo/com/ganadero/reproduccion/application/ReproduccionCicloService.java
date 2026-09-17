@@ -1,5 +1,7 @@
 package bo.com.ganadero.reproduccion.application;
 
+import bo.com.ganadero.alertas.application.AlertaConfiguracion;
+import bo.com.ganadero.alertas.application.AlertaConfiguracionPort;
 import bo.com.ganadero.alertas.application.MotorAlertas;
 import bo.com.ganadero.alertas.application.ProgramarAlertaCommand;
 import bo.com.ganadero.alertas.application.TipoAlerta;
@@ -29,13 +31,19 @@ public class ReproduccionCicloService {
  private final RazaRepository razas;
  private final CategoriaAnimalRepository categorias;
  private final GestacionService gestaciones;
- private int diasHastaDestete=210; private int diasAlertaDestete=7;
+ private final ObjectProvider<AlertaConfiguracionPort> configuracionAlertas;
+ private int diasHastaDestete=210;
  public ReproduccionCicloService(ReproduccionRepository repo,AnimalRepository animales,ParentescoRepository parentescos,
   PesajeRepository pesajes,UserContext context,TimelineEventPublisher timeline,ApplicationEventPublisher events,
-  ObjectProvider<MotorAlertas> alertas,CodigoService codigos,RazaRepository razas,CategoriaAnimalRepository categorias,GestacionService gestaciones){this.repo=repo;this.animales=animales;this.parentescos=parentescos;this.pesajes=pesajes;
-  this.context=context;this.timeline=timeline;this.events=events;this.alertas=alertas;this.codigos=codigos;this.razas=razas;this.categorias=categorias;this.gestaciones=gestaciones;}
+  ObjectProvider<MotorAlertas> alertas,CodigoService codigos,RazaRepository razas,CategoriaAnimalRepository categorias,GestacionService gestaciones,
+  ObjectProvider<AlertaConfiguracionPort> configuracionAlertas){this.repo=repo;this.animales=animales;this.parentescos=parentescos;this.pesajes=pesajes;
+  this.context=context;this.timeline=timeline;this.events=events;this.alertas=alertas;this.codigos=codigos;this.razas=razas;this.categorias=categorias;this.gestaciones=gestaciones;this.configuracionAlertas=configuracionAlertas;}
  @Value("${ganadero.reproduccion.dias-hasta-destete:210}") void setDiasHastaDestete(int dias){if(dias<1)throw new IllegalArgumentException();this.diasHastaDestete=dias;}
- @Value("${ganadero.reproduccion.dias-alerta-destete:7}") void setDiasAlertaDestete(int dias){if(dias<0)throw new IllegalArgumentException();this.diasAlertaDestete=dias;}
+ private int diasAlertaDestete(UUID empresaId){
+  AlertaConfiguracionPort port=configuracionAlertas==null?null:configuracionAlertas.getIfAvailable();
+  AlertaConfiguracion configuracion=port==null?AlertaConfiguracion.valoresPredeterminados():port.obtener(empresaId);
+  return configuracion.diasAlertaDestete();
+ }
 
  @Transactional
  public PartoResult registrarParto(RegistrarPartoCommand c){
@@ -89,7 +97,7 @@ public class ReproduccionCicloService {
     null,null,null,"Peso registrado al nacer",null,null,null,null,null,null,0),u.userId());
    publicar(u,animalId,TipoEventoAnimal.CRIA_REGISTRADA,parto.id(),"Cría registrada");
    MotorAlertas motor=alertas.getIfAvailable(); if(motor!=null)motor.programar(new ProgramarAlertaCommand(u.empresaId(),animalId,
-    TipoAlerta.DESTETE_PROXIMO,parto.fechaParto().plusDays(diasHastaDestete-diasAlertaDestete).atStartOfDay(ZoneOffset.UTC).toInstant(),
+    TipoAlerta.DESTETE_PROXIMO,parto.fechaParto().plusDays(diasHastaDestete-diasAlertaDestete(u.empresaId())).atStartOfDay(ZoneOffset.UTC).toInstant(),
     parto.fechaParto().plusDays(diasHastaDestete).atStartOfDay(ZoneOffset.UTC).toInstant(),"CRIA",animalId,Map.of("madreId",madre.id(),"partoId",parto.id())));
   }
   UUID id=UUID.randomUUID(); CriaParto cria=repo.createCria(new CriaParto(id,u.empresaId(),parto.id(),animalId,c.sexo(),c.pesoNacimientoKg(),

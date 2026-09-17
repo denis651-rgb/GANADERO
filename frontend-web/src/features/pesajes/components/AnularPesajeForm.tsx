@@ -11,6 +11,7 @@ import { Card } from '@/shared/components/Card'
 import { Field } from '@/shared/components/Field'
 import { Alert } from '@/shared/components/Alert'
 import { normalizeApiError } from '@/shared/api/errors'
+import { useToast } from '@/shared/toast/useToast'
 
 interface AnularPesajeFormProps {
   pesaje: Pesaje
@@ -20,20 +21,21 @@ interface AnularPesajeFormProps {
 
 export function AnularPesajeForm({ pesaje, onAnnulled, onCancel }: AnularPesajeFormProps) {
   const queryClient = useQueryClient()
-  const [message, setMessage] = useState<{ tone: 'success' | 'info' | 'danger'; text: string } | null>(null)
+  const { showToast } = useToast()
+  const [error, setError] = useState<string | null>(null)
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<AnularPesajeForm>({
     resolver: zodResolver(anularPesajeSchema),
   })
 
   async function submit(values: AnularPesajeForm) {
-    setMessage(null)
+    setError(null)
     try {
       const updated = await anularPesaje(pesaje.id, { motivo: values.motivo, version: pesaje.version })
       void queryClient.invalidateQueries({ queryKey: ['pesajes'] })
-      setMessage({ tone: 'success', text: 'Pesaje anulado correctamente.' })
+      showToast('Pesaje anulado correctamente.')
       onAnnulled?.(updated)
     } catch (reason) {
-      setMessage({ tone: 'danger', text: normalizeApiError(reason).message })
+      setError(normalizeApiError(reason).message)
     }
   }
 
@@ -44,7 +46,7 @@ export function AnularPesajeForm({ pesaje, onAnnulled, onCancel }: AnularPesajeF
         {onCancel && <Button variant="ghost" onClick={onCancel}><X size={17} />Cerrar</Button>}
       </div>
       <form className="form-grid" onSubmit={handleSubmit(submit)} noValidate>
-        {message && <div className="form-full"><Alert tone={message.tone}>{message.text}</Alert></div>}
+        {error && <div className="form-full"><Alert tone="danger">{error}</Alert></div>}
         <div className="form-full">
           <Field label="Motivo de anulación" error={errors.motivo?.message}>
             <textarea rows={3} {...register('motivo')} placeholder="Peso registrado por error…" />

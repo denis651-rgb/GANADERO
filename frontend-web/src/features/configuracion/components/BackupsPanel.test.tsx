@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { BackupInfo, BackupSettings, BackupsDesktopBridge, DiagnosticsDesktopBridge } from '@/shared/api/http'
 import { BackupsPanel } from './BackupsPanel'
 
+vi.mock('@/shared/toast/useToast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
+
 const settings: BackupSettings = {
   version: 1, automatico: true, frecuencia: 'DIARIA', hora: '20:00',
   destinoLocal: 'C\\Users\\test\\AppData\\Roaming\\Ganadero\\backups', destinoExterno: null,

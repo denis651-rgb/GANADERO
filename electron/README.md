@@ -77,3 +77,16 @@ de asumir que el set de módulos sigue siendo suficiente.
 - Solo se armó el target Windows (nsis), tal como pide el plan ("al menos Windows").
 - El guard local (PIN) ya tiene su almacenamiento y API en el backend, pero esta capa de
   Electron todavía no bloquea la ventana con una pantalla de PIN al iniciar.
+
+### Riesgo asumido: auto-updater sin firma real
+
+`updater.ts` deja `autoDownload = true` y `autoInstallOnAppQuit = true`: cada cliente instalado
+revisa GitHub Releases al arrancar, descarga cualquier versión nueva publicada ahí y la instala
+sola (al cerrar la app, o de inmediato si el usuario acepta el diálogo de "Reiniciar ahora"), sin
+más verificación que HTTPS contra GitHub y el `latest.yml` que el propio electron-builder genera
+en el momento de publicar. Como el instalador no está firmado con un certificado de código real
+(punto anterior), esa cadena de confianza depende enteramente de quién tenga acceso de push al
+repo y credenciales para publicar releases (`GH_TOKEN` en `npm run release`) — no hay una firma
+independiente que un atacante con acceso al repo no pudiera también falsificar. Se acepta como
+riesgo mientras el repo sea privado/controlado y no haya certificado de code-signing; si eso
+cambia, hay que firmar el instalador antes de confiar en el auto-updater.
