@@ -486,6 +486,8 @@ th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-s
 .compact-form { margin-top: 18px; }
 .checkbox-stack { display: grid; align-content: center; gap: 10px; }
 .checkbox-line { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.checkbox-with-hint { display: grid; align-content: end; gap: 2px; }
+.check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 4px 16px; }
 .checkbox-line input, .checkbox-stack input, fieldset input { width: auto; }
 .movement-form { align-items: start; }
 .movement-animal-picker { min-width: 0; margin: 2px 0 0; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: #f9fcf9; }

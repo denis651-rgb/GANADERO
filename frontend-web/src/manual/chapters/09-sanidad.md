@@ -9,158 +9,434 @@ sincronización con un calendario externo.
 ### Para qué sirve
 
 Agrupar las vacunaciones, desparasitaciones y demás actividades sanitarias
-que se deben cumplir en la finca, definiendo para cada una a quién aplica,
-cuándo corresponde y qué alerta debe generar.
+que se deben cumplir en la finca. Para cada actividad defines a quién
+aplica, cuándo corresponde, con qué dosis y cuánto antes debe avisarte el
+sistema. Con eso Ganadero arma solo el calendario de la finca y te avisa
+antes de cada fecha.
 
 ### Antes de comenzar
 
-Si vas a limitar una actividad a una categoría de animal, esa categoría debe
-existir ya en **Mi finca**.
+- Si vas a limitar una actividad a una o varias categorías de animal, esas
+  categorías deben existir ya en **Mi finca**.
+- Necesitas el permiso para administrar planes sanitarios. Sin él puedes ver
+  los planes, pero no aparecen los botones para crearlos ni modificarlos.
+- Ten a mano el calendario oficial de SENASAG (campañas) y las indicaciones
+  de tu veterinario: dosis, vía de aplicación y días de retiro.
 
 ### Procedimiento
+
+**Crear y activar el plan**
 
 1. Abre **Sanidad** en el menú lateral y entra a la pestaña **Planes
    sanitarios**.
 2. Presiona **Nuevo plan** e indica nombre, fecha de inicio, fecha de fin
    (opcional) y descripción.
 3. Presiona **Crear plan**. El plan queda en estado **BORRADOR**.
-4. Presiona **Activar** sobre el plan. Solo un plan **ACTIVO** permite
-   agregarle actividades.
-5. Presiona **Agregar actividad** y completa los datos generales: nombre,
-   tipo de actividad (Vacunación, Desparasitación, Vitaminización, Prueba
-   diagnóstica, Control ectoparasitario, Vigilancia epidemiológica,
-   Tratamiento preventivo u Otra actividad) y clasificación regulatoria
-   (Obligatorio SENASAG, Según campaña/riesgo, Recomendado o Configurable).
-6. En "Medicamento recomendado" indica el producto y el principio activo
-   (es solo informativo, no descuenta ningún inventario) e instrucciones
-   para quien la aplique.
-7. Define la dosis: tipo de cálculo (Fija por animal, Por peso, Según
-   indicación o No aplica) y, si corresponde, cantidad, unidad y peso de
-   referencia.
-8. Define la vía de administración y el lugar anatómico de aplicación.
-9. En "Elegibilidad", limita la actividad por categoría, sexo y rango de
-   edad, o déjala sin restricción. Podés marcar "Incluir animales con edad
-   desconocida" para no excluirlos por falta de dato.
-10. Elige la modalidad de programación (Por edad, Periódica, Fecha
-    programada, Por hallazgo o Manual) y completa los campos según la
-    modalidad: ventana de anticipación, frecuencia y desde cuándo se
-    calcula, fecha exacta, o los hallazgos que la disparan.
-11. Configura la alerta: hora prevista de ejecución, días de alerta y
-    horarios de aviso (hasta cinco, separados por coma), y marca si es
-    obligatoria.
-12. Presiona **Agregar actividad**.
+4. Cuando esté listo, presiona **Activar** y luego **Confirmar**. Si ya hay
+   otro plan activo con actividades del mismo tipo, verás un aviso: no te
+   impide activar, solo te advierte que las actividades podrían solaparse.
+
+**Agregar una actividad**
+
+5. En la fila del plan presiona **Agregar actividad**. Puedes hacerlo con el
+   plan en **BORRADOR** (para ir preparándolo) o ya **ACTIVO**.
+6. En **Datos generales** escribe el nombre, elige el tipo de actividad y
+   la clasificación regulatoria.
+7. En **Cuándo se programa** elige la modalidad y completa los campos que
+   aparecen según cuál sea.
+8. En **A quién aplica** limita la actividad por categoría, sexo y edad, o
+   déjala sin restricción.
+9. En **Medicamento recomendado** indica el producto, el principio activo y
+   las instrucciones (es solo informativo, no descuenta ningún inventario).
+10. En **Dosis** elige el tipo de cálculo y, si corresponde, la cantidad, la
+    unidad y el peso de referencia.
+11. En **Vía y lugar de aplicación** indica cómo y dónde se aplica.
+12. En **Alertas** define la hora prevista, cuántos días antes avisar y los
+    horarios de aviso.
+13. Presiona **Agregar actividad**. Si algún dato no cumple las reglas, el
+    botón queda bloqueado y el campo muestra debajo qué corregir.
+
+### Estados de un plan
+
+| Estado | Qué significa | Qué puedes hacer |
+| --- | --- | --- |
+| **BORRADOR** | El plan se está preparando. | Agregar y modificar actividades. Aún no genera calendario ni se ofrece en las jornadas. Puedes **Activarlo** o **Anularlo**. |
+| **ACTIVO** | El plan está vigente. | Agregar y modificar actividades. Genera el calendario y sus actividades se ofrecen al preparar una jornada. Puedes **Finalizarlo** o **Anularlo**. |
+| **FINALIZADO** | El plan cumplió su período. | Solo consultarlo. Ya no admite cambios en sus actividades. |
+| **ANULADO** | El plan se canceló. | Solo consultarlo. Ya no admite cambios en sus actividades. |
+
+Finalizar o anular un plan **no se puede deshacer**. Al hacerlo, el sistema
+cancela las fechas pendientes de sus actividades en el calendario y sus
+avisos. Lo que ya se aplicó queda registrado en el historial de cada animal.
+
+### Los campos del formulario «Nuevo plan»
+
+| Campo | Qué escribir | Reglas |
+| --- | --- | --- |
+| **Nombre** (obligatorio) | Un nombre que identifique el plan. Ej.: *Calendario sanitario 2026*. | Hasta 160 caracteres. |
+| **Fecha de inicio** (obligatorio) | Desde cuándo rige el plan. | También sirve de referencia para las actividades periódicas que se calculan "desde la fecha inicial del plan". |
+| **Fecha de fin** (opcional) | Hasta cuándo rige. | No puede ser anterior a la fecha de inicio: el calendario no deja elegirla y, si la escribes igual, ves "La fecha de fin no puede ser anterior a la fecha de inicio" y **Crear plan** queda bloqueado. |
+| **Descripción** (opcional) | El objetivo del plan. | Hasta 2000 caracteres. |
+
+El plan aplica a todas tus propiedades.
 
 ### Los campos del formulario «Agregar actividad»
 
-El formulario se divide en siete bloques. Los campos marcados como
-**obligatorio** siempre hay que completarlos; el resto es opcional.
+El formulario se divide en siete bloques, en este orden. Los campos marcados
+como **obligatorio** siempre hay que completarlos; el resto es opcional. La
+columna **Reglas** dice qué se revisa antes de dejarte guardar.
 
 #### Datos generales
 
-| Campo | Qué escribir |
-| --- | --- |
-| **Nombre de la actividad** (obligatorio) | Un nombre corto que identifique la actividad dentro del plan. Ej.: *Vacunación Fiebre Aftosa*. |
-| **Tipo de actividad** (obligatorio) | Qué hace la actividad: **Vacunación**, **Desparasitación**, **Vitaminización**, **Prueba diagnóstica**, **Control ectoparasitario**, **Vigilancia epidemiológica**, **Tratamiento preventivo** u **Otra actividad**. |
-| **Clasificación regulatoria** (obligatorio) | Por qué existe en el plan: **Obligatorio SENASAG**, **Según campaña/riesgo**, **Recomendado** o **Configurable**. Las obligatorias de SENASAG no se pueden desactivar sin justificar. |
-| **Descripción** (opcional) | El objetivo o contexto de la actividad, en tus palabras. |
+| Campo | Qué escribir | Reglas |
+| --- | --- | --- |
+| **Nombre de la actividad** (obligatorio) | Un nombre corto que identifique la actividad dentro del plan. Ej.: *Vacunación Fiebre Aftosa*. | Hasta 200 caracteres. |
+| **Tipo de actividad** (obligatorio) | Qué hace la actividad: **Vacunación**, **Desparasitación**, **Vitaminización**, **Prueba diagnóstica**, **Control ectoparasitario**, **Vigilancia epidemiológica**, **Tratamiento preventivo** u **Otra actividad**. | Empieza en **Vacunación**. Define dónde se puede usar: una jornada de vacunación solo ofrece actividades de tipo Vacunación. |
+| **Clasificación regulatoria** (obligatorio) | Por qué existe en el plan: **Obligatorio SENASAG**, **Según campaña/riesgo**, **Recomendado por veterinario** o **Configurable**. | Empieza vacía y hay que elegir una. Se muestra como una etiqueta de color junto al nombre en la tabla del plan. Es informativa: no cambia cuándo se programa ni impide aplicarla. |
+| **Actividad obligatoria** | Marca si la actividad no debería saltearse. | Si eliges **Obligatorio SENASAG** queda marcada y bloqueada. También es informativa. |
+| **Descripción** (opcional) | El objetivo o contexto de la actividad, en tus palabras. | Hasta 2000 caracteres. |
+
+#### Cuándo se programa
+
+Elige la **Modalidad** (obligatorio). Empieza en **Manual**; al cambiarla
+aparecen los campos propios de cada una.
+
+**Modalidad Por edad**
+
+Para una actividad que corresponde a una edad concreta del animal, por
+ejemplo desparasitar al destete. Cada animal tiene su propia fecha: su fecha
+de nacimiento más la edad objetivo.
+
+| Campo | Qué escribir | Reglas |
+| --- | --- | --- |
+| **Edad objetivo** (obligatorio) | La edad a la que corresponde. Ej.: *7*. | Número entero, 1 o más. |
+| **Unidad de la edad objetivo** | **Días**, **Meses** o **Años**. | Empieza en **Meses**. Un mes se cuenta como 30 días y un año como 365. |
+| **Ventana anticipada (días)** | Cuántos días antes de la fecha pasa a considerarse próxima a aplicar. | 0 o más. Empieza en 0. |
+| **Ventana posterior (días)** | Días de gracia después de la fecha. | 0 o más. Empieza en 0. Ver **Importante** más abajo. |
+| **Una sola vez en la vida del animal** | Evita repetirla a quien ya la recibió. | Marcada por defecto. Si el animal ya recibió esta actividad —incluso en una versión anterior o declarada por un proveedor— no se le vuelve a programar. Desmarcada, se programa aunque ya la tenga. |
+| **Excluir animales con fecha de nacimiento estimada** | Deja fuera a los animales cuya fecha de nacimiento no está confirmada. | Sin marcar, entran. |
+
+Los animales sin fecha de nacimiento nunca entran en esta modalidad, porque
+no se puede calcular su fecha.
+
+**Modalidad Periódica**
+
+Para una actividad que se repite cada cierto tiempo, por ejemplo la
+vacunación contra aftosa.
+
+| Campo | Qué escribir | Reglas |
+| --- | --- | --- |
+| **Frecuencia** (obligatorio) | Cada cuánto se repite. Ej.: *6*. | Número entero, 1 o más. Empieza en 90. |
+| **Unidad de frecuencia** | **Días**, **Semanas**, **Meses** o **Años**. | Empieza en **Días**. Una semana son 7 días, un mes 30 y un año 365. |
+| **Se calcula desde** | El punto de partida: **Fecha de ingreso** (a la finca), **Fecha de nacimiento**, **Última aplicación**, **Fecha inicial del plan** o **Fecha configurada**. | Empieza en **Última aplicación**: cuenta desde la última vez que se le aplicó esta actividad al animal y, si nunca se le aplicó, desde el día en que creaste la actividad. **Fecha configurada** también cuenta desde el día en que la creaste. |
+| **Tolerancia anticipada (días)** | Cuántos días antes de cada fecha pasa a considerarse próxima a aplicar. | 0 o más. Empieza en 0. |
+| **Tolerancia posterior (días)** | Días de gracia después de cada fecha. | 0 o más. Empieza en 0. Ver **Importante**. |
+
+El sistema agenda hasta 36 repeticiones por animal, dentro del período de
+**Proyección del calendario (meses)** (ver más abajo).
+
+**Modalidad Fecha programada**
+
+Para algo que se hace una sola vez en un día y hora concretos.
+
+| Campo | Qué escribir | Reglas |
+| --- | --- | --- |
+| **Fecha y hora programada** (obligatorio) | Cuándo se hace. | Se programa una sola vez. Para repetirla usa la modalidad **Periódica**. Solo se agenda si cae dentro del período de proyección del calendario. |
+
+**Modalidad Por hallazgo**
+
+Para una actividad que se dispara cuando se detecta algo, no por fecha.
+
+| Campo | Qué escribir | Reglas |
+| --- | --- | --- |
+| **Hallazgos que activan esta actividad** | Marca uno o más: **Caso clínico abierto**, **Control ectoparasitario con carga alta**, **Examen reproductivo no apto** o **Control neonatal con alerta**. | Hay que marcar al menos uno: si no, ves "Elige al menos un hallazgo que active la actividad" y el botón queda bloqueado. |
+| **Plazo para resolverlo (días)** | En cuántos días debería resolverse. | 0 o más. Opcional. |
+| **Requiere validación veterinaria** | Marca si un veterinario debe validarla. | Sin marcar por defecto. |
+
+**Modalidad Manual**
+
+No se agenda sola: se elige al preparar una jornada. No pide más datos y no
+genera fechas en el calendario.
+
+**Proyección del calendario (meses):** en la misma pestaña **Planes
+sanitarios** está este ajuste (entre 1 y 24 meses, por defecto 12). Define
+hasta cuántos meses hacia adelante el sistema agenda las fechas.
+
+#### A quién aplica
+
+| Campo | Qué escribir | Reglas |
+| --- | --- | --- |
+| **Categorías** | Marca una o varias categorías de animal. | Sin marcar aplica a todas. Debajo ves cuántas marcaste. |
+| **Sexo aplicable** | **Ambos**, **Macho** o **Hembra**. | Empieza en **Ambos**. |
+| **Unidad de edad** | **Días**, **Meses** o **Años** para los dos campos siguientes. | Empieza en **Meses**. |
+| **Desde** / **Hasta** | El rango de edad de los animales a los que corresponde. | Números enteros, 0 o más. **Hasta** debe ser igual o mayor que **Desde**; si no, ves "La edad máxima no puede ser menor que la mínima". Deja uno vacío para no limitar ese extremo. |
+| **Sin límite máximo** | Deja abierto el tope de edad. | Al marcarla, **Hasta** se desactiva. |
+| **Incluir animales con edad desconocida** | Deja entrar a los animales sin fecha de nacimiento. | Solo importa si pusiste un rango de edad. Sin marcar, esos animales quedan excluidos. |
+
+Debajo del rango ves una línea que confirma lo que se guardará, por ejemplo
+"Se guardará el rango de 180 a 240 días". La edad se evalúa en la **fecha de
+la actividad**, es decir, la edad que tendrá el animal ese día.
+
+> **La edad objetivo debe caber en el rango.** Si la actividad es **Por
+> edad**, el animal tiene exactamente la edad objetivo el día de la
+> actividad. Si esa edad queda fuera del rango de **Desde** y **Hasta**,
+> ningún animal sería elegible y la actividad nunca se programaría. Por eso
+> el formulario lo avisa (por ejemplo "La edad objetivo (210 días) supera la
+> edad máxima de los animales elegibles (180 días). Ajusta una de las dos")
+> y bloquea el botón hasta que lo corrijas.
 
 #### Medicamento recomendado (informativo, no es inventario)
 
-| Campo | Qué escribir |
-| --- | --- |
-| **Producto recomendado** | Nombre comercial del medicamento o la vacuna sugeridos. Ej.: *Ivermectina 1%*. |
-| **Principio activo** | El componente activo del producto. Ej.: *Ivermectina*. |
-| **Instrucciones del veterinario** | Indicaciones para quien la aplique. Ej.: *Pesar al animal o usar el último peso medido vigente*. |
+| Campo | Qué escribir | Reglas |
+| --- | --- | --- |
+| **Producto recomendado** | Nombre comercial del medicamento o la vacuna sugeridos. Ej.: *Ivermectina 1%*. | Hasta 300 caracteres. |
+| **Principio activo** | El componente activo del producto. Ej.: *Ivermectina*. | Hasta 200 caracteres. |
+| **Instrucciones del veterinario** | Indicaciones para quien la aplique. Ej.: *Pesar al animal o usar el último peso medido vigente*. | Hasta 2000 caracteres. Se copian a cada aplicación que registres. |
 
-Estos datos no descuentan ningún inventario: solo informan a la hora de
-preparar la jornada y de armar la planilla de campo.
+Estos datos no descuentan ningún inventario: solo informan al preparar la
+jornada y al armar la planilla de campo.
 
 #### Dosis
 
-Primero elegí el **Tipo de cálculo**:
+Primero elige el **Tipo de cálculo**:
 
 - **Fija por animal**: todos reciben la misma cantidad.
 - **Por peso**: la cantidad depende del peso de cada animal.
 - **Según indicación**: la define quien aplica, según la etiqueta o el veterinario.
-- **No aplica (sin medicamento)**: para actividades como vigilancia o controles; no se piden más datos.
+- **No aplica (sin medicamento)**: para actividades como vigilancia o
+  controles; no se piden más datos. Es la opción con la que empieza.
 
-| Campo | Qué escribir |
-| --- | --- |
-| **Cantidad** | La dosis en números. Ej.: *5*. Se muestra cuando el cálculo no es "No aplica". |
-| **Unidad** | ml, mg, g, tableta, dosis, gota, aplicación, ml por kg, ml por 10 kg, ml por 50 kg, mg por kg u otra. |
-| **Detalle de unidad** | Solo si elegiste la unidad "otra": cuál es. |
-| **Peso de referencia (kg)** (obligatorio si el cálculo es por peso) | El peso base sobre el que se calcula la dosis. Ej.: *100*. |
-| **Dosis mínima** (opcional) | Límite de seguridad hacia abajo. |
-| **Dosis máxima** (opcional) | Límite de seguridad hacia arriba. |
+| Campo | Qué escribir | Reglas |
+| --- | --- | --- |
+| **Cantidad** (obligatorio si el cálculo es **Por peso**) | La dosis en números. Ej.: *1*. | Mayor que 0. Si la dejas vacía en una dosis por peso, ves "La dosis por peso requiere una cantidad". |
+| **Unidad** | ml, mg, g, tableta, dosis, gota, aplicación, ml por kg, ml por 10 kg, ml por 50 kg, mg por kg u otra. | El formulario no la exige, pero elígela: sin unidad la dosis se muestra sin unidad. |
+| **Detalle de unidad** | Solo si elegiste la unidad "otra": cuál es. | Hasta 100 caracteres. |
+| **Peso de referencia (kg)** (obligatorio si el cálculo es **Por peso**) | El peso al que corresponde la cantidad. Ej.: *50*. | 0,1 o más. Con las unidades "ml por kg", "ml por 10 kg", "ml por 50 kg" y "mg por kg" se completa solo (1, 10 o 50) y no se puede cambiar. Con "ml", "mg" u otras lo escribes tú. |
+| **Dosis mínima** (opcional) | Límite hacia abajo. | Solo en dosis por peso. Mayor que 0. |
+| **Dosis máxima** (opcional) | Límite hacia arriba. | Solo en dosis por peso. Mayor que 0 y no menor que la mínima: si no, ves "La dosis máxima no puede ser menor que la mínima". |
+
+**Cómo se calcula la dosis por peso.** Al confirmar una jornada, el sistema
+calcula: cantidad × peso del animal ÷ peso de referencia. Después la ajusta
+al mínimo o al máximo si se pasa. Usa el peso medido registrado del animal y,
+si no tiene, el estimado. Si el animal no tiene ningún peso registrado, la
+jornada no puede calcular la dosis.
+
+Ejemplo: 1 ml por cada 50 kg (cantidad *1*, peso de referencia *50*), con
+mínimo *2* y máximo *10*:
+
+| Animal | Cálculo | Dosis |
+| --- | --- | --- |
+| Ternero de 180 kg | 1 × 180 ÷ 50 | 3,6 ml |
+| Ternero de 60 kg | 1 × 60 ÷ 50 = 1,2, por debajo del mínimo | 2 ml |
+| Novillo de 600 kg | 1 × 600 ÷ 50 = 12, por encima del máximo | 10 ml |
+
+> No pongas como peso de referencia el peso "típico" de tus animales. Debe
+> ser el peso al que corresponde la cantidad que escribiste, tal como dice
+> la etiqueta. Si la etiqueta dice "1 ml cada 50 kg", el peso de referencia
+> es 50, aunque tus terneros pesen 200.
 
 #### Vía y lugar de aplicación
 
-| Campo | Qué escribir |
-| --- | --- |
-| **Vía de administración** | Cómo se aplica: **Subcutánea**, **Intramuscular**, **Intravenosa**, **Oral**, **Tópica**, **Pour-on**, **Intranasal**, otra o no aplica. |
-| **Detalle de la vía** | Solo si elegiste "otra": cuál. |
-| **Lugar anatómico** | Dónde va la dosis: **Cuello**, **Tabla del cuello**, **Región escapular**, **Lomo**, **Línea dorsal**, **Boca**, **Fosa nasal**, **Todo el cuerpo**, otro o no aplica. |
-| **Detalle del lugar** | Solo si elegiste "otro": cuál. |
+| Campo | Qué escribir | Reglas |
+| --- | --- | --- |
+| **Vía de administración** | Cómo se aplica: **Subcutánea**, **Intramuscular**, **Intravenosa**, **Oral**, **Tópica**, **Pour-on**, **Intranasal**, **Otra** o **No aplica**. | Opcional. |
+| **Detalle de la vía** | Solo si elegiste **Otra**: cuál. | Obligatorio en ese caso. Hasta 100 caracteres. |
+| **Lugar anatómico** | Dónde va la dosis: **Cuello**, **Tabla del cuello**, **Región escapular**, **Lomo**, **Línea dorsal**, **Boca**, **Fosa nasal**, **Todo el cuerpo**, **Otro** o **No aplica**. | Ver la tabla siguiente. |
+| **Detalle del lugar** | Solo si elegiste **Otro**: cuál. | Obligatorio en ese caso. Hasta 100 caracteres. |
 
-#### Elegibilidad
+La vía y el lugar tienen que ser compatibles:
 
-| Campo | Qué escribir |
-| --- | --- |
-| **Categoría** | La categoría de animal a la que aplica. Dejá **Todas** si es para todo el hato. |
-| **Sexo aplicable** | **Ambos**, **Macho** o **Hembra**. |
-| **Edad de aplicación** | El rango de edad en la unidad que prefieras (**Días**, **Meses** o **Años**): completá **Desde** y **Hasta**, o marcá **Sin límite máximo** para dejar el tope abierto. El campo **Hasta** debe ser igual o mayor que **Desde**. |
-| **Incluir animales con edad desconocida** | Marcada, los animales sin fecha de nacimiento entran igual y no se les valida el rango de edad. Sin marcar, quedan excluidos. |
+| Si la vía es… | El lugar debe ser… | Si no, ves… |
+| --- | --- | --- |
+| **Subcutánea**, **Intramuscular** o **Intravenosa** | Cualquiera menos "No aplica"; es obligatorio elegirlo. | "Una vía inyectable requiere indicar el lugar anatómico". |
+| **Oral** | **Boca**, **No aplica** o ninguno. | "La vía oral solo admite «Boca» o «No aplica» como lugar". |
+| **Pour-on** | **Línea dorsal**, **Lomo** o ninguno. | "Pour-on solo admite «Línea dorsal» o «Lomo» como lugar". |
+| **Otra** | Cualquiera, pero pide el detalle de la vía. | "Indica el detalle de la vía". |
 
-#### Modalidad de programación
-
-Define cuándo corresponde hacer la actividad:
-
-| Modalidad | Qué significa y qué datos pide |
-| --- | --- |
-| **Por edad** | Se agenda según la edad del animal. Pide **Edad objetivo (días)** (obligatorio), la **Ventana anticipada** y la **Ventana posterior** en días (cuántos antes/después de esa edad se acepta aplicar) y si se quieren **Excluir animales con fecha de nacimiento estimada**. |
-| **Periódica** | Se repite cada cierto tiempo. Pide **Frecuencia** (número, ej.: *90*), su **Unidad** (días, semanas, meses o años), **Se calcula desde** (Fecha de ingreso, Fecha de nacimiento, Última aplicación, Fecha inicial del plan o Fecha configurada) y la tolerancia anticipada y posterior en días. |
-| **Fecha programada** | Se hace una vez en una fecha y hora fijas. Pide **Fecha y hora programada** (obligatorio) y si es **Una sola vez** (marcado por defecto). |
-| **Por hallazgo** | Se activa cuando se detecta un hallazgo (caso clínico abierto, ectoparásitos con carga alta, examen reproductivo no apto o control neonatal con alerta). Pide el **Plazo para resolverlo (días)** y si **Requiere validación veterinaria**. |
-| **Manual** | No se agenda sola: la dispara quien registra la jornada. No pide datos extra. |
+Si eliges **Otro** como lugar, siempre hay que escribir el detalle
+("Indica el detalle del lugar"), aunque no hayas elegido vía.
 
 #### Alertas
 
-| Campo | Qué escribir |
-| --- | --- |
-| **Hora prevista de ejecución** (obligatorio) | A qué hora del día se hace la actividad, en hora de Bolivia. Por defecto 08:00. |
-| **Días de alerta** | Cuántos días antes se avisa. Ej.: *3* = aviso 3 días antes; 0 = sin aviso anticipado. |
-| **Horarios de aviso** (obligatorio) | Hasta cinco horas separadas por coma. Ej.: *06:00, 07:00, 08:00*. |
-| **Actividad obligatoria** | Marcada si la actividad no se puede saltear sin justificación. |
+| Campo | Qué escribir | Reglas |
+| --- | --- | --- |
+| **Hora prevista de ejecución** (obligatorio) | A qué hora del día se hace la actividad, en hora de Bolivia. | Formato hora:minutos. Empieza en 08:00. |
+| **Días de alerta** | Cuántos días antes se avisa. Ej.: *7* = aviso una semana antes; *0* = el mismo día. | 0 o más. Empieza en 0. |
+| **Horarios de aviso** (obligatorio) | Las horas del día en que quieres el aviso, separadas por coma. Ej.: *07:00, 08:00*. | Entre 1 y 5 horas, sin repetir. Formato hora:minutos. Empieza en 08:00. |
 
-> Al editar una actividad que ya se usó, el formulario muestra además
-> **Motivo del cambio** y **Vigente desde**. Ver "Importante" más abajo.
+**Cómo se avisa.** Ganadero crea **un solo aviso por fecha y lugar**, no uno
+por animal: si la actividad corresponde a 60 animales de un mismo potrero,
+verás un aviso que indica cuántos animales alcanza. El aviso sale los **días
+de alerta** antes de la fecha, a la hora más temprana de la lista; la lista
+completa queda registrada junto con el aviso.
+
+#### Solo al editar una actividad
+
+Cuando editas una actividad ya guardada, el formulario agrega dos campos al
+final:
+
+| Campo | Qué escribir | Reglas |
+| --- | --- | --- |
+| **Motivo del cambio** | Por qué haces el cambio. Ej.: *Cambio de protocolo del veterinario*. | Hasta 500 caracteres. Pasa a ser obligatorio si la actividad ya se usó (ver más abajo). |
+| **Vigente desde** | Desde qué fecha y hora rige la nueva versión. | Pasa a ser obligatorio si la actividad ya se usó. |
+
+### Avisos del formulario
+
+Mientras completas el formulario, el botón **Agregar actividad** (o
+**Guardar cambios**) se bloquea si algo no cumple las reglas, y el campo
+afectado muestra debajo qué corregir. Estos son los avisos más comunes:
+
+| Aviso | Qué pasó | Cómo se resuelve |
+| --- | --- | --- |
+| La edad objetivo supera la edad máxima (o es menor que la mínima) de los animales elegibles | En una actividad **Por edad**, la edad objetivo queda fuera del rango de **A quién aplica**. | Cambia la edad objetivo o amplía el rango. |
+| La edad máxima no puede ser menor que la mínima | En el rango de edad, **Hasta** es menor que **Desde**. | Corrige uno de los dos. |
+| Una vía inyectable requiere indicar el lugar anatómico | Elegiste una vía inyectable y no un lugar. | Elige el lugar (por ejemplo **Tabla del cuello**). |
+| La vía oral / Pour-on solo admite… | El lugar no es compatible con la vía. | Cambia el lugar o la vía. |
+| Indica el detalle de la vía / del lugar | Elegiste **Otra** o **Otro** y no escribiste cuál. | Escribe el detalle. |
+| La dosis por peso requiere una cantidad | La dosis es **Por peso** y falta la cantidad. | Escribe la cantidad. |
+| La dosis máxima no puede ser menor que la mínima | El máximo es menor que el mínimo. | Corrige uno de los dos. |
+| Elige al menos un hallazgo que active la actividad | La modalidad es **Por hallazgo** y no marcaste ninguno. | Marca al menos uno. |
+
+Si intentas agregar una actividad a un plan **FINALIZADO** o **ANULADO**,
+el sistema lo rechaza: esos planes ya no admiten cambios.
+
+### Qué pasa después de guardar la actividad
+
+1. **Aparece en la tabla del plan.** Ves su nombre con la clasificación, la
+   modalidad, el medicamento, la dosis, la vía y lugar, la alerta, la versión
+   (v1, v2…) y su estado (**ACTIVO** o **INACTIVO**). Para verla, abre el
+   plan con la flecha que está a la izquierda de su nombre.
+2. **Se agenda en el calendario** (solo las modalidades **Por edad**,
+   **Periódica** y **Fecha programada**, y solo si el plan está **ACTIVO**).
+   No es instantáneo: si tienes Google Calendar conectado y la
+   sincronización automática activa, Ganadero Desktop actualiza el calendario
+   cada minuto; si no, lo actualiza en la madrugada (a las 00:10), mientras
+   la aplicación esté en ejecución, o cuando sincronizas manualmente con Google Calendar. Las fechas aparecen en **Sanidad** →
+   **Calendario**.
+3. **Genera avisos.** Un aviso por fecha y lugar, como se explicó en
+   **Alertas**.
+4. **Se ofrece en las jornadas.** Al preparar una jornada del mismo tipo
+   aparece en la lista solo si el plan está **ACTIVO** y la actividad está
+   activa. Ahí el sistema vuelve a comprobar, animal por animal, categoría,
+   sexo y edad, y te explica en **Excluidos** por qué alguno no entra.
+
+### Editar, desactivar y versiones
+
+- **Editar.** En la fila de la actividad presiona el lápiz (**Editar
+  actividad**). El formulario se abre con los datos guardados de la
+  actividad, incluidos los de su modalidad. Solo se pueden editar
+  actividades de planes en **BORRADOR** o **ACTIVO**.
+- **Si la actividad nunca se usó**, los cambios se guardan sobre la misma
+  actividad.
+- **Si ya se usó** (tiene fechas en el calendario o aplicaciones) y cambias
+  algo que altera lo que se aplica o a quién, el sistema **no sobrescribe**:
+  crea una **versión nueva**. Pide entonces el **Motivo del cambio** y
+  **Vigente desde**; si los dejas vacíos, te avisa "Esta actividad ya se
+  usó: indica el motivo del cambio" y los marca como obligatorios.
+- **Qué crea una versión nueva:** cambiar el nombre, el tipo, la modalidad o
+  sus datos, el medicamento, la dosis (incluido el peso de referencia), la
+  vía, el lugar, la categoría, el sexo, el rango de edad, **Incluir animales
+  con edad desconocida**, las instrucciones o las alertas.
+- **Qué no la crea:** cambiar la descripción, la clasificación regulatoria o
+  **Actividad obligatoria**. Esos cambios se guardan directamente.
+- **Qué pasa con el calendario al crear una versión.** Las fechas pendientes
+  de la versión anterior se cancelan y la nueva versión las vuelve a
+  generar con sus datos, para que ningún animal tenga la misma actividad
+  programada dos veces. Lo ya aplicado y lo ya vencido se conserva en la
+  versión anterior. En la tabla del plan ves siempre la versión vigente.
+- **Desactivar.** El ícono de encendido (**Desactivar actividad**) deja la
+  actividad en **INACTIVO**. El sistema pide confirmación y cancela sus
+  fechas pendientes del calendario. Al **Activar** de nuevo, recupera las
+  fechas pendientes que todavía no habían vencido.
 
 ### Ejemplo
 
-- Plan: Calendario sanitario 2026
-- Actividad: Vacunación Fiebre Aftosa
-- Clasificación: Obligatorio SENASAG
-- Producto recomendado: Vacuna antiaftosa trivalente
-- Dosis: Fija por animal, 2 ml
-- Vía: Subcutánea · Lugar: Tabla del cuello
-- Modalidad: Periódica, cada 4 meses, calculada desde la última aplicación
-- Alerta: 3 días antes, avisos a las 06:00 y 07:00
+**Desparasitación de terneros al destete (modalidad Por edad)**
+
+- Plan: Calendario sanitario 2026 (estado **ACTIVO**)
+- **Nombre de la actividad:** Desparasitación al destete
+- **Tipo de actividad:** Desparasitación
+- **Clasificación regulatoria:** Recomendado por veterinario · sin marcar
+  obligatoria
+- **Modalidad:** Por edad · **Edad objetivo:** 7 · **Unidad:** Meses
+- **Ventana anticipada:** 15 días · **Ventana posterior:** 30 días
+- **Una sola vez en la vida del animal:** marcada
+- **Categorías:** las categorías de terneros de tu finca · **Sexo:** Ambos
+- **Edad de los animales elegibles:** Desde 6 hasta 8 meses (queda en 180 a
+  240 días, y 7 meses son 210 días, así que cabe)
+- **Producto recomendado:** Ivermectina 1% · **Principio activo:**
+  Ivermectina
+- **Instrucciones:** Pesar al animal antes de aplicar
+- **Tipo de cálculo:** Por peso · **Cantidad:** 1 · **Unidad:** ml por 50 kg
+  (el peso de referencia queda en 50) · **Dosis mínima:** 2 · **Dosis
+  máxima:** 10
+- **Vía:** Subcutánea · **Lugar:** Región escapular
+- **Hora prevista:** 08:00 · **Días de alerta:** 7 · **Horarios de aviso:**
+  07:00, 08:00
+
+Qué hace el sistema con esa actividad:
+
+- Un ternero nacido el 01/03/2026 cumple 7 meses (210 días) el 27/09/2026.
+  Desde el 12/09/2026 figura como próximo a aplicar y el aviso sale el
+  20/09/2026 a las 07:00.
+- Una ternera de 3 meses tiene su fecha más adelante: queda agendada, y
+  pasa a "próxima" 15 días antes.
+- Un novillo de 3 años no recibe nada: su fecha ya pasó antes de que crearas
+  la actividad.
+- Un animal sin fecha de nacimiento, o uno que ya recibió esta
+  desparasitación, tampoco.
+- Un intento de guardar con **Edad objetivo** de 7 meses y elegibles solo
+  hasta 6 meses se bloquea con el aviso de edad.
+
+**Vacunación contra aftosa (modalidad Periódica)**
+
+- **Nombre de la actividad:** Vacunación Fiebre Aftosa
+- **Tipo de actividad:** Vacunación · **Clasificación regulatoria:**
+  Obligatorio SENASAG (la casilla de obligatoria queda marcada sola)
+- **Modalidad:** Periódica · **Frecuencia:** 6 · **Unidad:** Meses ·
+  **Se calcula desde:** Fecha inicial del plan
+- **Tolerancia anticipada:** 15 días · **Tolerancia posterior:** 30 días
+- **Producto recomendado:** Vacuna antiaftosa
+- **Tipo de cálculo:** Fija por animal · **Cantidad:** 2 · **Unidad:** ml
+- **Vía:** Subcutánea · **Lugar:** Tabla del cuello
+- **Hora prevista:** 08:00 · **Días de alerta:** 3 · **Horarios de aviso:**
+  06:00, 07:00
+
+Las fechas y la dosis de las campañas las define SENASAG y el fabricante:
+confirma siempre el calendario vigente y la etiqueta del producto antes de
+cargarlos.
 
 ### Resultado esperado
 
-La actividad queda activa dentro del plan. A partir de ahí puede elegirse al
-preparar una jornada sanitaria de ese tipo. El sistema proyecta las próximas
-fechas y genera **una alerta por fecha programada**, no una por animal: si la
-actividad corresponde a 60 animales, verás un solo aviso que indica cuántos
-animales alcanza. La prioridad de esa alerta sube a medida que se acerca la
-fecha.
+La actividad queda **ACTIVA** dentro del plan, en la versión 1. Desde ese
+momento el sistema proyecta las próximas fechas para los animales elegibles
+y genera **un aviso por fecha y lugar**, no uno por animal. La actividad
+puede elegirse al preparar una jornada del mismo tipo, mientras el plan esté
+**ACTIVO**.
 
 ### Importante
 
-> Si editás una actividad que ya fue usada en alguna jornada o tratamiento,
-> el sistema no sobrescribe los datos anteriores: crea una nueva versión
-> (indicá el motivo del cambio). Las versiones anteriores quedan visibles
-> en **Versiones**, para saber exactamente qué se aplicó en cada momento.
+> Las **ventanas y tolerancias posteriores** no atrasan el momento en que
+> una fecha se marca como **vencida**: una fecha pasa a vencida cuando
+> llega el día previsto. Sirven para decidir si al crear la actividad se
+> agenda una fecha que ya pasó. Las **anticipadas** sí adelantan el momento
+> en que la actividad pasa a considerarse próxima.
+
+> Si aplicas una actividad después de su fecha prevista, la aplicación
+> queda registrada en el historial del animal, pero la fecha en el
+> calendario sigue marcada como vencida.
+
+> Al crear una actividad, el sistema no agenda fechas que ya habían pasado
+> antes de que la actividad existiera: así el calendario no se llena de
+> fechas vencidas del pasado. Si una fecha se venció estando la actividad
+> ya vigente, esa sí queda registrada como vencida.
+
+> La clasificación regulatoria y **Actividad obligatoria** son solo
+> informativas: no impiden desactivar la actividad ni aplicarla.
+
+> Si editas una actividad que ya fue usada, el sistema no sobrescribe los
+> datos anteriores: crea una nueva versión (indica el motivo del cambio)
+> para saber exactamente qué se aplicó en cada momento.
 
 ### Edades mínimas para examen reproductivo
 
@@ -697,8 +973,35 @@ recordatorio propio de Google.
 
 ### No puedo agregar actividades a un plan
 
-El plan debe estar en estado **Activo**. Si está en Borrador, presiona
-**Activar** primero.
+Solo se pueden agregar actividades a planes en **BORRADOR** o **ACTIVO**. Si
+el plan está **FINALIZADO** o **ANULADO**, ya no admite cambios: crea un plan
+nuevo. Si el plan está en borrador o activo y aun así no ves el botón
+**Agregar actividad**, revisa que tengas el permiso para administrar planes
+sanitarios.
+
+### El botón «Agregar actividad» está bloqueado
+
+Algún dato no cumple las reglas del formulario. Busca el campo que muestra un
+mensaje en rojo debajo y corrígelo (ver **Avisos del formulario** en "Plan
+sanitario"). Los casos más comunes: una vía inyectable sin lugar anatómico,
+una dosis por peso sin cantidad, una edad objetivo fuera del rango de edad de
+los animales elegibles, o una actividad por hallazgo sin ningún hallazgo
+marcado.
+
+### La edad objetivo me marca error aunque el rango parece correcto
+
+La edad objetivo y el rango de **A quién aplica** se comparan en días: un mes
+cuenta como 30 días y un año como 365, aunque los hayas escrito en unidades
+distintas. Por ejemplo, 7 meses son 210 días y no caben en un rango de "hasta
+6 meses" (180 días). Revisa la línea que aparece debajo del rango, que indica
+cuántos días se guardarán, y ajusta la edad objetivo o el rango.
+
+### Al guardar una edición me pide el motivo del cambio y desde cuándo rige
+
+La actividad ya se usó (tiene fechas en el calendario o aplicaciones) y lo que
+cambiaste altera lo que se aplica o a quién, así que el sistema crea una
+**versión nueva** en vez de sobrescribir la anterior. Completa **Motivo del
+cambio** y **Vigente desde** y vuelve a presionar **Guardar cambios**.
 
 ### No puedo presionar "Registrar examen reproductivo"
 
@@ -727,8 +1030,9 @@ la aplicación de escritorio.
 
 ### Al preparar una jornada, no aparece ninguna actividad para elegir
 
-No existe una actividad **activa** del tipo de jornada que elegiste. Creála
-primero en **Planes sanitarios**.
+No existe una actividad **activa** del tipo de jornada que elegiste, o está en
+un plan que todavía no está **ACTIVO**. Créala, o activa el plan, en **Planes
+sanitarios**.
 
 ### Edité una jornada y tengo que volver a elegir los animales
 
@@ -773,13 +1077,51 @@ programada** si necesitás que se sincronicen.
 
 ### Una actividad no aparece en el Calendario aunque está activa
 
-Puede que su fecha prevista quede más adelante que la ventana configurada
-en "Proyección del calendario (meses)" (**Sanidad** → **Planes
-sanitarios**). Ampliá esa ventana o esperá a que la fecha entre en rango.
+Revisa estas causas, de la más común a la menos común:
+
+- **El plan no está ACTIVO.** Los planes en borrador no generan calendario.
+- **Su modalidad es Manual o Por hallazgo.** Esas no generan fechas
+  automáticas.
+- **Todavía no se actualizó el calendario.** Con Google Calendar conectado y
+  la sincronización automática activa, tarda cerca de un minuto; si no, se
+  actualiza en la madrugada, mientras la aplicación esté en ejecución.
+- **Su fecha queda más adelante** que el período de "Proyección del
+  calendario (meses)" (**Sanidad** → **Planes sanitarios**). Amplía ese
+  período o espera a que la fecha entre en rango.
+- **Los animales no cumplen** la categoría, el sexo o el rango de edad de la
+  actividad. Además, en una actividad **Por edad** el animal debe tener fecha
+  de nacimiento (y no ser una fecha estimada si marcaste excluirlas).
+- **El animal ya recibió la actividad** y tiene marcado **Una sola vez en la
+  vida del animal**.
+- **Su fecha ya había pasado** antes de que crearas la actividad: esas
+  fechas no se agendan.
+
+### Finalicé o anulé un plan y desaparecieron fechas del calendario
+
+Es lo esperado: al finalizar o anular un plan se cancelan las fechas
+pendientes de sus actividades y sus avisos, y el plan queda solo para
+consulta. Lo que ya se aplicó sigue en el historial de cada animal. No se
+puede deshacer; si fue un error, crea un plan nuevo con las mismas
+actividades.
+
+### Desactivé una actividad y sus fechas desaparecieron del calendario
+
+También es lo esperado: al desactivar una actividad se cancelan sus fechas
+pendientes. Si la vuelves a **Activar**, recupera las que todavía no habían
+vencido.
+
+### Apliqué una actividad y en el calendario sigue como vencida
+
+Si aplicas una actividad después de su fecha prevista, la aplicación queda
+registrada correctamente en el historial del animal, pero la fecha en el
+calendario sigue marcada como vencida. Para saber qué recibió un animal, guíate
+por su historial sanitario.
 
 ### Edité un ítem del plan que ya se había usado y no veo el cambio reflejado en jornadas anteriores
 
 Es el comportamiento esperado: el sistema crea una nueva versión del ítem
 en lugar de sobrescribir la anterior, para conservar exactamente lo que se
 aplicó en cada jornada o tratamiento pasado. La versión nueva se usa desde
-la fecha de vigencia que indiques hacia adelante.
+la fecha de vigencia que indiques hacia adelante. Las fechas pendientes de
+la versión anterior se cancelan y la nueva las vuelve a generar, para que
+ningún animal quede con la misma actividad programada dos veces.

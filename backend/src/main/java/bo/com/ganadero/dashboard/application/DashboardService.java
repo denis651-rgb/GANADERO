@@ -62,10 +62,6 @@ public class DashboardService {
         if (potrerosInactivos > 0) {
             alertas.add(new DashboardResumen.AlertaBasica("POTREROS_INACTIVOS", "Potreros inactivos", "info", potrerosInactivos));
         }
-        long lotesCerrados = repository.countLotesCerrados(empresa, todas, permitidas);
-        if (lotesCerrados > 0) {
-            alertas.add(new DashboardResumen.AlertaBasica("LOTES_CERRADOS", "Lotes cerrados", "info", lotesCerrados));
-        }
         return alertas;
     }
 }

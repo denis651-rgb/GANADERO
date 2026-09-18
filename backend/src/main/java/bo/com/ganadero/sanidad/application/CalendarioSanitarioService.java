@@ -17,10 +17,12 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -50,7 +52,6 @@ import java.util.UUID;
 public class CalendarioSanitarioService {
     private static final ZoneId ZONA = ZoneId.of("America/La_Paz");
     private static final UUID EMPRESA_LOCAL = UUID.fromString("00000000-0000-0000-0000-000000000001");
-    private static final int LIMITE_ANIMALES = 500;
     private static final int HORIZONTE_DEFAULT_MESES = 12;
     /** Tope de seguridad por actividad+animal en una sola corrida, para que una frecuencia muy corta no dispare miles de filas. */
     private static final int MAX_CICLOS_PERIODICA = 36;
@@ -121,14 +122,18 @@ public class CalendarioSanitarioService {
         int generados = 0;
         Map<UUID, OcurrenciaProgramada> programadas = new LinkedHashMap<>();
         LocalDate limite = hoy.plusMonths(horizonteMeses);
+        Set<UUID> yaLaRecibieron = cfg.unaVezEnLaVida() ? animalesQueYaRecibieron(item) : Set.of();
         for (CandidatoAnimal a : candidatos(item, plan.propiedadId())) {
             if (a.fechaNacimiento() == null) continue; // EXCLUIR e INCLUIR_MANUAL ambos evitan la generación automática
             if (a.fechaNacimientoEstimada() && cfg.politicaEdadEstimada() == PoliticaEdadEstimada.EXCLUIR) continue;
+            if (yaLaRecibieron.contains(a.animalId())) continue; // «una sola vez en la vida»: no se vuelve a programar
             int edadObjetivoDias = aDias(cfg.edadObjetivoValor(), cfg.edadUnidad());
             LocalDate fechaObjetivo = a.fechaNacimiento().plusDays(edadObjetivoDias);
             if (fechaObjetivo.isAfter(limite)) continue; // fuera del horizonte de proyección
             LocalDate ventanaDesde = fechaObjetivo.minusDays(cfg.ventanaAnticipadaDias());
             LocalDate ventanaHasta = fechaObjetivo.plusDays(cfg.ventanaPosteriorDias());
+            if (ventanaCerradaAntesDeLaVigencia(item, ventanaHasta)) continue;
+            if (!edadElegible(item, a, fechaObjetivo)) continue;
             String ciclo = "EDAD:" + edadObjetivoDias;
             Instant fechaPrevista = fechaObjetivo.atTime(item.horaEjecucion()).atZone(ZONA).toInstant();
             acumular(programadas, crear(item, a, ciclo, fechaPrevista, ventanaDesde.atStartOfDay(ZONA).toInstant(),
@@ -137,6 +142,38 @@ public class CalendarioSanitarioService {
         }
         programarAlertas(item, programadas.values());
         return generados;
+    }
+
+    /**
+     * Animales que ya recibieron esta actividad, en cualquiera de sus versiones (misma identidad
+     * lógica): editar una actividad ya usada crea otra fila con otro id, y sin este cruce el
+     * calendario volvería a programarla para todo el hato. Cuenta lo aplicado en finca y lo
+     * declarado por el proveedor (ambos son {@code aplicacion_sanitaria} vinculada al item); una
+     * aplicación anulada no cuenta porque el animal, en realidad, no la recibió.
+     */
+    private Set<UUID> animalesQueYaRecibieron(PlanSanitarioItem item) {
+        return new HashSet<>(jdbc.sql("""
+                select distinct a.animal_id from aplicacion_sanitaria a
+                join plan_sanitario_item i on i.id = a.plan_item_id
+                where i.identidad_logica_id = :identidad and a.estado = 'APLICADO'
+                """).param("identidad", item.identidadLogicaId().toString())
+                .query((r, n) -> UUID.fromString(r.getString("animal_id"))).list());
+    }
+
+    /**
+     * Sin eventos retroactivos: si la ventana de una fecha se cerró antes de que la actividad
+     * existiera en el plan, nada se debía bajo ese plan y generarla sólo llenaría el calendario de
+     * vencidos (p. ej. «a los 7 meses» agregada a un hato adulto). Si la ventana se cerró estando
+     * la actividad vigente sí se genera, y queda VENCIDO como un incumplimiento real.
+     */
+    private boolean ventanaCerradaAntesDeLaVigencia(PlanSanitarioItem item, LocalDate ventanaHasta) {
+        return ventanaHasta.isBefore(item.vigenteDesde().atZone(ZONA).toLocalDate());
+    }
+
+    /** Aplica «Edad de los animales elegibles» a la edad que tendría el animal en la fecha del evento. */
+    private boolean edadElegible(PlanSanitarioItem item, CandidatoAnimal a, LocalDate fechaEvento) {
+        return ReglasSanitarias.motivosEdad(a.fechaNacimiento(), fechaEvento, item.edadMinDias(), item.edadMaxDias(),
+                item.permiteEdadDesconocida()).isEmpty();
     }
 
     private int procesarPeriodica(PlanSanitarioItem item, PlanSanitario plan, LocalDate hoy, int horizonteMeses) {
@@ -157,6 +194,8 @@ public class CalendarioSanitarioService {
                 if (proxima.isAfter(limite)) break; // ciclos futuros son estrictamente crecientes
                 LocalDate ventanaDesde = proxima.minusDays(cfg.toleranciaAnticipadaDias());
                 LocalDate ventanaHasta = proxima.plusDays(cfg.toleranciaPosteriorDias());
+                if (ventanaCerradaAntesDeLaVigencia(item, ventanaHasta)) continue;
+                if (!edadElegible(item, a, proxima)) continue;
                 String claveCiclo = "PERIODO:" + proxima;
                 Instant fechaPrevista = proxima.atTime(item.horaEjecucion()).atZone(ZONA).toInstant();
                 acumular(programadas, crear(item, a, claveCiclo, fechaPrevista, ventanaDesde.atStartOfDay(ZONA).toInstant(),
@@ -195,6 +234,7 @@ public class CalendarioSanitarioService {
         int generados = 0;
         Map<UUID, OcurrenciaProgramada> programadas = new LinkedHashMap<>();
         for (CandidatoAnimal a : candidatos(item, plan.propiedadId())) {
+            if (!edadElegible(item, a, fechaDate)) continue;
             String ciclo = "FECHA:" + fechaDate;
             acumular(programadas, crear(item, a, ciclo, cfg.fechaProgramada(), cfg.fechaProgramada(),
                     cfg.fechaProgramada(), fechaDate, hoy, ModalidadActividad.FECHA_PROGRAMADA));
@@ -302,7 +342,7 @@ public class CalendarioSanitarioService {
             sql.append(" and a.categoria_actual_id in (:categorias)");
             params.put("categorias", item.categoriasAplicables().stream().map(UUID::toString).toList());
         }
-        sql.append(" limit ").append(LIMITE_ANIMALES);
+        sql.append(" order by a.id");
         var q = jdbc.sql(sql.toString());
         for (var e : params.entrySet()) q = q.param(e.getKey(), e.getValue());
         return q.query(this::mapCandidato).list();
@@ -318,11 +358,7 @@ public class CalendarioSanitarioService {
     }
 
     private int aDias(int valor, UnidadEdadActividad unidad) {
-        return switch (unidad) {
-            case DIAS -> valor;
-            case MESES -> valor * 30;
-            case ANIOS -> valor * 365;
-        };
+        return unidad.aDias(valor);
     }
 
     private int aDiasFrecuencia(int valor, UnidadFrecuencia unidad) {

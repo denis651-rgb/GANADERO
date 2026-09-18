@@ -6,12 +6,36 @@ import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import java.time.*;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /** Reglas de registro: no sustituyen la evaluación ni la prescripción veterinaria. */
 final class ReglasSanitarias {
     static final ZoneId ZONA = ZoneId.of("America/La_Paz");
     private ReglasSanitarias() {}
+
+    /**
+     * Motivos por los que la edad del animal en {@code fecha} no cumple el rango de la actividad
+     * («Edad de los animales elegibles»); vacío si cumple. Es el único criterio de edad: lo usan
+     * tanto la elegibilidad al preparar la jornada como la generación del calendario, para que
+     * el calendario no programe lo que la jornada luego rechazaría.
+     */
+    static List<String> motivosEdad(LocalDate fechaNacimiento, LocalDate fecha, Integer edadMinDias,
+                                    Integer edadMaxDias, boolean permiteEdadDesconocida) {
+        List<String> motivos = new ArrayList<>();
+        Long edad = fechaNacimiento == null ? null : ChronoUnit.DAYS.between(fechaNacimiento, fecha);
+        if ((edadMinDias != null || edadMaxDias != null) && edad == null && !permiteEdadDesconocida) {
+            motivos.add("El animal no tiene fecha de nacimiento para validar su edad.");
+        }
+        if (edad != null && edadMinDias != null && edad < edadMinDias) {
+            motivos.add("Tiene " + edad + " días; la actividad requiere al menos " + edadMinDias + " días.");
+        }
+        if (edad != null && edadMaxDias != null && edad > edadMaxDias) {
+            motivos.add("Tiene " + edad + " días; la actividad permite como máximo " + edadMaxDias + " días.");
+        }
+        return motivos;
+    }
 
     static void exigir(boolean condicion, String mensaje) {
         if (!condicion) throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, mensaje);

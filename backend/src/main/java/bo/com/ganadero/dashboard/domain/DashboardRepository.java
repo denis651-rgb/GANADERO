@@ -27,8 +27,6 @@ public interface DashboardRepository {
 
     long countPotrerosInactivos(UUID empresa, boolean todas, Set<UUID> permitidas);
 
-    long countLotesCerrados(UUID empresa, boolean todas, Set<UUID> permitidas);
-
     List<DashboardResumen.Distribucion> animalesPorCategoria(UUID empresa, boolean todas, Set<UUID> permitidas);
 
     List<DashboardResumen.Distribucion> animalesPorPotrero(UUID empresa, boolean todas, Set<UUID> permitidas);

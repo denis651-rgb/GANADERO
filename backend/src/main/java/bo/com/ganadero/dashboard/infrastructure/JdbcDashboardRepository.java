@@ -90,11 +90,6 @@ public class JdbcDashboardRepository implements DashboardRepository {
     }
 
     @Override
-    public long countLotesCerrados(UUID empresa, boolean todas, Set<UUID> permitidas) {
-        return count("select count(*) from lote_ganadero where estado='CERRADO'");
-    }
-
-    @Override
     public List<DashboardResumen.Distribucion> animalesPorCategoria(UUID empresa, boolean todas, Set<UUID> permitidas) {
         return distribucion("""
                 select coalesce(c.nombre,'Sin categoría') as nombre, count(*) as total

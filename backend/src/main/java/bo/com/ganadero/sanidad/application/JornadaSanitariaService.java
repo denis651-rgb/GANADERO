@@ -266,15 +266,8 @@ public class JornadaSanitariaService {
         }
         Long edad = null;
         if (a.fechaNacimiento() != null) edad = ChronoUnit.DAYS.between(a.fechaNacimiento(), fecha);
-        if ((i.edadMinDias() != null || i.edadMaxDias() != null) && edad == null && !i.permiteEdadDesconocida()) {
-            motivos.add("El animal no tiene fecha de nacimiento para validar su edad.");
-        }
-        if (edad != null && i.edadMinDias() != null && edad < i.edadMinDias()) {
-            motivos.add("Tiene " + edad + " días; la actividad requiere al menos " + i.edadMinDias() + " días.");
-        }
-        if (edad != null && i.edadMaxDias() != null && edad > i.edadMaxDias()) {
-            motivos.add("Tiene " + edad + " días; la actividad permite como máximo " + i.edadMaxDias() + " días.");
-        }
+        motivos.addAll(ReglasSanitarias.motivosEdad(a.fechaNacimiento(), fecha, i.edadMinDias(), i.edadMaxDias(),
+                i.permiteEdadDesconocida()));
         return new AnimalElegibilidad(a.id(), a.codigo(), a.nombre(), a.sexo(), a.estado(), edad,
                 a.fechaNacimientoEstimada(), motivos.isEmpty(), List.copyOf(motivos));
     }

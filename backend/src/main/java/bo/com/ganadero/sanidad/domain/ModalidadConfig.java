@@ -22,6 +22,11 @@ import java.util.List;
 })
 public sealed interface ModalidadConfig {
 
+    /**
+     * @param unaVezEnLaVida si es {@code true}, un animal que ya recibió la actividad (en cualquier
+     *                       versión de ella, incluido el historial declarado) no se vuelve a
+     *                       programar; si es {@code false}, se programa igualmente.
+     */
     record PorEdadConfig(int edadObjetivoValor, UnidadEdadActividad edadUnidad, int ventanaAnticipadaDias,
                         int ventanaPosteriorDias, PoliticaEdadEstimada politicaEdadEstimada,
                         PoliticaEdadDesconocida politicaEdadDesconocida, boolean unaVezEnLaVida)

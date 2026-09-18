@@ -110,6 +110,48 @@ public class JdbcEventoCalendarioSanitarioRepository implements EventoCalendario
                 .update();
     }
 
+    @Override
+    public List<UUID> cancelarPendientesDeActividad(UUID actividadId) {
+        List<UUID> ocurrencias = jdbc.sql("""
+                select distinct ocurrencia_id from evento_calendario_sanitario
+                where actividad_id=:act and estado in ('PROYECTADO','PROGRAMADO') and ocurrencia_id is not null
+                """)
+                .param("act", actividadId.toString())
+                .query((r, n) -> UUID.fromString(r.getString("ocurrencia_id"))).list();
+        jdbc.sql("""
+                update evento_calendario_sanitario
+                set estado='CANCELADO', updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'), version=version+1
+                where actividad_id=:act and estado in ('PROYECTADO','PROGRAMADO')
+                """)
+                .param("act", actividadId.toString())
+                .update();
+        return ocurrencias;
+    }
+
+    @Override
+    public List<UUID> cancelarPendientesDePlan(UUID planId) {
+        String deLaPlan = "actividad_id in (select id from plan_sanitario_item where plan_id=:plan)";
+        List<UUID> ocurrencias = jdbc.sql("select distinct ocurrencia_id from evento_calendario_sanitario where "
+                        + deLaPlan + " and estado in ('PROYECTADO','PROGRAMADO') and ocurrencia_id is not null")
+                .param("plan", planId.toString())
+                .query((r, n) -> UUID.fromString(r.getString("ocurrencia_id"))).list();
+        jdbc.sql("update evento_calendario_sanitario set estado='CANCELADO',"
+                        + " updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'), version=version+1"
+                        + " where " + deLaPlan + " and estado in ('PROYECTADO','PROGRAMADO')")
+                .param("plan", planId.toString()).update();
+        return ocurrencias;
+    }
+
+    @Override
+    public void restaurarCanceladosFuturos(UUID actividadId) {
+        jdbc.sql("""
+                update evento_calendario_sanitario
+                set estado='PROYECTADO', updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'), version=version+1
+                where actividad_id=:act and estado='CANCELADO' and fecha_prevista >= :ahora
+                """)
+                .param("act", actividadId.toString()).param("ahora", Instant.now().toString()).update();
+    }
+
     private EventoCalendarioSanitario map(ResultSet r, int n) throws SQLException {
         return new EventoCalendarioSanitario(Rows.uuid(r, "id"), Rows.uuid(r, "empresa_id"), Rows.uuid(r, "actividad_id"),
                 Rows.uuid(r, "animal_id"), r.getString("ciclo_clave"), Rows.instant(r, "fecha_prevista"),

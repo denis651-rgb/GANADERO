@@ -142,6 +142,7 @@ public enum ErrorCode {
     SANIDAD_PLAN_NOT_FOUND(HttpStatus.NOT_FOUND, "El plan sanitario no existe."),
     SANIDAD_PLAN_ACTIVO_EXISTE(HttpStatus.CONFLICT, "Ya existe un plan sanitario activo."),
     SANIDAD_TRANSICION_INVALIDA(HttpStatus.CONFLICT, "La transición de estado del plan sanitario no está permitida."),
+    SANIDAD_PLAN_CERRADO(HttpStatus.CONFLICT, "El plan sanitario está finalizado o anulado y ya no admite cambios en sus actividades."),
     SANIDAD_ITEM_EDAD_INVALIDA(HttpStatus.BAD_REQUEST, "El rango de edad del ítem sanitario no es válido."),
     SANIDAD_PRODUCTO_INVALIDO(HttpStatus.UNPROCESSABLE_CONTENT, "El producto sanitario no existe o no está activo."),
     SANIDAD_JORNADA_NOT_FOUND(HttpStatus.NOT_FOUND, "La jornada sanitaria no existe."),

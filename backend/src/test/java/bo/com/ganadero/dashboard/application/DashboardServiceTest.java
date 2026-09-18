@@ -93,7 +93,6 @@ class DashboardServiceTest {
         when(repository.countAnimalesSinPesaje(empresa, true, Set.of())).thenReturn(7L);
         when(repository.countAnimalesGananciaNegativa(empresa, true, Set.of())).thenReturn(2L);
         when(repository.countPotrerosInactivos(empresa, true, Set.of())).thenReturn(1L);
-        when(repository.countLotesCerrados(empresa, true, Set.of())).thenReturn(0L);
         when(repository.animalesPorCategoria(empresa, true, Set.of()))
                 .thenReturn(List.of(new DashboardResumen.Distribucion("Vaca", 60)));
         when(repository.animalesPorPotrero(empresa, true, Set.of()))

@@ -39,8 +39,7 @@ class CalendarioSanitarioServiceTest {
     void generaUnEventoPorEdadCuandoElAnimalEntraEnLaVentana(@TempDir Path tempDir) {
         Fixture f = fixture(tempDir);
         f.crearActividadPorEdad(90, 5, 15);
-        LocalDate hoy = LocalDate.of(2026, 1, 10);
-        f.crearAnimal("N-001", hoy.minusDays(87), false);
+        f.crearAnimal("N-001", LocalDate.now().minusDays(87), false);
 
         int generados = f.service.procesar();
 
@@ -114,7 +113,7 @@ class CalendarioSanitarioServiceTest {
         MotorAlertas motor = mock(MotorAlertas.class);
         Fixture f = fixture(tempDir, motor);
         f.crearActividadPorEdad(90, 5, 15);
-        LocalDate nacimiento = LocalDate.of(2026, 1, 10).minusDays(87);
+        LocalDate nacimiento = LocalDate.now().minusDays(87);
         f.crearAnimal("N-010", nacimiento, false);
         f.crearAnimal("N-011", nacimiento, false);
         f.crearAnimal("N-012", nacimiento, false);
@@ -126,6 +125,252 @@ class CalendarioSanitarioServiceTest {
         assertThat(captor.getValue().animalId()).isNull();
         assertThat(captor.getValue().metadata()).containsEntry("cantidadAnimales", 3)
                 .containsEntry("nombreActividad", "Desparasitación");
+    }
+
+    @Test
+    void unaVezEnLaVidaNoReprogramaAQuienYaLaRecibioEnUnaVersionAnterior(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID v1 = f.crearActividadPorEdad(90, 5, 15, true);
+        UUID yaAplicado = f.crearAnimal("N-020", LocalDate.now().minusDays(89), false);
+        UUID pendiente = f.crearAnimal("N-021", LocalDate.now().minusDays(89), false);
+        f.confirmarAplicacion(yaAplicado, v1, LocalDate.now().minusDays(1));
+        UUID v2 = f.crearNuevaVersionPorEdad(v1, true);
+
+        f.service.procesar();
+
+        assertThat(f.animalesConEvento(v2)).containsExactly(pendiente);
+    }
+
+    @Test
+    void unaVezEnLaVidaTambienRespetaLoDeclaradoPorElProveedor(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID v1 = f.crearActividadPorEdad(90, 5, 15, true);
+        UUID declarado = f.crearAnimal("N-022", LocalDate.now().minusDays(89), false);
+        UUID pendiente = f.crearAnimal("N-023", LocalDate.now().minusDays(89), false);
+        f.confirmarAplicacion(declarado, v1, LocalDate.now().minusDays(30), "APLICADO", "DECLARADA_PROVEEDOR");
+        UUID v2 = f.crearNuevaVersionPorEdad(v1, true);
+
+        f.service.procesar();
+
+        assertThat(f.animalesConEvento(v2)).containsExactly(pendiente);
+    }
+
+    @Test
+    void sinUnaVezEnLaVidaProgramaDeTodosModosAQuienYaLaRecibio(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID v1 = f.crearActividadPorEdad(90, 5, 15, false);
+        UUID yaAplicado = f.crearAnimal("N-024", LocalDate.now().minusDays(89), false);
+        UUID pendiente = f.crearAnimal("N-025", LocalDate.now().minusDays(89), false);
+        f.confirmarAplicacion(yaAplicado, v1, LocalDate.now().minusDays(1));
+        UUID v2 = f.crearNuevaVersionPorEdad(v1, false);
+
+        f.service.procesar();
+
+        assertThat(f.animalesConEvento(v2)).containsExactlyInAnyOrder(yaAplicado, pendiente);
+    }
+
+    @Test
+    void unaAplicacionAnuladaNoCuentaComoRecibida(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID v1 = f.crearActividadPorEdad(90, 5, 15, true);
+        UUID anulada = f.crearAnimal("N-026", LocalDate.now().minusDays(89), false);
+        f.confirmarAplicacion(anulada, v1, LocalDate.now().minusDays(1), "ANULADO", "APLICADA_FINCA");
+        UUID v2 = f.crearNuevaVersionPorEdad(v1, true);
+
+        f.service.procesar();
+
+        assertThat(f.animalesConEvento(v2)).containsExactly(anulada);
+    }
+
+    @Test
+    void loAplicadoDeOtraActividadNoImpideProgramarEstaUnaVezEnLaVida(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID actividad = f.crearActividadPorEdad(90, 5, 15, true);
+        UUID otraActividad = f.crearActividadPorEdad(90, 5, 15, true);
+        UUID animal = f.crearAnimal("N-027", LocalDate.now().minusDays(89), false);
+        f.confirmarAplicacion(animal, otraActividad, LocalDate.now().minusDays(1));
+
+        f.service.procesar();
+
+        assertThat(f.animalesConEvento(actividad)).containsExactly(animal);
+    }
+
+    @Test
+    void noGeneraEventosRetroactivosParaAnimalesCuyaVentanaYaSeCerroAntesDeLaActividad(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID actividad = f.crearActividadPorEdad(210, 15, 30, true);
+        f.crearAnimal("N-030-ADULTO", LocalDate.now().minusDays(1000), false);
+        UUID enVentana = f.crearAnimal("N-031-VENTANA", LocalDate.now().minusDays(200), false);
+
+        f.service.procesar();
+        f.service.procesar();
+
+        assertThat(f.animalesConEvento(actividad)).containsExactly(enVentana);
+        assertThat(f.contarEventosVencidos()).isZero();
+    }
+
+    @Test
+    void siLaVentanaSeCerroEstandoLaActividadVigenteQuedaVencidaComoIncumplimientoReal(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID actividad = f.crearActividadPorEdad(210, 15, 30, true);
+        f.definirVigenciaDesde(actividad, Instant.now().minus(java.time.Duration.ofDays(100)));
+        UUID animal = f.crearAnimal("N-032", LocalDate.now().minusDays(250), false);
+
+        f.service.procesar();
+        f.service.procesar();
+
+        assertThat(f.animalesConEvento(actividad)).containsExactly(animal);
+        assertThat(f.contarEventosVencidos()).isEqualTo(1);
+    }
+
+    @Test
+    void noGeneraCiclosPeriodicosPasadosCuandoLaReferenciaEsElNacimiento(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        f.crearActividadPeriodica(90, 0, 0, ReferenciaCalculoPeriodica.FECHA_DE_NACIMIENTO, null, null, false);
+        // Ciclos a los 90/180/270/360 días ya pasaron; quedan 450/540/630/720 dentro del horizonte de 12 meses.
+        f.crearAnimal("N-033", LocalDate.now().minusDays(400), false);
+
+        f.service.procesar();
+
+        assertThat(f.contarEventos()).isEqualTo(4);
+        assertThat(f.contarEventosVencidos()).isZero();
+    }
+
+    @Test
+    void laActividadPeriodicaDejaDeProgramarCuandoElAnimalSuperaLaEdadMaxima(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        f.crearActividadPeriodica(30, 0, 0, ReferenciaCalculoPeriodica.ULTIMA_APLICACION, null, 150, false);
+        // 100 días hoy: el primer ciclo lo agarra con 130 días, el segundo ya con 160 (> 150).
+        f.crearAnimal("N-034", LocalDate.now().minusDays(100), false);
+
+        f.service.procesar();
+
+        assertThat(f.contarEventos()).isEqualTo(1);
+    }
+
+    @Test
+    void conRangoDeEdadExcluyeALosDeEdadDesconocida(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        f.crearActividadPeriodica(30, 0, 0, ReferenciaCalculoPeriodica.ULTIMA_APLICACION, null, 150, false);
+        f.crearAnimalSinFechaNacimiento("N-035");
+
+        f.service.procesar();
+
+        assertThat(f.contarEventos()).isZero();
+    }
+
+    @Test
+    void conRangoDeEdadIncluyeALosDeEdadDesconocidaSiLaActividadLoPermite(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        f.crearActividadPeriodica(30, 0, 0, ReferenciaCalculoPeriodica.ULTIMA_APLICACION, null, 150, true);
+        f.crearAnimalSinFechaNacimiento("N-036");
+
+        f.service.procesar();
+
+        assertThat(f.contarEventos()).isGreaterThan(0);
+    }
+
+    @Test
+    void alCancelarLosPendientesDeUnaVersionElAnimalQuedaConUnSoloEventoPendiente(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID v1 = f.crearActividadPorEdad(90, 5, 15, false);
+        UUID animalA = f.crearAnimal("N-040", LocalDate.now().minusDays(89), false);
+        UUID animalB = f.crearAnimal("N-041", LocalDate.now().minusDays(89), false);
+        f.service.procesar();
+        f.marcarEvento(v1, animalB, "EN_PREPARACION"); // ya está en una jornada: no se debe cancelar
+        UUID v2 = f.crearNuevaVersionPorEdad(v1, false);
+        var eventos = new bo.com.ganadero.sanidad.infrastructure.JdbcEventoCalendarioSanitarioRepository(f.jdbc());
+
+        List<UUID> ocurrencias = eventos.cancelarPendientesDeActividad(v1);
+        f.service.procesar();
+
+        assertThat(ocurrencias).hasSize(1);
+        assertThat(f.estadoEvento(v1, animalA)).isEqualTo("CANCELADO");
+        assertThat(f.estadoEvento(v1, animalB)).isEqualTo("EN_PREPARACION");
+        assertThat(f.eventosPendientesDelAnimal(animalA)).isEqualTo(1); // solo el de la versión nueva
+        assertThat(f.animalesConEvento(v2)).containsExactlyInAnyOrder(animalA, animalB);
+    }
+
+    @Test
+    void cancelarPendientesNoTocaLoQueYaSeCerroNiLoVencido(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID v1 = f.crearActividadPorEdad(90, 5, 15, false);
+        UUID realizado = f.crearAnimal("N-042", LocalDate.now().minusDays(89), false);
+        UUID vencido = f.crearAnimal("N-043", LocalDate.now().minusDays(89), false);
+        f.service.procesar();
+        f.marcarEvento(v1, realizado, "REALIZADO");
+        f.marcarEvento(v1, vencido, "VENCIDO");
+        var eventos = new bo.com.ganadero.sanidad.infrastructure.JdbcEventoCalendarioSanitarioRepository(f.jdbc());
+
+        List<UUID> ocurrencias = eventos.cancelarPendientesDeActividad(v1);
+
+        assertThat(ocurrencias).isEmpty();
+        assertThat(f.estadoEvento(v1, realizado)).isEqualTo("REALIZADO");
+        assertThat(f.estadoEvento(v1, vencido)).isEqualTo("VENCIDO");
+    }
+
+    @Test
+    void generaEventosParaTodoElHatoSinTopeDeAnimales(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID actividad = f.crearActividadPorEdad(90, 5, 15, true);
+        LocalDate nacimiento = LocalDate.now().minusDays(89);
+        for (int i = 0; i < 501; i++) f.crearAnimal("HATO-" + i, nacimiento, false);
+
+        f.service.procesar();
+
+        assertThat(f.animalesConEvento(actividad)).hasSize(501);
+    }
+
+    @Test
+    void cancelarLosPendientesDeUnPlanNoTocaLosDeOtroPlan(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID actividadA = f.crearActividadPorEdad(90, 5, 15, true);
+        UUID actividadB = f.crearActividadPorEdad(90, 5, 15, true);
+        UUID animal = f.crearAnimal("N-050", LocalDate.now().minusDays(89), false);
+        f.service.procesar();
+        var eventos = new bo.com.ganadero.sanidad.infrastructure.JdbcEventoCalendarioSanitarioRepository(f.jdbc());
+
+        List<UUID> ocurrencias = eventos.cancelarPendientesDePlan(f.planDe(actividadA));
+
+        assertThat(ocurrencias).hasSize(1);
+        assertThat(f.estadoEvento(actividadA, animal)).isEqualTo("CANCELADO");
+        assertThat(f.estadoEvento(actividadB, animal)).isEqualTo("PROGRAMADO");
+    }
+
+    @Test
+    void reactivarUnaActividadRestauraLoCanceladoFuturoYNoResucitaLoVencido(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID actividad = f.crearActividadPorEdad(90, 5, 15, true);
+        UUID futuro = f.crearAnimal("N-051", LocalDate.now().minusDays(89), false);
+        UUID pasado = f.crearAnimal("N-052", LocalDate.now().minusDays(89), false);
+        f.service.procesar();
+        var eventos = new bo.com.ganadero.sanidad.infrastructure.JdbcEventoCalendarioSanitarioRepository(f.jdbc());
+        eventos.cancelarPendientesDeActividad(actividad);
+        f.moverEventoAlPasado(actividad, pasado);
+
+        eventos.restaurarCanceladosFuturos(actividad);
+
+        assertThat(f.estadoEvento(actividad, futuro)).isEqualTo("PROYECTADO");
+        assertThat(f.estadoEvento(actividad, pasado)).isEqualTo("CANCELADO");
+    }
+
+    @Test
+    void desactivarYReactivarUnaActividadDejaAlAnimalConUnSoloEventoVigente(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID actividad = f.crearActividadPorEdad(90, 5, 15, true);
+        UUID animal = f.crearAnimal("N-053", LocalDate.now().minusDays(89), false);
+        f.service.procesar();
+        var eventos = new bo.com.ganadero.sanidad.infrastructure.JdbcEventoCalendarioSanitarioRepository(f.jdbc());
+
+        eventos.cancelarPendientesDeActividad(actividad); // desactivar
+        f.service.procesar();                               // desactivada: el generador no la procesa
+        assertThat(f.estadoEvento(actividad, animal)).isEqualTo("CANCELADO");
+
+        eventos.restaurarCanceladosFuturos(actividad);      // reactivar
+        f.service.procesar();
+
+        assertThat(f.animalesConEvento(actividad)).containsExactly(animal);
+        assertThat(f.estadoEvento(actividad, animal)).isEqualTo("PROGRAMADO");
     }
 
     private Fixture fixture(Path tempDir) {
@@ -156,30 +401,76 @@ class CalendarioSanitarioServiceTest {
     private record Fixture(JdbcClient jdbc, JdbcSanidadRepository planes, CalendarioSanitarioService service) {
 
         UUID crearActividadPorEdad(int edadObjetivoDias, int ventanaAnticipadaDias, int ventanaPosteriorDias) {
+            return crearActividadPorEdad(edadObjetivoDias, ventanaAnticipadaDias, ventanaPosteriorDias, true);
+        }
+
+        UUID crearActividadPorEdad(int edadObjetivoDias, int ventanaAnticipadaDias, int ventanaPosteriorDias,
+                                   boolean unaVezEnLaVida) {
             UUID actor = UUID.randomUUID();
             PlanSanitario plan = planes.crearPlan(new PlanSanitario(UUID.randomUUID(), null, "Plan 2026", null,
                     LocalDate.now(), null, EstadoPlanSanitario.ACTIVO, null, null, 0, null), actor);
             PlanSanitarioItem item = construir(plan.id(), ModalidadActividad.POR_EDAD,
-                    new ModalidadConfig.PorEdadConfig(edadObjetivoDias, UnidadEdadActividad.DIAS, ventanaAnticipadaDias,
-                            ventanaPosteriorDias, PoliticaEdadEstimada.PERMITIR, PoliticaEdadDesconocida.EXCLUIR, true));
+                    configPorEdad(edadObjetivoDias, ventanaAnticipadaDias, ventanaPosteriorDias, unaVezEnLaVida));
             return planes.crearItem(item, actor).id();
         }
 
+        /** Simula editar una actividad ya usada: cierra la vigencia de la versión anterior y crea otra fila con la misma identidad. */
+        UUID crearNuevaVersionPorEdad(UUID versionAnterior, boolean unaVezEnLaVida) {
+            UUID[] fila = jdbc.sql("select plan_id, identidad_logica_id from plan_sanitario_item where id=:id")
+                    .param("id", versionAnterior.toString())
+                    .query((r, n) -> new UUID[]{UUID.fromString(r.getString("plan_id")),
+                            UUID.fromString(r.getString("identidad_logica_id"))}).single();
+            jdbc.sql("update plan_sanitario_item set vigente_hasta=:hasta where id=:id")
+                    .param("hasta", Instant.now().toString()).param("id", versionAnterior.toString()).update();
+            UUID id = UUID.randomUUID();
+            PlanSanitarioItem nueva = construir(id, fila[0], ModalidadActividad.POR_EDAD,
+                    configPorEdad(90, 5, 15, unaVezEnLaVida), fila[1], 2, versionAnterior);
+            return planes.crearItem(nueva, UUID.randomUUID()).id();
+        }
+
+        private ModalidadConfig.PorEdadConfig configPorEdad(int edadObjetivoDias, int ventanaAnticipadaDias,
+                                                            int ventanaPosteriorDias, boolean unaVezEnLaVida) {
+            return new ModalidadConfig.PorEdadConfig(edadObjetivoDias, UnidadEdadActividad.DIAS, ventanaAnticipadaDias,
+                    ventanaPosteriorDias, PoliticaEdadEstimada.PERMITIR, PoliticaEdadDesconocida.EXCLUIR, unaVezEnLaVida);
+        }
+
         UUID crearActividadPeriodica(int frecuenciaDias, int toleranciaAnticipada, int toleranciaPosterior) {
+            return crearActividadPeriodica(frecuenciaDias, toleranciaAnticipada, toleranciaPosterior,
+                    ReferenciaCalculoPeriodica.ULTIMA_APLICACION, null, null, false);
+        }
+
+        UUID crearActividadPeriodica(int frecuenciaDias, int toleranciaAnticipada, int toleranciaPosterior,
+                                     ReferenciaCalculoPeriodica referencia, Integer edadMinDias, Integer edadMaxDias,
+                                     boolean permiteEdadDesconocida) {
             UUID actor = UUID.randomUUID();
             PlanSanitario plan = planes.crearPlan(new PlanSanitario(UUID.randomUUID(), null, "Plan 2026", null,
                     LocalDate.now(), null, EstadoPlanSanitario.ACTIVO, null, null, 0, null), actor);
-            PlanSanitarioItem item = construir(plan.id(), ModalidadActividad.PERIODICA,
-                    new ModalidadConfig.PeriodicaConfig(frecuenciaDias, UnidadFrecuencia.DIAS,
-                            ReferenciaCalculoPeriodica.ULTIMA_APLICACION, toleranciaAnticipada, toleranciaPosterior));
+            UUID id = UUID.randomUUID();
+            PlanSanitarioItem item = construir(id, plan.id(), ModalidadActividad.PERIODICA,
+                    new ModalidadConfig.PeriodicaConfig(frecuenciaDias, UnidadFrecuencia.DIAS, referencia,
+                            toleranciaAnticipada, toleranciaPosterior),
+                    id, 1, null, edadMinDias, edadMaxDias, permiteEdadDesconocida);
             return planes.crearItem(item, actor).id();
         }
 
         private PlanSanitarioItem construir(UUID planId, ModalidadActividad modalidad, ModalidadConfig config) {
             UUID id = UUID.randomUUID();
+            return construir(id, planId, modalidad, config, id, 1, null);
+        }
+
+        private PlanSanitarioItem construir(UUID id, UUID planId, ModalidadActividad modalidad, ModalidadConfig config,
+                                            UUID identidadLogicaId, int numeroVersion, UUID versionAnteriorId) {
+            return construir(id, planId, modalidad, config, identidadLogicaId, numeroVersion, versionAnteriorId,
+                    null, null, false);
+        }
+
+        private PlanSanitarioItem construir(UUID id, UUID planId, ModalidadActividad modalidad, ModalidadConfig config,
+                                            UUID identidadLogicaId, int numeroVersion, UUID versionAnteriorId,
+                                            Integer edadMinDias, Integer edadMaxDias, boolean permiteEdadDesconocida) {
             return new PlanSanitarioItem(id, null, planId, TipoActividadSanitaria.DESPARASITACION, null,
-                    "Ivermectina 1%", null, null, null, null, null, null, null, 0, null, false, true, 0,
-                    OrigenRegulatorioActividad.CONFIGURABLE_ESTABLECIMIENTO, "BOVINO", false, id, 1, null,
+                    "Ivermectina 1%", null, null, edadMinDias, edadMaxDias, null, null, null, 0, null, false, true, 0,
+                    OrigenRegulatorioActividad.CONFIGURABLE_ESTABLECIMIENTO, "BOVINO", permiteEdadDesconocida,
+                    identidadLogicaId, numeroVersion, versionAnteriorId,
                     Instant.now(), null, null, null, "Desparasitación", null, "Ivermectina", null, null, null, null,
                     null, TipoCalculoDosis.NO_APLICA, null, null, null, null, null, null, null, List.of(),
                     UnidadEdadActividad.DIAS, modalidad, config, false);
@@ -218,16 +509,64 @@ class CalendarioSanitarioServiceTest {
         }
 
         void confirmarAplicacion(UUID animalId, UUID itemId, LocalDate fechaAplicacion) {
+            confirmarAplicacion(animalId, itemId, fechaAplicacion, "APLICADO", "APLICADA_FINCA");
+        }
+
+        void confirmarAplicacion(UUID animalId, UUID itemId, LocalDate fechaAplicacion, String estado, String origenRegistro) {
             jdbc.sql("""
                     insert into aplicacion_sanitaria(id,plan_item_id,animal_id,fecha_aplicacion,idempotency_key,estado,origen_registro)
-                    values(:id,:item,:animal,:fecha,:key,'APLICADO','APLICADA_FINCA')
+                    values(:id,:item,:animal,:fecha,:key,:estado,:origen)
                     """).param("id", UUID.randomUUID().toString()).param("item", itemId.toString())
                     .param("animal", animalId.toString()).param("fecha", fechaAplicacion.toString())
-                    .param("key", UUID.randomUUID().toString()).update();
+                    .param("key", UUID.randomUUID().toString()).param("estado", estado).param("origen", origenRegistro).update();
+        }
+
+        List<UUID> animalesConEvento(UUID actividadId) {
+            return jdbc.sql("select animal_id from evento_calendario_sanitario where actividad_id=:a")
+                    .param("a", actividadId.toString())
+                    .query((r, n) -> UUID.fromString(r.getString("animal_id"))).list();
         }
 
         int contarEventos() {
             return jdbc.sql("select count(*) from evento_calendario_sanitario").query(Integer.class).single();
+        }
+
+        int contarEventosVencidos() {
+            return jdbc.sql("select count(*) from evento_calendario_sanitario where estado='VENCIDO'")
+                    .query(Integer.class).single();
+        }
+
+        void definirVigenciaDesde(UUID actividadId, Instant vigenteDesde) {
+            jdbc.sql("update plan_sanitario_item set vigente_desde=:d where id=:id")
+                    .param("d", vigenteDesde.toString()).param("id", actividadId.toString()).update();
+        }
+
+        void marcarEvento(UUID actividadId, UUID animalId, String estado) {
+            jdbc.sql("update evento_calendario_sanitario set estado=:e where actividad_id=:a and animal_id=:an")
+                    .param("e", estado).param("a", actividadId.toString()).param("an", animalId.toString()).update();
+        }
+
+        String estadoEvento(UUID actividadId, UUID animalId) {
+            return jdbc.sql("select estado from evento_calendario_sanitario where actividad_id=:a and animal_id=:an")
+                    .param("a", actividadId.toString()).param("an", animalId.toString()).query(String.class).single();
+        }
+
+        UUID planDe(UUID actividadId) {
+            return jdbc.sql("select plan_id from plan_sanitario_item where id=:id").param("id", actividadId.toString())
+                    .query((r, n) -> UUID.fromString(r.getString("plan_id"))).single();
+        }
+
+        void moverEventoAlPasado(UUID actividadId, UUID animalId) {
+            jdbc.sql("update evento_calendario_sanitario set fecha_prevista=:f where actividad_id=:a and animal_id=:an")
+                    .param("f", Instant.now().minus(java.time.Duration.ofDays(10)).toString())
+                    .param("a", actividadId.toString()).param("an", animalId.toString()).update();
+        }
+
+        int eventosPendientesDelAnimal(UUID animalId) {
+            return jdbc.sql("""
+                    select count(*) from evento_calendario_sanitario
+                    where animal_id=:an and estado in ('PROYECTADO','PROGRAMADO','EN_PREPARACION')
+                    """).param("an", animalId.toString()).query(Integer.class).single();
         }
     }
 }

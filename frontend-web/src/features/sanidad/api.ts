@@ -629,7 +629,7 @@ export const ESTADO_APLICACION_SANITARIA_LABELS: Record<EstadoAplicacionSanitari
 export const ORIGEN_REGULATORIO_LABELS: Record<OrigenRegulatorio, string> = {
   OBLIGATORIO_SENASAG: 'Obligatorio SENASAG',
   CAMPANA_RIESGO: 'Según campaña/riesgo',
-  RECOMENDADO_VETERINARIO: 'Recomendado',
+  RECOMENDADO_VETERINARIO: 'Recomendado por veterinario',
   CONFIGURABLE_ESTABLECIMIENTO: 'Configurable',
 }
 

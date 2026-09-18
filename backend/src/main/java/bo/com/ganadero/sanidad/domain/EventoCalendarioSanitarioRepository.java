@@ -18,4 +18,21 @@ public interface EventoCalendarioSanitarioRepository {
     boolean tienePendientes(UUID ocurrenciaId);
 
     void marcarEstado(UUID id, EstadoEventoCalendario estado, UUID jornadaId, UUID actor);
+
+    /**
+     * Cancela los eventos todavía no iniciados (PROYECTADO/PROGRAMADO) de una actividad y devuelve
+     * las ocurrencias que tocó. No toca EN_PREPARACION (ya están en una jornada), ni los cerrados
+     * (REALIZADO/OMITIDO) ni los VENCIDO, que son historial.
+     */
+    List<UUID> cancelarPendientesDeActividad(UUID actividadId);
+
+    /** Igual que {@link #cancelarPendientesDeActividad} pero para todas las actividades de un plan (al finalizarlo o anularlo). */
+    List<UUID> cancelarPendientesDePlan(UUID planId);
+
+    /**
+     * Devuelve a PROYECTADO los eventos CANCELADOS de una actividad cuya fecha todavía no llegó
+     * (al reactivarla): sin esto la clave única del calendario impediría regenerarlos. Los que ya
+     * pasaron se dejan cancelados para no resucitar vencidos.
+     */
+    void restaurarCanceladosFuturos(UUID actividadId);
 }
