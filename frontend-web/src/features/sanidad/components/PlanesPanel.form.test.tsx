@@ -457,4 +457,11 @@ describe('formulario de actividad del plan sanitario', () => {
     expect(vi.mocked(actualizarPlanItem).mock.calls[1][3].fechaVigencia).toBeDefined()
   })
 
+
+  it('muestra el período del plan tal como se guardó, sin correr las fechas un día', () => {
+    renderPanel([{ ...plan, fechaInicio: '2024-01-01', fechaFin: '2024-03-31' } as unknown as PlanSanitario])
+
+    expect(screen.getByText(/01\/01\/2024 → 31\/03\/2024/)).toBeInTheDocument()
+    expect(screen.queryByText(/31\/12\/2023/)).not.toBeInTheDocument()
+  })
 })

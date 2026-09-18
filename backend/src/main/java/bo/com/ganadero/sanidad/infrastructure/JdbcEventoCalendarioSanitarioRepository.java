@@ -12,7 +12,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -74,15 +73,15 @@ public class JdbcEventoCalendarioSanitarioRepository implements EventoCalendario
     }
 
     @Override
-    public Optional<EventoCalendarioSanitario> findPendientePorAnimalYActividad(UUID actividadId, UUID animalId) {
+    public List<EventoCalendarioSanitario> cerrablesPorAplicacion(UUID actividadId, UUID animalId) {
         return jdbc.sql("""
                 select * from evento_calendario_sanitario
                 where actividad_id=:act and animal_id=:animal
-                    and estado in ('PROYECTADO','PROGRAMADO','EN_PREPARACION')
-                order by fecha_prevista asc limit 1
+                    and estado in ('PROYECTADO','PROGRAMADO','EN_PREPARACION','VENCIDO')
+                order by fecha_prevista asc
                 """)
                 .param("act", actividadId.toString()).param("animal", animalId.toString())
-                .query(this::map).optional();
+                .query(this::map).list();
     }
 
     @Override
@@ -91,6 +90,17 @@ public class JdbcEventoCalendarioSanitarioRepository implements EventoCalendario
         return jdbc.sql("""
                 select count(*) from evento_calendario_sanitario
                 where ocurrencia_id=:ocurrencia and estado in ('PROYECTADO','PROGRAMADO','EN_PREPARACION')
+                """)
+                .param("ocurrencia", ocurrenciaId.toString())
+                .query(Integer.class).single() > 0;
+    }
+
+    @Override
+    public boolean tieneSinCerrar(UUID ocurrenciaId) {
+        if (ocurrenciaId == null) return false;
+        return jdbc.sql("""
+                select count(*) from evento_calendario_sanitario
+                where ocurrencia_id=:ocurrencia and estado in ('PROYECTADO','PROGRAMADO','EN_PREPARACION','VENCIDO')
                 """)
                 .param("ocurrencia", ocurrenciaId.toString())
                 .query(Integer.class).single() > 0;
@@ -140,6 +150,17 @@ public class JdbcEventoCalendarioSanitarioRepository implements EventoCalendario
                         + " where " + deLaPlan + " and estado in ('PROYECTADO','PROGRAMADO')")
                 .param("plan", planId.toString()).update();
         return ocurrencias;
+    }
+
+    @Override
+    public List<EventoCalendarioSanitario> pendientesOCanceladosFuturosDeActividad(UUID actividadId) {
+        return jdbc.sql("""
+                select * from evento_calendario_sanitario
+                where actividad_id=:act
+                    and (estado in ('PROYECTADO','PROGRAMADO') or (estado='CANCELADO' and fecha_prevista >= :ahora))
+                """)
+                .param("act", actividadId.toString()).param("ahora", Instant.now().toString())
+                .query(this::map).list();
     }
 
     @Override

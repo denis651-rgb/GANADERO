@@ -7,7 +7,9 @@ import bo.com.ganadero.shared.error.ErrorCode;
 import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Reglas de registro: no sustituyen la evaluación ni la prescripción veterinaria. */
@@ -35,6 +37,21 @@ final class ReglasSanitarias {
             motivos.add("Tiene " + edad + " días; la actividad permite como máximo " + edadMaxDias + " días.");
         }
         return motivos;
+    }
+
+    /**
+     * Qué evento del calendario cierra una aplicación: el más cercano en el tiempo a la fecha en
+     * que se aplicó, esté pendiente o ya vencido (a igual distancia, el más antiguo). Así aplicar
+     * unos días tarde cierra la fecha que se venció en vez de la del ciclo siguiente, y aplicar
+     * unos días antes cierra la próxima. Un vencido muy antiguo no le gana a una fecha cercana:
+     * queda como un incumplimiento pasado.
+     */
+    static Optional<EventoCalendarioSanitario> eventoQueCierraLaAplicacion(
+            List<EventoCalendarioSanitario> candidatos, LocalDate fechaAplicacion) {
+        return candidatos.stream().min(Comparator
+                .comparingLong((EventoCalendarioSanitario e) -> Math.abs(ChronoUnit.DAYS.between(
+                        fechaAplicacion, e.fechaPrevista().atZone(ZONA).toLocalDate())))
+                .thenComparing(EventoCalendarioSanitario::fechaPrevista));
     }
 
     static void exigir(boolean condicion, String mensaje) {

@@ -54,6 +54,7 @@ import { pesoReferenciaFijo } from '@/features/sanidad/dosisReferencia'
 import {
   errorFechaFin, errorHallazgos, erroresDosis, erroresViaLugar, fechaHoraLocal,
 } from '@/features/sanidad/validacionesActividad'
+import { formatDate } from '@/shared/utils/date'
 
 interface PlanesPanelProps {
   planes: PlanSanitario[]
@@ -340,7 +341,7 @@ export function PlanesPanel({ planes, isLoading, error, catalogs, refresh }: Pla
           <button type="button" className="button button-ghost button-small" onClick={() => setExpanded(expanded === plan.id ? null : plan.id)} aria-expanded={expanded === plan.id} aria-label={`${expanded === plan.id ? 'Ocultar' : 'Mostrar'} actividades del plan ${plan.nombre}`}>
             {expanded === plan.id ? <ChevronDown size={16} aria-hidden="true" /> : <ChevronRight size={16} aria-hidden="true" />}
           </button>
-          <span className="plan-summary"><strong>{plan.nombre}</strong><span className="table-secondary">{plan.descripcion ?? 'Sin descripción'} · {new Date(plan.fechaInicio).toLocaleDateString('es-BO')}{plan.fechaFin ? ` → ${new Date(plan.fechaFin).toLocaleDateString('es-BO')}` : ''}</span></span>
+          <span className="plan-summary"><strong>{plan.nombre}</strong><span className="table-secondary">{plan.descripcion ?? 'Sin descripción'} · {formatDate(plan.fechaInicio)}{plan.fechaFin ? ` → ${formatDate(plan.fechaFin)}` : ''}</span></span>
           <span className={`status-badge status-badge-${plan.estado === 'ACTIVO' ? 'confirmed' : plan.estado === 'BORRADOR' ? 'pending' : 'annulled'}`}>{plan.estado}</span>
           {canAdmin && <span className="inline-actions">
             {plan.estado === 'BORRADOR' && <Button variant="ghost" onClick={() => setStateTarget({ plan, estado: 'ACTIVO' })}>Activar</Button>}

@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.UUID;
@@ -82,6 +84,67 @@ class MotorAlertasServiceTest {
         assertThat(segunda.claveIdempotencia()).isEqualTo(primera.claveIdempotencia());
         assertThat(primera.mensaje()).isEqualTo("H-0005 lleva 44 días sin pesaje.");
     }
+
+    @Test
+    void unAvisoParaUnDiaSaleALaHoraDeAvisosPredeterminadaYNoAMedianoche() {
+        Alerta alerta = alertaAlDia(null, LocalDate.of(2026, 8, 15));
+
+        // 08:00 en La Paz (UTC-4) = 12:00Z, no 04:00Z (medianoche de La Paz).
+        assertThat(alerta.fechaProgramada()).isEqualTo(Instant.parse("2026-08-15T12:00:00Z"));
+    }
+
+    @Test
+    void unAvisoParaUnDiaRespetaLaHoraConfigurada() {
+        Alerta alerta = alertaAlDia(new AlertaConfiguracion(15, 7, 30, 285, LocalTime.of(9, 30)),
+                LocalDate.of(2026, 8, 15));
+
+        assertThat(alerta.fechaProgramada()).isEqualTo(Instant.parse("2026-08-15T13:30:00Z"));
+    }
+
+    @Test
+    void elDiaDelAvisoRespetaLosDiasDeAnticipacionYNoLosMuestraComoMetadata() {
+        Alerta alerta = alertaAlDia(null, LocalDate.of(2026, 8, 15));
+
+        assertThat(alerta.fechaVencimiento()).isEqualTo(Instant.parse("2026-08-30T04:00:00Z"));
+        assertThat(alerta.mensaje()).contains("Lucera", "30/08/2026");
+        assertThat(alerta.metadata()).doesNotContainKeys("diaDeAviso", "fechaVencimiento");
+    }
+
+    @Test
+    void unAvisoParaUnDiaSinVencimientoNoInventaUno() {
+        AlertaRepository repository = mock(AlertaRepository.class);
+        when(repository.programar(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        new MotorAlertasService(repository).programar(ProgramarAlertaCommand.alDia(UUID.randomUUID(),
+                UUID.randomUUID(), TipoAlerta.RETIRO_CARNE_VIGENTE, LocalDate.of(2026, 8, 15), null,
+                "RETIRO_CARNE", UUID.randomUUID(), Map.of("animalNombre", "Lucera", "tipoRetiro", "CARNE")));
+        ArgumentCaptor<Alerta> captor = ArgumentCaptor.forClass(Alerta.class);
+        verify(repository).programar(captor.capture());
+
+        assertThat(captor.getValue().fechaProgramada()).isEqualTo(Instant.parse("2026-08-15T12:00:00Z"));
+        assertThat(captor.getValue().metadata()).doesNotContainKey("diaDeAviso");
+    }
+
+    @Test
+    void unAvisoConHoraExplicitaNoCambiaDeHora() {
+        // Los avisos que ya traen su hora (pesaje, actividades del calendario…) no pasan por la hora de avisos.
+        Alerta alerta = alerta(TipoAlerta.PESAJE_ATRASADO, Map.of("animalCodigo", "H-1", "diasSinPesaje", 40));
+
+        assertThat(alerta.fechaProgramada()).isEqualTo(Instant.parse("2026-08-20T04:00:00Z"));
+    }
+
+    private Alerta alertaAlDia(AlertaConfiguracion ajustes, LocalDate dia) {
+        AlertaRepository repository = mock(AlertaRepository.class);
+        when(repository.programar(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        AlertaConfiguracionPort puerto = mock(AlertaConfiguracionPort.class);
+        when(puerto.obtener(any())).thenReturn(ajustes == null ? AlertaConfiguracion.valoresPredeterminados() : ajustes);
+        new MotorAlertasService(repository, puerto).programar(ProgramarAlertaCommand.alDia(UUID.randomUUID(),
+                UUID.randomUUID(), TipoAlerta.PARTO_PROXIMO, dia, Instant.parse("2026-08-30T04:00:00Z"),
+                "GESTACION", UUID.randomUUID(), Map.of("animalNombre", "Lucera")));
+        ArgumentCaptor<Alerta> captor = ArgumentCaptor.forClass(Alerta.class);
+        verify(repository).programar(captor.capture());
+        return captor.getValue();
+    }
+
 
     /** Actividad del plan agrupada: sin animalId y con la cantidad de animales en metadata. */
     private Alerta alertaActividad(int diasDesdeHoy, int cantidadAnimales) {

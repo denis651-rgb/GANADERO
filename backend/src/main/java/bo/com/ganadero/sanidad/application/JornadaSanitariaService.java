@@ -22,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -34,7 +33,6 @@ import java.util.UUID;
 
 @Service
 public class JornadaSanitariaService {
-    private static final ZoneId ZONA = ZoneId.of("America/La_Paz");
 
     private final JornadaSanitariaRepository repo;
     private final SanidadRepository planes;
@@ -196,19 +194,20 @@ public class JornadaSanitariaService {
             java.time.LocalDate rl = c.retiroLecheDias() == null || c.retiroLecheDias() == 0 ? null : fecha.plusDays(c.retiroLecheDias());
             String key = c.operationId() + ":" + aid;
 
-            Optional<EventoCalendarioSanitario> eventoPendiente = eventos.findPendientePorAnimalYActividad(item.id(), aid);
-            eventoPendiente.map(EventoCalendarioSanitario::ocurrenciaId).ifPresent(ocurrenciasAplicadas::add);
+            Optional<EventoCalendarioSanitario> eventoACerrar = ReglasSanitarias.eventoQueCierraLaAplicacion(
+                    eventos.cerrablesPorAplicacion(item.id(), aid), fecha);
+            eventoACerrar.map(EventoCalendarioSanitario::ocurrenciaId).ifPresent(ocurrenciasAplicadas::add);
 
             AplicacionSanitaria ap = repo.crearAplicacion(new AplicacionSanitaria(UUID.randomUUID(), u.empresaId(),
                     id, c.planItemId(), aid, null, null, dosisAplicada, c.unidadDosis(), calculo.dosisCalculada(),
                     dosisAplicada, calculo.pesoUsadoKg(), calculo.pesoTipo(), calculo.pesoFecha(), productoAplicado,
                     productoCambio ? c.motivoCambioProducto() : null, dosisAjustada ? c.motivoAjusteDosis() : null,
                     c.viaAdministracion(), lugar, item.id(), item.instruccionesVeterinario(),
-                    eventoPendiente.map(EventoCalendarioSanitario::id).orElse(null), fecha, prox, rc, rl, u.userId(),
+                    eventoACerrar.map(EventoCalendarioSanitario::id).orElse(null), fecha, prox, rc, rl, u.userId(),
                     c.resultado(), c.observaciones(), key, EstadoAplicacionSanitaria.APLICADO, 0,
                     OrigenRegistroAplicacion.APLICADA_FINCA), u.userId());
             out.add(ap);
-            eventoPendiente.ifPresent(evt -> eventos.marcarEstado(evt.id(), EstadoEventoCalendario.REALIZADO, id, u.userId()));
+            eventoACerrar.ifPresent(evt -> eventos.marcarEstado(evt.id(), EstadoEventoCalendario.REALIZADO, id, u.userId()));
             publicar(u, ap, j);
             programar(u, ap, item);
             audit(u, "APLICAR_SANIDAD", "APLICACION_SANITARIA", ap.id());
@@ -221,14 +220,15 @@ public class JornadaSanitariaService {
 
     /**
      * Cierra la alerta grupal de cada ocurrencia que quedó completamente aplicada. Si todavía
-     * quedan eventos pendientes en la ocurrencia (se aplicó sólo una parte del grupo), la alerta
-     * se mantiene para no perder el seguimiento de los animales restantes.
+     * queda algún evento sin cerrar en la ocurrencia —pendiente o vencido, porque se aplicó sólo
+     * una parte del grupo—, la alerta se mantiene para no perder el seguimiento de los animales
+     * restantes.
      */
     private void resolverOcurrenciasAplicadas(CurrentUser u, Set<UUID> ocurrenciasAplicadas) {
         MotorAlertas m = alertas.getIfAvailable();
         if (m == null) return;
         for (UUID ocurrenciaId : ocurrenciasAplicadas) {
-            if (!eventos.tienePendientes(ocurrenciaId)) {
+            if (!eventos.tieneSinCerrar(ocurrenciaId)) {
                 m.resolverPorOrigen(u.empresaId(), "EVENTO_CALENDARIO_SANITARIO", ocurrenciaId);
             }
         }
@@ -292,13 +292,13 @@ public class JornadaSanitariaService {
             m.resolverPorOrigen(u.empresaId(), "APLICACION_SANITARIA", anterior);
         }
         if (a.retiroCarneHasta() != null) {
-            m.programar(new ProgramarAlertaCommand(u.empresaId(), a.animalId(), TipoAlerta.RETIRO_CARNE_VIGENTE,
-                    a.retiroCarneHasta().atStartOfDay(ZONA).toInstant(), "RETIRO_CARNE", a.id(),
+            m.programar(ProgramarAlertaCommand.alDia(u.empresaId(), a.animalId(), TipoAlerta.RETIRO_CARNE_VIGENTE,
+                    a.retiroCarneHasta(), null, "RETIRO_CARNE", a.id(),
                     Map.of("tipoRetiro", "CARNE", "hasta", a.retiroCarneHasta().toString())));
         }
         if (a.retiroLecheHasta() != null) {
-            m.programar(new ProgramarAlertaCommand(u.empresaId(), a.animalId(), TipoAlerta.RETIRO_LECHE_VIGENTE,
-                    a.retiroLecheHasta().atStartOfDay(ZONA).toInstant(), "RETIRO_LECHE", a.id(),
+            m.programar(ProgramarAlertaCommand.alDia(u.empresaId(), a.animalId(), TipoAlerta.RETIRO_LECHE_VIGENTE,
+                    a.retiroLecheHasta(), null, "RETIRO_LECHE", a.id(),
                     Map.of("tipoRetiro", "LECHE", "hasta", a.retiroLecheHasta().toString())));
         }
     }

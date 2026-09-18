@@ -5,6 +5,10 @@ import bo.com.ganadero.sanidad.application.CalendarioSanitarioService;
 import bo.com.ganadero.sanidad.application.ProcesarTratamientosVencidosService;
 import bo.com.ganadero.alertas.application.RecordatorioService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +27,7 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(prefix = "ganadero.alertas.scheduler", name = "enabled",
         havingValue = "true", matchIfMissing = true)
 public class GeneradoresAlertaCronScheduler {
+    private static final Logger LOG = LoggerFactory.getLogger(GeneradoresAlertaCronScheduler.class);
     private final ProcesarTratamientosVencidosService tratamientos;
     private final ProcesarPesajesAtrasadosService pesajes;
     private final RecordatorioService recordatorios;
@@ -35,6 +40,19 @@ public class GeneradoresAlertaCronScheduler {
         this.pesajes = pesajes;
         this.recordatorios = recordatorios;
         this.calendario = calendario;
+    }
+
+    /**
+     * Ganadero es una app de escritorio y casi nunca está abierta a las 00:10: sin esto, el calendario
+     * de un plan creado o de un día en que la app estuvo cerrada no se generaba hasta la próxima noche.
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    public void generarCalendarioAlIniciar() {
+        try {
+            calendario.procesar();
+        } catch (RuntimeException e) {
+            LOG.warn("No se pudo generar el calendario sanitario al iniciar; se reintentará en la corrida nocturna.", e);
+        }
     }
 
     @Scheduled(cron = "${ganadero.sanidad.cron-calendario-proyectado:0 10 0 * * *}")

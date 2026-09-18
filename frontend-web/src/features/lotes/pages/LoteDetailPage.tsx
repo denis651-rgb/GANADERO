@@ -21,6 +21,7 @@ import { Modal } from '@/shared/components/Modal'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { useToast } from '@/shared/toast/useToast'
 import { normalizeApiError } from '@/shared/api/errors'
+import { formatDate } from '@/shared/utils/date'
 
 export function LoteDetailPage() {
   const { id = '' } = useParams()
@@ -168,7 +169,7 @@ export function LoteDetailPage() {
       <Card><dl className="detail-list">
         <div><dt>Propiedad</dt><dd>{catalogs.data?.propiedades.find((item) => item.id === value.propiedadId)?.nombre ?? '—'}</dd></div>
         <div><dt>Potrero operativo actual</dt><dd>{value.potreroActualId ? (catalogs.data?.potreros.find((p) => p.id === value.potreroActualId)?.nombre ?? '—') : 'Mixto o sin definir'}</dd></div>
-        <div><dt>Estado</dt><dd>{value.estado}</dd></div><div><dt>Apertura</dt><dd>{new Date(value.fechaApertura).toLocaleDateString('es-BO')}</dd></div><div><dt>Cierre</dt><dd>{value.fechaCierre ? new Date(value.fechaCierre).toLocaleDateString('es-BO') : '—'}</dd></div></dl></Card>
+        <div><dt>Estado</dt><dd>{value.estado}</dd></div><div><dt>Apertura</dt><dd>{formatDate(value.fechaApertura)}</dd></div><div><dt>Cierre</dt><dd>{value.fechaCierre ? formatDate(value.fechaCierre) : '—'}</dd></div></dl></Card>
       <Card><h3>Ocupación del lote</h3><p>{value.cantidadActual} / {value.cantidadMaxima ?? 'Sin límite'} animales</p><p className="muted">{cupos == null ? 'Sin límite configurado.' : `${cupos} cupos disponibles`}</p>
         {value.estado === 'ACTIVO' && <Button variant="secondary" onClick={() => { setMaximo(value.cantidadMaxima?.toString() ?? ''); capacity.reset(); setShowCapacity(true) }}>Configurar cantidad máxima</Button>}
       </Card>

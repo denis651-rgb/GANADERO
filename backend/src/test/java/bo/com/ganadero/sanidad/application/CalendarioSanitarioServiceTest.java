@@ -373,6 +373,182 @@ class CalendarioSanitarioServiceTest {
         assertThat(f.estadoEvento(actividad, animal)).isEqualTo("PROGRAMADO");
     }
 
+    // ---------- serie periódica desde «Última aplicación»: conciliación ----------
+
+    private static final String[] PENDIENTES = {"PROYECTADO", "PROGRAMADO"};
+
+    private static java.time.LocalDate hoyLaPaz() {
+        return java.time.LocalDate.now(java.time.ZoneId.of("America/La_Paz"));
+    }
+
+    @Test
+    void alRegistrarUnaAplicacionFueraDeFechaLaSerieViejaSeReemplazaSinDuplicados(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID actividad = f.crearActividadPeriodica(21, 0, 0); // «Última aplicación»
+        UUID animal = f.crearAnimal("P-001", LocalDate.now().minusYears(2), false);
+        f.service.procesar();
+        List<LocalDate> serieVieja = f.fechas(actividad, animal, PENDIENTES);
+        assertThat(serieVieja).hasSize(17);
+
+        LocalDate aplicacion = hoyLaPaz().minusDays(3);
+        f.confirmarAplicacion(animal, actividad, aplicacion);
+        f.service.procesar();
+
+        List<LocalDate> vigentes = f.fechas(actividad, animal, PENDIENTES);
+        assertThat(vigentes).hasSize(17).doesNotHaveDuplicates();
+        assertThat(vigentes).allSatisfy(d ->
+                assertThat(java.time.temporal.ChronoUnit.DAYS.between(aplicacion, d) % 21).isZero());
+        assertThat(f.fechas(actividad, animal, "CANCELADO")).containsExactlyElementsOf(serieVieja);
+        // otra corrida más no cambia nada
+        f.service.procesar();
+        assertThat(f.fechas(actividad, animal, PENDIENTES)).containsExactlyElementsOf(vigentes);
+        assertThat(f.fechas(actividad, animal, "CANCELADO")).hasSize(17);
+    }
+
+    @Test
+    void siLaSerieVuelveAAlinearseRestauraLasFechasQueSeHabianCancelado(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID actividad = f.crearActividadPeriodica(21, 0, 0);
+        UUID animal = f.crearAnimal("P-002", LocalDate.now().minusYears(2), false);
+        f.service.procesar();
+        List<LocalDate> serieInicial = f.fechas(actividad, animal, PENDIENTES);
+        f.confirmarAplicacion(animal, actividad, hoyLaPaz().minusDays(3));
+        f.service.procesar();
+        // una segunda aplicación el día de la vigencia devuelve la referencia al punto de partida original
+        f.confirmarAplicacion(animal, actividad, hoyLaPaz());
+
+        f.service.procesar();
+
+        assertThat(f.fechas(actividad, animal, PENDIENTES)).containsExactlyElementsOf(serieInicial);
+        assertThat(f.fechas(actividad, animal, "CANCELADO")).hasSize(17).doesNotContainAnyElementsOf(serieInicial);
+    }
+
+    @Test
+    void alConciliarResuelveLasAlertasDeLasOcurrenciasQueQuedaronSinPendientes(@TempDir Path tempDir) {
+        MotorAlertas motor = mock(MotorAlertas.class);
+        Fixture f = fixture(tempDir, motor);
+        UUID actividad = f.crearActividadPeriodica(21, 0, 0);
+        UUID animal = f.crearAnimal("P-003", LocalDate.now().minusYears(2), false);
+        f.service.procesar();
+        f.confirmarAplicacion(animal, actividad, hoyLaPaz().minusDays(3));
+
+        f.service.procesar();
+
+        verify(motor, org.mockito.Mockito.atLeastOnce())
+                .resolverPorOrigen(any(), org.mockito.ArgumentMatchers.eq("EVENTO_CALENDARIO_SANITARIO"), any());
+    }
+
+    @Test
+    void siLaOcurrenciaAunTieneAOtroAnimalNoSeResuelveSuAlertaNiSeTocaSuSerie(@TempDir Path tempDir) {
+        MotorAlertas motor = mock(MotorAlertas.class);
+        Fixture f = fixture(tempDir, motor);
+        UUID actividad = f.crearActividadPeriodica(21, 0, 0);
+        UUID aplicado = f.crearAnimal("P-004", LocalDate.now().minusYears(2), false);
+        UUID otro = f.crearAnimal("P-005", LocalDate.now().minusYears(2), false);
+        f.service.procesar();
+        List<LocalDate> serieDelOtro = f.fechas(actividad, otro, PENDIENTES);
+        f.confirmarAplicacion(aplicado, actividad, hoyLaPaz().minusDays(3));
+
+        f.service.procesar();
+
+        assertThat(f.fechas(actividad, otro, PENDIENTES)).containsExactlyElementsOf(serieDelOtro);
+        assertThat(f.fechas(actividad, otro, "CANCELADO")).isEmpty();
+        assertThat(f.fechas(actividad, aplicado, "CANCELADO")).hasSize(17);
+        // sus ocurrencias viejas todavía tienen a «otro»: no hay alerta que resolver
+        verify(motor, org.mockito.Mockito.never()).resolverPorOrigen(any(), any(), any());
+    }
+
+    @Test
+    void laConciliacionNoTocaLoQueYaEstaEnUnaJornada(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID actividad = f.crearActividadPeriodica(21, 0, 0);
+        UUID animal = f.crearAnimal("P-006", LocalDate.now().minusYears(2), false);
+        f.service.procesar();
+        f.marcarEvento(actividad, animal, "EN_PREPARACION");
+        f.confirmarAplicacion(animal, actividad, hoyLaPaz().minusDays(3));
+
+        f.service.procesar();
+
+        assertThat(f.fechas(actividad, animal, "CANCELADO")).isEmpty();
+        assertThat(f.fechas(actividad, animal, "EN_PREPARACION")).hasSize(17);
+    }
+
+    @Test
+    void conUnaReferenciaFijaRegistrarUnaAplicacionNoCancelaNada(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID actividad = f.crearActividadPeriodica(90, 0, 0, ReferenciaCalculoPeriodica.FECHA_DE_NACIMIENTO, null, null, false);
+        UUID animal = f.crearAnimal("P-007", LocalDate.now().minusDays(400), false);
+        f.service.procesar();
+        List<LocalDate> antes = f.fechas(actividad, animal, PENDIENTES);
+        f.confirmarAplicacion(animal, actividad, hoyLaPaz().minusDays(3));
+
+        f.service.procesar();
+
+        assertThat(f.fechas(actividad, animal, PENDIENTES)).containsExactlyElementsOf(antes);
+        assertThat(f.fechas(actividad, animal, "CANCELADO")).isEmpty();
+    }
+
+    @Test
+    void laUltimaAplicacionCuentaLasHechasEnVersionesAnteriores(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID v1 = f.crearActividadPeriodica(21, 0, 0);
+        UUID animal = f.crearAnimal("P-008", LocalDate.now().minusYears(2), false);
+        LocalDate aplicacion = hoyLaPaz().minusDays(10);
+        f.confirmarAplicacion(animal, v1, aplicacion);
+        UUID v2 = f.crearNuevaVersionPeriodica(v1, 21);
+
+        f.service.procesar();
+
+        // cuenta desde la aplicación hecha con la v1, no desde el día en que nació la v2
+        assertThat(f.fechas(v2, animal, PENDIENTES)).first().isEqualTo(aplicacion.plusDays(21));
+    }
+
+    // ---------- aplicar tarde: qué eventos puede cerrar una aplicación ----------
+
+    @Test
+    void unaAplicacionPuedeCerrarLosPendientesYLosVencidosPeroNoLosYaCerrados(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID actividad = f.crearActividadPeriodica(21, 0, 0);
+        UUID animal = f.crearAnimal("V-001", LocalDate.now().minusYears(2), false);
+        f.service.procesar();
+        List<String> ids = f.jdbc().sql("select id from evento_calendario_sanitario where animal_id=:a order by fecha_prevista")
+                .param("a", animal.toString()).query(String.class).list();
+        String[] estados = {"VENCIDO", "REALIZADO", "CANCELADO", "OMITIDO"};
+        for (int i = 0; i < estados.length; i++) {
+            f.jdbc().sql("update evento_calendario_sanitario set estado=:e where id=:id")
+                    .param("e", estados[i]).param("id", ids.get(i)).update();
+        }
+        var eventos = new bo.com.ganadero.sanidad.infrastructure.JdbcEventoCalendarioSanitarioRepository(f.jdbc());
+
+        var cerrables = eventos.cerrablesPorAplicacion(actividad, animal);
+
+        // 17 fechas: 1 vencida + 13 pendientes; realizada, cancelada y omitida quedan fuera
+        assertThat(cerrables).hasSize(17 - 3);
+        assertThat(cerrables).extracting(e -> e.estado().name()).contains("VENCIDO")
+                .doesNotContain("REALIZADO", "CANCELADO", "OMITIDO");
+        assertThat(cerrables).isSortedAccordingTo(java.util.Comparator.comparing(
+                bo.com.ganadero.sanidad.domain.EventoCalendarioSanitario::fechaPrevista));
+    }
+
+    @Test
+    void unaOcurrenciaConUnVencidoSigueSinCerrarPeroNoTienePendientes(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID actividad = f.crearActividadPeriodica(21, 0, 0);
+        UUID animal = f.crearAnimal("V-002", LocalDate.now().minusYears(2), false);
+        f.service.procesar();
+        var eventos = new bo.com.ganadero.sanidad.infrastructure.JdbcEventoCalendarioSanitarioRepository(f.jdbc());
+        var primero = eventos.cerrablesPorAplicacion(actividad, animal).get(0);
+        UUID ocurrencia = primero.ocurrenciaId();
+
+        f.jdbc().sql("update evento_calendario_sanitario set estado='VENCIDO' where id=:id")
+                .param("id", primero.id().toString()).update();
+        assertThat(eventos.tienePendientes(ocurrencia)).isFalse();
+        assertThat(eventos.tieneSinCerrar(ocurrencia)).isTrue();
+
+        eventos.marcarEstado(primero.id(), bo.com.ganadero.sanidad.domain.EstadoEventoCalendario.REALIZADO, null, null);
+        assertThat(eventos.tieneSinCerrar(ocurrencia)).isFalse();
+    }
+
     private Fixture fixture(Path tempDir) {
         return fixture(tempDir, null);
     }
@@ -549,6 +725,30 @@ class CalendarioSanitarioServiceTest {
         String estadoEvento(UUID actividadId, UUID animalId) {
             return jdbc.sql("select estado from evento_calendario_sanitario where actividad_id=:a and animal_id=:an")
                     .param("a", actividadId.toString()).param("an", animalId.toString()).query(String.class).single();
+        }
+
+        /** Fechas (día de La Paz) de los eventos de un animal y actividad en los estados dados, ordenadas. */
+        List<LocalDate> fechas(UUID actividadId, UUID animalId, String... estados) {
+            return jdbc.sql("""
+                    select substr(fecha_prevista,1,10) from evento_calendario_sanitario
+                    where actividad_id=:a and animal_id=:an and estado in (:estados) order by 1
+                    """).param("a", actividadId.toString()).param("an", animalId.toString())
+                    .param("estados", List.of(estados)).query(String.class).list().stream().map(LocalDate::parse).toList();
+        }
+
+        /** Simula editar una actividad periódica ya usada: cierra la versión anterior y crea otra con la misma identidad. */
+        UUID crearNuevaVersionPeriodica(UUID versionAnterior, int frecuenciaDias) {
+            UUID[] fila = jdbc.sql("select plan_id, identidad_logica_id from plan_sanitario_item where id=:id")
+                    .param("id", versionAnterior.toString())
+                    .query((r, n) -> new UUID[]{UUID.fromString(r.getString("plan_id")),
+                            UUID.fromString(r.getString("identidad_logica_id"))}).single();
+            jdbc.sql("update plan_sanitario_item set vigente_hasta=:hasta where id=:id")
+                    .param("hasta", Instant.now().toString()).param("id", versionAnterior.toString()).update();
+            UUID id = UUID.randomUUID();
+            PlanSanitarioItem nueva = construir(id, fila[0], ModalidadActividad.PERIODICA,
+                    new ModalidadConfig.PeriodicaConfig(frecuenciaDias, UnidadFrecuencia.DIAS,
+                            ReferenciaCalculoPeriodica.ULTIMA_APLICACION, 0, 0), fila[1], 2, versionAnterior);
+            return planes.crearItem(nueva, UUID.randomUUID()).id();
         }
 
         UUID planDe(UUID actividadId) {

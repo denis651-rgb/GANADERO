@@ -95,6 +95,7 @@ public class PlanSanitarioService {
             resolverAlertasSinPendientes(u, eventos.cancelarPendientesDePlan(id));
         }
         audit(u, "CAMBIAR_ESTADO_PLAN", "PLAN_SANITARIO", id);
+        if (nuevo == EstadoPlanSanitario.ACTIVO) generarCalendario();
         return p;
     }
 
@@ -138,6 +139,7 @@ public class PlanSanitarioService {
         PlanSanitarioItem creado = repo.crearItem(construir(id, u.empresaId(), planId, c, id, 1, null,
                 Instant.now(), null), u.userId());
         audit(u, "CREAR_ITEM_PLAN", "PLAN_SANITARIO_ITEM", id);
+        generarCalendario();
         return creado;
     }
 
@@ -162,6 +164,7 @@ public class PlanSanitarioService {
         if (!enUso || huella(actual).equals(huella(propuesto))) {
             PlanSanitarioItem guardado = repo.actualizarItem(propuesto, u.userId());
             audit(u, "ACTUALIZAR_ITEM_PLAN", "PLAN_SANITARIO_ITEM", itemId);
+            generarCalendario();
             return guardado;
         }
 
@@ -175,7 +178,13 @@ public class PlanSanitarioService {
         PlanSanitarioItem creado = repo.crearItem(nuevaVersion, u.userId());
         cancelarCalendarioPendiente(u, itemId);
         audit(u, "CREAR_VERSION_ACTIVIDAD", "PLAN_SANITARIO_ITEM", nuevoId);
+        generarCalendario();
         return creado;
+    }
+
+    /** Pide generar el calendario apenas se confirme la operación (ver {@link RegenerarCalendarioAlCambiarPlan}). */
+    private void generarCalendario() {
+        events.publishEvent(new PlanSanitarioModificado());
     }
 
     /**
@@ -212,6 +221,7 @@ public class PlanSanitarioService {
             // (la clave única del calendario lo impide). Una versión ya cerrada no se reactiva.
             eventos.restaurarCanceladosFuturos(id);
         }
+        if (activo) generarCalendario();
         return actualizado;
     }
 

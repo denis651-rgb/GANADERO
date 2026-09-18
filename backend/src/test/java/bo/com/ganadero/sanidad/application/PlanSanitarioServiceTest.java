@@ -38,6 +38,7 @@ class PlanSanitarioServiceTest {
     private PlanSanitarioService service;
     private EventoCalendarioSanitarioRepository eventos;
     private MotorAlertas motor;
+    private ApplicationEventPublisher publicador;
     private UUID empresa, plan, item;
 
     @BeforeEach
@@ -54,7 +55,8 @@ class PlanSanitarioServiceTest {
         @SuppressWarnings("unchecked")
         ObjectProvider<MotorAlertas> alertas = mock(ObjectProvider.class);
         when(alertas.getIfAvailable()).thenReturn(motor);
-        service = new PlanSanitarioService(repo, new UserContext(() -> u), mock(ApplicationEventPublisher.class),
+        publicador = mock(ApplicationEventPublisher.class);
+        service = new PlanSanitarioService(repo, new UserContext(() -> u), publicador,
                 eventos, codigos, alertas);
         when(repo.plan(plan, empresa)).thenReturn(Optional.of(new PlanSanitario(plan, empresa, "Plan", null,
                 LocalDate.now(), null, EstadoPlanSanitario.ACTIVO, null, null, 0)));
@@ -421,6 +423,69 @@ class PlanSanitarioServiceTest {
         assertThatThrownBy(() -> service.crearItem(plan, c))
                 .isInstanceOfSatisfying(BusinessException.class,
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.VALIDATION_ERROR));
+    }
+
+    // ---------- el calendario se genera al cambiar el plan, sin esperar a la corrida nocturna ----------
+
+    private void verificarQuePidioGenerarElCalendario(int veces) {
+        verify(publicador, org.mockito.Mockito.times(veces)).publishEvent(any(PlanSanitarioModificado.class));
+    }
+
+    @Test
+    void alCrearUnaActividadPideGenerarElCalendario() {
+        when(repo.crearItem(any(), any())).thenAnswer(i -> i.getArgument(0));
+
+        service.crearItem(plan, comandoPeriodica(90));
+
+        verificarQuePidioGenerarElCalendario(1);
+    }
+
+    @Test
+    void alEditarUnaActividadDeLaMismaFilaOCreandoVersionPideGenerarElCalendario() {
+        PlanSanitarioItem actual = itemPeriodica(90, false);
+        when(repo.item(item, empresa)).thenReturn(Optional.of(actual));
+        when(repo.actualizarItem(any(), any())).thenAnswer(i -> i.getArgument(0));
+        when(repo.crearItem(any(), any())).thenAnswer(i -> i.getArgument(0));
+
+        when(repo.itemEnUso(item)).thenReturn(false);
+        service.actualizarItem(plan, item, comandoPeriodica(120), 0);
+        verificarQuePidioGenerarElCalendario(1);
+
+        when(repo.itemEnUso(item)).thenReturn(true);
+        service.actualizarItem(plan, item, comandoPeriodicaConVersion(120, "Cambio de protocolo", Instant.now()), 0);
+        verificarQuePidioGenerarElCalendario(2);
+    }
+
+    @Test
+    void alReactivarUnaActividadPideGenerarElCalendarioPeroAlDesactivarlaNo() {
+        when(repo.cambiarEstadoItem(eq(item), eq(plan), eq(empresa), eq(true), eq(0L), any()))
+                .thenReturn(itemCon(null, null, null, TipoCalculoDosis.NO_APLICA, null, false));
+        when(repo.cambiarEstadoItem(eq(item), eq(plan), eq(empresa), eq(false), eq(0L), any()))
+                .thenReturn(itemCon(null, null, null, TipoCalculoDosis.NO_APLICA, null, false));
+
+        service.estadoItem(plan, item, false, 0);
+        verificarQuePidioGenerarElCalendario(0);
+
+        service.estadoItem(plan, item, true, 0);
+        verificarQuePidioGenerarElCalendario(1);
+    }
+
+    @Test
+    void alActivarUnPlanPideGenerarElCalendarioPeroAlFinalizarloNo() {
+        planEn(EstadoPlanSanitario.ACTIVO);
+        service.cambiarEstado(plan, EstadoPlanSanitario.FINALIZADO, 0);
+        verificarQuePidioGenerarElCalendario(0);
+
+        planEn(EstadoPlanSanitario.BORRADOR);
+        service.cambiarEstado(plan, EstadoPlanSanitario.ACTIVO, 0);
+        verificarQuePidioGenerarElCalendario(1);
+    }
+
+    @Test
+    void unaActividadRechazadaPorValidacionNoPideGenerarElCalendario() {
+        assertThatThrownBy(() -> service.crearItem(plan, comandoPeriodica(0))).isInstanceOf(BusinessException.class);
+
+        verificarQuePidioGenerarElCalendario(0);
     }
 
     // ---------- actualizarItem(): versionado (sección 16-17) ----------

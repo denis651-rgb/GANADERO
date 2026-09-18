@@ -27,6 +27,7 @@ import { EmptyState } from '@/shared/components/EmptyState'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { normalizeApiError } from '@/shared/api/errors'
 import { todayInBolivia } from '@/shared/utils/date'
+import { formatDate } from '@/shared/utils/date'
 
 type ModalActivo = 'neonatal' | 'ecto' | 'reproductivo' | null
 
@@ -68,17 +69,17 @@ export function ControlesPanel({ catalogs, initialAnimalId }: { catalogs: Sanida
         <div className="section-heading"><div><h3><Baby size={19} aria-hidden="true" /> Control neonatal</h3><p className="muted">Solo durante el nacimiento o la primera semana de vida.</p></div><Button variant="secondary" disabled={!puedeNeonatal} onClick={() => setModal('neonatal')}>Registrar control neonatal</Button></div>
         {!puedeNeonatal && <Alert tone="info">No disponible: requiere animal activo, nacimiento confirmado y una edad máxima de 7 días.</Alert>}
         {loading ? <LoadingState message="Cargando controles…" /> : neonatales.data?.length
-          ? <ul className="attention-list">{neonatales.data.map((control) => <li key={control.id}><div><strong>{new Date(control.fechaControl).toLocaleDateString('es-BO')} · {MOMENTO_CONTROL_NEONATAL_LABELS[control.momento]}</strong><span>Calostrado: {ESTADO_CALOSTRADO_LABELS[control.calostrado]}{control.diarrea ? ' · Con diarrea' : ''}</span></div></li>)}</ul>
+          ? <ul className="attention-list">{neonatales.data.map((control) => <li key={control.id}><div><strong>{formatDate(control.fechaControl)} · {MOMENTO_CONTROL_NEONATAL_LABELS[control.momento]}</strong><span>Calostrado: {ESTADO_CALOSTRADO_LABELS[control.calostrado]}{control.diarrea ? ' · Con diarrea' : ''}</span></div></li>)}</ul>
           : <p className="muted">Sin controles neonatales registrados.</p>}
       </Card>
       <Card>
         <div className="section-heading"><div><h3><Bug size={19} aria-hidden="true" /> Control ectoparasitario</h3><p className="muted">Evaluación de carga parasitaria y tratamiento aplicado.</p></div><Button variant="secondary" disabled={animal.estado !== 'ACTIVO'} onClick={() => setModal('ecto')}>Registrar control ectoparasitario</Button></div>
-        {ectoparasitarios.data?.length ? <ul className="attention-list">{ectoparasitarios.data.map((control) => <li key={control.id}><div><strong>{new Date(control.fecha).toLocaleDateString('es-BO')} · {TIPO_ECTOPARASITO_LABELS[control.tipo]}</strong><span>Carga {NIVEL_CARGA_PARASITARIA_LABELS[control.nivelCarga]} · {control.tratado ? 'Tratado' : 'Sin tratamiento'}</span></div></li>)}</ul> : !loading && <p className="muted">Sin controles ectoparasitarios registrados.</p>}
+        {ectoparasitarios.data?.length ? <ul className="attention-list">{ectoparasitarios.data.map((control) => <li key={control.id}><div><strong>{formatDate(control.fecha)} · {TIPO_ECTOPARASITO_LABELS[control.tipo]}</strong><span>Carga {NIVEL_CARGA_PARASITARIA_LABELS[control.nivelCarga]} · {control.tratado ? 'Tratado' : 'Sin tratamiento'}</span></div></li>)}</ul> : !loading && <p className="muted">Sin controles ectoparasitarios registrados.</p>}
       </Card>
       <Card>
         <div className="section-heading"><div><h3><Stethoscope size={19} aria-hidden="true" /> Examen reproductivo</h3><p className="muted">La edad mínima configurada se comprueba antes de registrar y se valida al guardar.</p></div><Button variant="secondary" disabled={!puedeReproductivo} onClick={() => setModal('reproductivo')}>Registrar examen reproductivo</Button></div>
         {avisoReproductivo && <Alert tone="info">{avisoReproductivo}</Alert>}
-        {reproductivos.data?.length ? <ul className="attention-list">{reproductivos.data.map((examen) => <li key={examen.id}><div><strong>{new Date(examen.fecha).toLocaleDateString('es-BO')} · {RESULTADO_EXAMEN_REPRODUCTIVO_LABELS[examen.resultado]}</strong><span>{examen.observaciones || 'Sin observaciones.'}</span></div></li>)}</ul> : !loading && <p className="muted">Sin exámenes reproductivos registrados.</p>}
+        {reproductivos.data?.length ? <ul className="attention-list">{reproductivos.data.map((examen) => <li key={examen.id}><div><strong>{formatDate(examen.fecha)} · {RESULTADO_EXAMEN_REPRODUCTIVO_LABELS[examen.resultado]}</strong><span>{examen.observaciones || 'Sin observaciones.'}</span></div></li>)}</ul> : !loading && <p className="muted">Sin exámenes reproductivos registrados.</p>}
       </Card>
       {modal === 'neonatal' && <ControlNeonatalModal animalId={animal.id} animalCodigo={catalogs.animalLabel(animal.id)} onClose={cerrar} onSaved={cerrar} />}
       {modal === 'ecto' && <ControlEctoparasitarioModal animalId={animal.id} destinoLabel={catalogs.animalLabel(animal.id)} onClose={cerrar} onSaved={cerrar} />}

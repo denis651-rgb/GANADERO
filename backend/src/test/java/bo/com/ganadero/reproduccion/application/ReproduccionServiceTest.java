@@ -1,5 +1,12 @@
 package bo.com.ganadero.reproduccion.application;
 
+import bo.com.ganadero.alertas.application.AlertaConfiguracion;
+import bo.com.ganadero.alertas.application.AlertaConfiguracionPort;
+import bo.com.ganadero.alertas.application.MotorAlertas;
+import bo.com.ganadero.alertas.application.MotorAlertasService;
+import bo.com.ganadero.alertas.application.TipoAlerta;
+import bo.com.ganadero.alertas.domain.Alerta;
+import bo.com.ganadero.alertas.domain.AlertaRepository;
 import bo.com.ganadero.animales.domain.Animal;
 import bo.com.ganadero.animales.domain.AnimalRepository;
 import bo.com.ganadero.animales.domain.EstadoAnimal;
@@ -21,10 +28,13 @@ import bo.com.ganadero.shared.security.UserContext;
 import bo.com.ganadero.timeline.application.TimelineEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -237,6 +247,44 @@ class ReproduccionServiceTest {
 
         assertThat(diagnostico.resultado()).isEqualTo(ResultadoGestacion.POSITIVO);
         assertThat(diagnostico.fechaProbableParto()).isEqualTo(fechaServicio.plusDays(285));
+    }
+
+    @Test
+    void elAvisoDePartoProximoSaleADiasDeAnticipacionALas0800YNoAMedianoche() {
+        // Escenario reportado: diagnóstico positivo con 3 días de gestación estimados y 15 días de anticipación.
+        Animal hembra = hembra(property);
+        when(animales.findById(hembraId, company)).thenReturn(Optional.of(hembra));
+        when(registros.createDiagnostico(any(DiagnosticoGestacion.class), any(UUID.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+        AlertaRepository alertasRepo = mock(AlertaRepository.class);
+        when(alertasRepo.programar(any())).thenAnswer(inv -> inv.getArgument(0));
+        AlertaConfiguracionPort ajustes = mock(AlertaConfiguracionPort.class);
+        when(ajustes.obtener(any())).thenReturn(AlertaConfiguracion.valoresPredeterminados());
+        MotorAlertas motor = new MotorAlertasService(alertasRepo, ajustes);
+        CurrentUser user = new CurrentUser(UUID.randomUUID(), company, UUID.randomUUID(),
+                Set.of(), Set.of("REPRODUCCION_REGISTRAR", "REPRODUCCION_VER"), Set.of(property), false);
+        @SuppressWarnings("unchecked") ObjectProvider<MotorAlertas> motorProvider = mock(ObjectProvider.class);
+        when(motorProvider.getIfAvailable()).thenReturn(motor);
+        @SuppressWarnings("unchecked") ObjectProvider<AlertaConfiguracionPort> ajustesProvider = mock(ObjectProvider.class);
+        when(ajustesProvider.getIfAvailable()).thenReturn(ajustes);
+        ReproduccionService conMotor = new ReproduccionService(registros, animales, new UserContext(() -> user), events,
+                timeline, motorProvider, ajustesProvider, mock(GestacionService.class));
+
+        java.time.Instant fechaDiagnostico = java.time.Instant.now().minusSeconds(86400);
+        DiagnosticoGestacion diagnostico = conMotor.registrarDiagnostico(new RegistrarDiagnosticoCommand(null, hembraId,
+                null, fechaDiagnostico, ResultadoGestacion.POSITIVO, MetodoDiagnostico.ECOGRAFIA,
+                3, null, null, null, null, null, null, null));
+
+        // 285 - 3 = 282 días después del diagnóstico; el aviso sale 15 días antes de esa fecha.
+        LocalDate parto = fechaDiagnostico.atZone(java.time.ZoneOffset.UTC).toLocalDate().plusDays(282);
+        assertThat(diagnostico.fechaProbableParto()).isEqualTo(parto);
+        ArgumentCaptor<Alerta> captor = ArgumentCaptor.forClass(Alerta.class);
+        verify(alertasRepo).programar(captor.capture());
+        assertThat(captor.getValue().tipo()).isEqualTo(TipoAlerta.PARTO_PROXIMO);
+        assertThat(captor.getValue().fechaProgramada())
+                .isEqualTo(parto.minusDays(15).atTime(8, 0).atZone(ZoneId.of("America/La_Paz")).toInstant());
+        assertThat(captor.getValue().fechaVencimiento())
+                .isEqualTo(parto.atStartOfDay(ZoneId.of("America/La_Paz")).toInstant());
     }
 
     @Test

@@ -136,8 +136,8 @@ public class HistorialDeclaradoService {
         datos.put("diasRestantes", item.diasAlerta());
         datos.put("fechaProximaAplicacion", a.proximaAplicacion().toString());
         datos.put("eventoReferencia", a.proximaAplicacion().toString());
-        m.programar(new ProgramarAlertaCommand(u.empresaId(), a.animalId(), TipoAlerta.VACUNA_PROXIMA,
-                a.proximaAplicacion().minusDays(item.diasAlerta()).atStartOfDay(zona).toInstant(),
+        m.programar(ProgramarAlertaCommand.alDia(u.empresaId(), a.animalId(), TipoAlerta.VACUNA_PROXIMA,
+                a.proximaAplicacion().minusDays(item.diasAlerta()),
                 a.proximaAplicacion().atStartOfDay(zona).toInstant(),
                 "APLICACION_SANITARIA", a.id(), datos));
     }

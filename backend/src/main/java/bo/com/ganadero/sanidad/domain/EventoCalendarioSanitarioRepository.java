@@ -2,7 +2,6 @@ package bo.com.ganadero.sanidad.domain;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 public interface EventoCalendarioSanitarioRepository {
@@ -12,10 +11,20 @@ public interface EventoCalendarioSanitarioRepository {
     List<EventoCalendarioSanitario> listar(UUID empresa, EstadoEventoCalendario estado, UUID animalId,
                                           Instant desde, Instant hasta, int limit);
 
-    Optional<EventoCalendarioSanitario> findPendientePorAnimalYActividad(UUID actividadId, UUID animalId);
+    /**
+     * Eventos de un animal y actividad que una aplicación puede cerrar: los pendientes y también los
+     * vencidos, porque aplicar tarde sigue cumpliendo la actividad. Ordenados por fecha prevista.
+     */
+    List<EventoCalendarioSanitario> cerrablesPorAplicacion(UUID actividadId, UUID animalId);
 
     /** true si a la ocurrencia todavía le quedan eventos pendientes (PROYECTADO/PROGRAMADO/EN_PREPARACION). */
     boolean tienePendientes(UUID ocurrenciaId);
+
+    /**
+     * true si a la ocurrencia le queda algún evento sin cerrar: pendiente, en preparación o vencido.
+     * Los vencidos cuentan porque son animales que siguen sin cumplir la actividad.
+     */
+    boolean tieneSinCerrar(UUID ocurrenciaId);
 
     void marcarEstado(UUID id, EstadoEventoCalendario estado, UUID jornadaId, UUID actor);
 
@@ -35,4 +44,10 @@ public interface EventoCalendarioSanitarioRepository {
      * pasaron se dejan cancelados para no resucitar vencidos.
      */
     void restaurarCanceladosFuturos(UUID actividadId);
+
+    /**
+     * Eventos de una actividad que pueden entrar en la conciliación de su serie periódica:
+     * los pendientes (PROYECTADO/PROGRAMADO) y los cancelados que todavía no llegaron a su fecha.
+     */
+    List<EventoCalendarioSanitario> pendientesOCanceladosFuturosDeActividad(UUID actividadId);
 }

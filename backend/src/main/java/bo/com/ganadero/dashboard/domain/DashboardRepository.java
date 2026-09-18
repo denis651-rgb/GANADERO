@@ -15,15 +15,11 @@ public interface DashboardRepository {
 
     Double pesoPromedio(UUID empresa, boolean todas, Set<UUID> permitidas);
 
-    Double gananciaDiaria(UUID empresa, boolean todas, Set<UUID> permitidas);
-
     long countPesajesUltimosDias(UUID empresa, int dias, boolean todas, Set<UUID> permitidas);
 
     long countMovimientosUltimosDias(UUID empresa, int dias, boolean todas, Set<UUID> permitidas);
 
     long countAnimalesSinPesaje(UUID empresa, boolean todas, Set<UUID> permitidas);
-
-    long countAnimalesGananciaNegativa(UUID empresa, boolean todas, Set<UUID> permitidas);
 
     long countPotrerosInactivos(UUID empresa, boolean todas, Set<UUID> permitidas);
 

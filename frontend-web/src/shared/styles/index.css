@@ -208,7 +208,7 @@ button.text-link { background: none; border: 0; padding: 0; cursor: pointer; fon
 .dp-att-row a { flex: 0 0 auto; color: var(--green-700); font-weight: 700; font-size: .78rem; }
 .dp-att-empty { margin: 0; padding: 4px 0; color: var(--muted); }
 
-.dp-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 0; }
+.dp-kpi-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 0; }
 .dp-kpi-card { padding: 22px 24px; border-right: 1px solid var(--border); }
 .dp-kpi-card:last-child { border-right: 0; }
 .dp-kpi-icon { width: 32px; height: 32px; border-radius: 8px; background: var(--green-50); color: var(--green-700); display: grid; place-items: center; margin-bottom: 14px; }

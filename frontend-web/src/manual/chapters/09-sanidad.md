@@ -62,7 +62,7 @@ antes de cada fecha.
 | --- | --- | --- |
 | **BORRADOR** | El plan se está preparando. | Agregar y modificar actividades. Aún no genera calendario ni se ofrece en las jornadas. Puedes **Activarlo** o **Anularlo**. |
 | **ACTIVO** | El plan está vigente. | Agregar y modificar actividades. Genera el calendario y sus actividades se ofrecen al preparar una jornada. Puedes **Finalizarlo** o **Anularlo**. |
-| **FINALIZADO** | El plan cumplió su período. | Solo consultarlo. Ya no admite cambios en sus actividades. |
+| **FINALIZADO** | Cerraste el plan al terminar su período. | Solo consultarlo. Ya no admite cambios en sus actividades. |
 | **ANULADO** | El plan se canceló. | Solo consultarlo. Ya no admite cambios en sus actividades. |
 
 Finalizar o anular un plan **no se puede deshacer**. Al hacerlo, el sistema
@@ -75,7 +75,7 @@ avisos. Lo que ya se aplicó queda registrado en el historial de cada animal.
 | --- | --- | --- |
 | **Nombre** (obligatorio) | Un nombre que identifique el plan. Ej.: *Calendario sanitario 2026*. | Hasta 160 caracteres. |
 | **Fecha de inicio** (obligatorio) | Desde cuándo rige el plan. | También sirve de referencia para las actividades periódicas que se calculan "desde la fecha inicial del plan". |
-| **Fecha de fin** (opcional) | Hasta cuándo rige. | No puede ser anterior a la fecha de inicio: el calendario no deja elegirla y, si la escribes igual, ves "La fecha de fin no puede ser anterior a la fecha de inicio" y **Crear plan** queda bloqueado. |
+| **Fecha de fin** (opcional) | Hasta cuándo esperas que rija el plan. | Es informativa: el plan sigue **ACTIVO** hasta que tú lo finalices con **Finalizar**. No puede ser anterior a la fecha de inicio: el calendario no deja elegirla y, si la escribes igual, ves "La fecha de fin no puede ser anterior a la fecha de inicio" y **Crear plan** queda bloqueado. |
 | **Descripción** (opcional) | El objetivo del plan. | Hasta 2000 caracteres. |
 
 El plan aplica a todas tus propiedades.
@@ -128,7 +128,7 @@ vacunación contra aftosa.
 | --- | --- | --- |
 | **Frecuencia** (obligatorio) | Cada cuánto se repite. Ej.: *6*. | Número entero, 1 o más. Empieza en 90. |
 | **Unidad de frecuencia** | **Días**, **Semanas**, **Meses** o **Años**. | Empieza en **Días**. Una semana son 7 días, un mes 30 y un año 365. |
-| **Se calcula desde** | El punto de partida: **Fecha de ingreso** (a la finca), **Fecha de nacimiento**, **Última aplicación**, **Fecha inicial del plan** o **Fecha configurada**. | Empieza en **Última aplicación**: cuenta desde la última vez que se le aplicó esta actividad al animal y, si nunca se le aplicó, desde el día en que creaste la actividad. **Fecha configurada** también cuenta desde el día en que la creaste. |
+| **Se calcula desde** | El punto de partida: **Fecha de ingreso** (a la finca), **Fecha de nacimiento**, **Última aplicación**, **Fecha inicial del plan** o **Fecha configurada**. | Empieza en **Última aplicación**: cuenta desde la última vez que se le aplicó esta actividad al animal (incluidas las aplicaciones hechas con versiones anteriores de la actividad) y, si nunca se le aplicó, desde el día en que creaste la actividad. Cada vez que registras una aplicación, las fechas pendientes de ese animal se recalculan desde ella y las que ya no corresponden se cancelan. **Fecha configurada** cuenta desde el día en que creaste la actividad. En todos los casos la primera fecha cae una frecuencia después del punto de partida. |
 | **Tolerancia anticipada (días)** | Cuántos días antes de cada fecha pasa a considerarse próxima a aplicar. | 0 o más. Empieza en 0. |
 | **Tolerancia posterior (días)** | Días de gracia después de cada fecha. | 0 o más. Empieza en 0. Ver **Importante**. |
 
@@ -308,17 +308,21 @@ el sistema lo rechaza: esos planes ya no admiten cambios.
    plan con la flecha que está a la izquierda de su nombre.
 2. **Se agenda en el calendario** (solo las modalidades **Por edad**,
    **Periódica** y **Fecha programada**, y solo si el plan está **ACTIVO**).
-   No es instantáneo: si tienes Google Calendar conectado y la
-   sincronización automática activa, Ganadero Desktop actualiza el calendario
-   cada minuto; si no, lo actualiza en la madrugada (a las 00:10), mientras
-   la aplicación esté en ejecución, o cuando sincronizas manualmente con Google Calendar. Las fechas aparecen en **Sanidad** →
-   **Calendario**.
+   Las fechas se generan solas en cuanto guardas la actividad (o activas el
+   plan), sin que tengas que hacer nada más; además se revisan cada vez que
+   abres Ganadero y cada madrugada (a las 00:10) si la aplicación está en
+   ejecución. Si tienes Google Calendar conectado y la sincronización
+   automática activa, también se actualizan cada minuto. Las fechas aparecen
+   en **Sanidad** → **Calendario**.
 3. **Genera avisos.** Un aviso por fecha y lugar, como se explicó en
    **Alertas**.
 4. **Se ofrece en las jornadas.** Al preparar una jornada del mismo tipo
    aparece en la lista solo si el plan está **ACTIVO** y la actividad está
    activa. Ahí el sistema vuelve a comprobar, animal por animal, categoría,
-   sexo y edad, y te explica en **Excluidos** por qué alguno no entra.
+   sexo y edad, y te explica en **Excluidos** por qué alguno no entra. Al
+   confirmar la jornada, la aplicación cierra en el calendario la fecha más
+   cercana al día en que aplicaste, aunque ya estuviera vencida. El aviso de
+   esa fecha se cierra cuando todos los animales del grupo la recibieron.
 
 ### Editar, desactivar y versiones
 
@@ -423,8 +427,11 @@ puede elegirse al preparar una jornada del mismo tipo, mientras el plan esté
 > en que la actividad pasa a considerarse próxima.
 
 > Si aplicas una actividad después de su fecha prevista, la aplicación
-> queda registrada en el historial del animal, pero la fecha en el
-> calendario sigue marcada como vencida.
+> igual cierra esa fecha: el sistema toma la fecha del calendario más
+> cercana al día en que aplicaste, esté pendiente o ya vencida. Una fecha
+> vencida hace mucho, cuando había otras más cercanas al día de la
+> aplicación, se queda vencida como registro de lo que no se cumplió a
+> tiempo.
 
 > Al crear una actividad, el sistema no agenda fechas que ya habían pasado
 > antes de que la actividad existiera: así el calendario no se llena de
@@ -521,7 +528,9 @@ habrá ninguna actividad para elegir al preparar la jornada.
    actividades activas del tipo elegido) y la fecha de aplicación.
 6. Revisa los criterios de elegibilidad aplicados automáticamente
    (categoría, sexo, edad) y las pestañas **Elegibles** / **Excluidos**; en
-   "Excluidos" se explica el motivo de cada exclusión.
+   "Excluidos" se explica el motivo de cada exclusión. Si la actividad tiene
+   varias categorías, aparecen todas separadas por comas (por ejemplo,
+   *Categorías: Vaca, Vaquillona*); si no tiene ninguna, dice *Todas*.
 7. Marca los animales a incluir, o presiona **Seleccionar todos los
    elegibles**.
 8. Si vas a hacer el trabajo en el campo sin llevar la computadora,
@@ -1082,9 +1091,14 @@ Revisa estas causas, de la más común a la menos común:
 - **El plan no está ACTIVO.** Los planes en borrador no generan calendario.
 - **Su modalidad es Manual o Por hallazgo.** Esas no generan fechas
   automáticas.
-- **Todavía no se actualizó el calendario.** Con Google Calendar conectado y
-  la sincronización automática activa, tarda cerca de un minuto; si no, se
-  actualiza en la madrugada, mientras la aplicación esté en ejecución.
+- **Ninguna actividad tiene animales que le correspondan.** Es lo más común
+  cuando el calendario queda vacío: por ejemplo, una actividad para
+  **Ternero** y **Ternera** no genera nada si en la finca no hay animales de
+  esas categorías. Revisa el punto de los animales más abajo.
+- **Se creó con una versión anterior de Ganadero.** Las actividades guardadas
+  antes de la actualización que genera el calendario al guardar no lo hicieron
+  en ese momento. Cierra y vuelve a abrir Ganadero (se genera al iniciar), o
+  guarda de nuevo la actividad.
 - **Su fecha queda más adelante** que el período de "Proyección del
   calendario (meses)" (**Sanidad** → **Planes sanitarios**). Amplía ese
   período o espera a que la fecha entre en rango.
@@ -1110,12 +1124,22 @@ También es lo esperado: al desactivar una actividad se cancelan sus fechas
 pendientes. Si la vuelves a **Activar**, recupera las que todavía no habían
 vencido.
 
-### Apliqué una actividad y en el calendario sigue como vencida
+### Apliqué una actividad y en el calendario sigue una fecha como vencida
 
-Si aplicas una actividad después de su fecha prevista, la aplicación queda
-registrada correctamente en el historial del animal, pero la fecha en el
-calendario sigue marcada como vencida. Para saber qué recibió un animal, guíate
-por su historial sanitario.
+Al confirmar una jornada, el sistema cierra la fecha del calendario más
+cercana al día de la aplicación, incluso si ya estaba vencida. Si aun así ves
+una fecha vencida, suele ser una de estas:
+
+- **Es una fecha anterior que no se cumplió a tiempo.** Por ejemplo, un baño
+  que debía hacerse hace tres meses y se omitió: esa fecha queda vencida como
+  registro, aunque hoy sí hayas aplicado la actividad.
+- **El animal no estaba en la jornada.** El aviso de una fecha vencida se
+  cierra recién cuando todos los animales de ese grupo la recibieron.
+- **Es de una versión anterior de la actividad.** Las fechas vencidas de una
+  versión anterior quedan como historial.
+
+El historial sanitario de cada animal siempre muestra lo que realmente
+recibió.
 
 ### Edité un ítem del plan que ya se había usado y no veo el cambio reflejado en jornadas anteriores
 

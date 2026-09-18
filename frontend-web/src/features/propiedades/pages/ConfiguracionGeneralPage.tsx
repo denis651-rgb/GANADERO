@@ -29,6 +29,7 @@ export function ConfiguracionGeneralPage() {
         diasAlertaDestete: Number(data.get('diasAlertaDestete')),
         diasDiagnosticoPostServicio: Number(data.get('diasDiagnosticoPostServicio')),
         diasGestacionEstimada: Number(data.get('diasGestacionEstimada')),
+        horaAvisos: String(data.get('horaAvisos') ?? '') || undefined,
         comprimirImagenes: data.get('comprimirImagenes') === 'on',
         calidadImagen: Number(data.get('calidadImagen')),
         nombreUsuario: String(data.get('nombreUsuario') ?? '') || undefined,
@@ -57,7 +58,7 @@ export function ConfiguracionGeneralPage() {
 
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="Mi finca" title="Configuración general" description="Ajustes generales de la operación y bloqueo de la aplicación con PIN." />
+      <PageHeader eyebrow="Mi finca" title="Configuración general" description="Ajustes generales de la operación." />
       {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
 
       {config.isPending && <Card><LoadingState message="Cargando configuración…" /></Card>}
@@ -74,6 +75,7 @@ export function ConfiguracionGeneralPage() {
           <Field label="Días de alerta de destete" disabled={!canEditConfig}><input name="diasAlertaDestete" type="number" min="0" defaultValue={config.data.diasAlertaDestete} disabled={!canEditConfig} /></Field>
           <Field label="Días para diagnóstico post-servicio" disabled={!canEditConfig}><input name="diasDiagnosticoPostServicio" type="number" min="0" defaultValue={config.data.diasDiagnosticoPostServicio} disabled={!canEditConfig} /></Field>
           <Field label="Días de gestación estimada" disabled={!canEditConfig}><input name="diasGestacionEstimada" type="number" min="1" defaultValue={config.data.diasGestacionEstimada} disabled={!canEditConfig} /></Field>
+          <Field label="Hora de los avisos" hint="Hora a la que salen los avisos que nacen de una fecha, como el parto probable, el destete o el fin de un retiro. Los días de anticipación siguen siendo los de arriba." disabled={!canEditConfig}><input name="horaAvisos" type="time" required defaultValue={config.data.horaAvisos} disabled={!canEditConfig} /></Field>
           <Field label="Calidad de imagen (1-100)" hint="Calidad usada al comprimir fotos nuevas." disabled={!canEditConfig}><input name="calidadImagen" type="number" min="1" max="100" defaultValue={config.data.calidadImagen} disabled={!canEditConfig} /></Field>
           <Field label="Nombre de usuario" hint="Se muestra en la aplicación." disabled={!canEditConfig}><input name="nombreUsuario" maxLength={120} defaultValue={config.data.nombreUsuario ?? ''} disabled={!canEditConfig} /></Field>
           <label className="checkbox-line"><input name="comprimirImagenes" type="checkbox" defaultChecked={config.data.comprimirImagenes} disabled={!canEditConfig} /> Comprimir fotos al subirlas</label>
@@ -83,7 +85,13 @@ export function ConfiguracionGeneralPage() {
 
       {canEditConfig && config.data && <Card>
         <h3><KeyRound size={17} aria-hidden="true" /> Bloqueo con PIN</h3>
-        {config.data.pinConfigurado ? <p className="muted">La aplicación tiene un PIN configurado.</p> : <Alert tone="warning">Ningún PIN configurado: cualquiera puede abrir la aplicación.</Alert>}
+        <div className="alert alert-warning" role="note">
+          <div>
+            <strong>El bloqueo con PIN todavía no está en funcionamiento.</strong>
+            <span>Puedes guardar un PIN, pero la aplicación no lo pide al abrirse: hoy no protege el acceso y cualquiera que abra Ganadero en este equipo ve los datos. Protege el equipo con la clave de inicio de sesión de Windows.</span>
+          </div>
+        </div>
+        {config.data.pinConfigurado && <p className="muted">Hay un PIN guardado para cuando el bloqueo esté disponible.</p>}
         {savePin.error && <Alert tone="danger">{normalizeApiError(savePin.error).message}</Alert>}
         <form className="form-grid compact-form" onSubmit={(event) => { event.preventDefault(); savePin.mutate(event.currentTarget) }}>
           <Field label="Nuevo PIN"><input name="nuevoPin" type="password" inputMode="numeric" minLength={4} maxLength={20} autoComplete="off" /></Field>

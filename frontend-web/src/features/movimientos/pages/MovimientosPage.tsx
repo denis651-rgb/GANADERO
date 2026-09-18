@@ -299,7 +299,7 @@ export function MovimientosPage() {
           const origen = [item.origenPropiedadId ? catalogs.data?.propiedades.find((p) => p.id === item.origenPropiedadId)?.nombre : null, item.origenPotreroId ? catalogs.data?.potreros.find((p) => p.id === item.origenPotreroId)?.nombre : null, item.origenLoteId ? catalogs.data?.lotes.find((l) => l.id === item.origenLoteId)?.nombre : null].filter(Boolean).join(' / ')
           const destino = [item.destinoPropiedadId ? catalogs.data?.propiedades.find((p) => p.id === item.destinoPropiedadId)?.nombre : null, item.destinoPotreroId ? catalogs.data?.potreros.find((p) => p.id === item.destinoPotreroId)?.nombre : null, item.destinoLoteId ? catalogs.data?.lotes.find((l) => l.id === item.destinoLoteId)?.nombre : null].filter(Boolean).join(' / ')
           return <tr key={item.id}><td><strong>{item.tipo.replaceAll('_', ' ')}</strong></td><td><MovimientoStatusBadge estado={item.estado} /></td><td>{formatDate(item.fechaMovimiento)}</td><td>{ubicacionMovimiento(item, 'origen', origen)}</td><td>{ubicacionMovimiento(item, 'destino', destino)}</td>
-            <td><Button variant="ghost" aria-label={`Ver detalle del movimiento ${item.tipo.replaceAll('_', ' ')} del ${new Date(item.fechaMovimiento).toLocaleDateString('es-BO')}`} onClick={() => setSelected(item)}><Eye size={16} aria-hidden="true" />Detalle</Button></td>
+            <td><Button variant="ghost" aria-label={`Ver detalle del movimiento ${item.tipo.replaceAll('_', ' ')} del ${formatDate(item.fechaMovimiento)}`} onClick={() => setSelected(item)}><Eye size={16} aria-hidden="true" />Detalle</Button></td>
           </tr>
         })}</tbody></table></div>
         <div className="mobile-only"><div className="mobile-entity-list">{query.data.content.map((item) => {

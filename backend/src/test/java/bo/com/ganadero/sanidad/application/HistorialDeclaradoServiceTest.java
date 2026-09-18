@@ -1,6 +1,11 @@
 package bo.com.ganadero.sanidad.application;
 
 import bo.com.ganadero.alertas.application.MotorAlertas;
+import bo.com.ganadero.alertas.domain.AlertaRepository;
+import bo.com.ganadero.alertas.domain.Alerta;
+import bo.com.ganadero.alertas.application.MotorAlertasService;
+import bo.com.ganadero.alertas.application.AlertaConfiguracionPort;
+import bo.com.ganadero.alertas.application.AlertaConfiguracion;
 import bo.com.ganadero.alertas.application.ProgramarAlertaCommand;
 import bo.com.ganadero.alertas.application.TipoAlerta;
 import bo.com.ganadero.animales.domain.Animal;
@@ -17,6 +22,7 @@ import bo.com.ganadero.shared.security.UserContext;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -24,6 +30,7 @@ import org.sqlite.SQLiteDataSource;
 
 import javax.sql.DataSource;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
@@ -122,7 +129,17 @@ class HistorialDeclaradoServiceTest {
         assertThat(releida.origenRegistro()).isEqualTo(OrigenRegistroAplicacion.DECLARADA_PROVEEDOR);
         assertThat(releida.proximaAplicacion()).isEqualTo(fechaDeclarada.plusDays(180));
 
-        verify(motorAlertas).programar(any(ProgramarAlertaCommand.class));
+        // El aviso sale 7 días antes de la próxima aplicación (10/01 + 180 días = 09/07), a las 08:00 y no a medianoche.
+        ArgumentCaptor<ProgramarAlertaCommand> comando = ArgumentCaptor.forClass(ProgramarAlertaCommand.class);
+        verify(motorAlertas).programar(comando.capture());
+        AlertaRepository alertasRepo = mock(AlertaRepository.class);
+        when(alertasRepo.programar(any())).thenAnswer(inv -> inv.getArgument(0));
+        AlertaConfiguracionPort ajustes = mock(AlertaConfiguracionPort.class);
+        when(ajustes.obtener(any())).thenReturn(AlertaConfiguracion.valoresPredeterminados());
+        new MotorAlertasService(alertasRepo, ajustes).programar(comando.getValue());
+        ArgumentCaptor<Alerta> alerta = ArgumentCaptor.forClass(Alerta.class);
+        verify(alertasRepo).programar(alerta.capture());
+        assertThat(alerta.getValue().fechaProgramada()).isEqualTo(Instant.parse("2026-07-02T12:00:00Z"));
     }
 
     @Test

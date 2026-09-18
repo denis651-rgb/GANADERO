@@ -51,11 +51,6 @@ public class JdbcDashboardRepository implements DashboardRepository {
     }
 
     @Override
-    public Double gananciaDiaria(UUID empresa, boolean todas, Set<UUID> permitidas) {
-        return null;
-    }
-
-    @Override
     public long countPesajesUltimosDias(UUID empresa, int dias, boolean todas, Set<UUID> permitidas) {
         return jdbc.sql("select count(*) from pesaje where estado='ACTIVO' and fecha >= date('now', '-' || :dias || ' days')")
                 .param("dias", dias).query(Long.class).single();
@@ -70,18 +65,18 @@ public class JdbcDashboardRepository implements DashboardRepository {
 
     @Override
     public long countAnimalesSinPesaje(UUID empresa, boolean todas, Set<UUID> permitidas) {
+        // Solo animales activos: sin ningún pesaje, o con el último de hace más de 30 días. Los paréntesis
+        // importan: sin ellos el «or» se aplicaría a todos los animales y contaría también a los vendidos,
+        // muertos o transferidos que tienen un pesaje viejo.
         return jdbc.sql("""
-                select count(*) from animal a where a.estado='ACTIVO' and (
-                    select max(p.fecha) from pesaje p where p.animal_id=a.id and p.estado='ACTIVO'
-                ) is null or julianday('now') - julianday((
-                    select max(p.fecha) from pesaje p where p.animal_id=a.id and p.estado='ACTIVO'
-                )) > 30
+                select count(*) from animal a
+                where a.estado='ACTIVO' and (
+                    not exists (select 1 from pesaje p where p.animal_id=a.id and p.estado='ACTIVO')
+                    or julianday('now') - julianday((
+                        select max(p.fecha) from pesaje p where p.animal_id=a.id and p.estado='ACTIVO'
+                    )) > 30
+                )
                 """).query(Long.class).single();
-    }
-
-    @Override
-    public long countAnimalesGananciaNegativa(UUID empresa, boolean todas, Set<UUID> permitidas) {
-        return 0;
     }
 
     @Override

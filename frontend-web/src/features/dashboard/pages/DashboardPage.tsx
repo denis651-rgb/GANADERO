@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { AlertCircle, AlertTriangle, Beef, Boxes, ChevronRight, Info, MapPin, QrCode, Route, Scale, TrendingUp } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Beef, Boxes, ChevronRight, Info, MapPin, QrCode, Route, Scale } from 'lucide-react'
 import {
   getDashboardResumen,
   type DashboardDistribucion,
@@ -15,7 +15,7 @@ import { normalizeApiError } from '@/shared/api/errors'
 
 const EMPTY_RESUMEN: DashboardResumen = {
   totalAnimales: 0, animalesEnPotrero: 0, lotesActivos: 0, potrerosActivos: 0,
-  pesoPromedioKg: undefined, gananciaPromedioKg: undefined, pesajesUltimos7Dias: 0,
+  pesoPromedioKg: undefined, pesajesUltimos7Dias: 0,
   movimientosUltimos7Dias: 0, animalesSinPesaje: 0, animalesPorCategoria: [],
   animalesPorPotrero: [], animalesPorLote: [], pesajesRecientes: [], alertas: [], generadoEn: '',
 }
@@ -61,7 +61,6 @@ export function DashboardPage() {
       <div className="dp-hero-stats">
         <div className="dp-hero-stat"><strong>{r.totalAnimales.toLocaleString('es-BO')}</strong><span>Animales activos</span></div>
         <div className="dp-hero-stat"><strong>{formatPesoKg(r.pesoPromedioKg)}</strong><span>Peso promedio</span></div>
-        <div className="dp-hero-stat"><strong>{r.gananciaPromedioKg != null ? `${r.gananciaPromedioKg.toLocaleString('es-BO', { maximumFractionDigits: 2 })} kg` : '—'}</strong><span>Ganancia diaria</span></div>
       </div>
     </section>
 
@@ -101,12 +100,6 @@ export function DashboardPage() {
           <span className="dp-kpi-label">Peso promedio</span>
           <strong>{formatPesoKg(r.pesoPromedioKg)}</strong>
           <small>{r.pesajesUltimos7Dias} pesajes en 7 días</small>
-        </div>
-        <div className="dp-kpi-card">
-          <span className="dp-kpi-icon"><TrendingUp size={17} aria-hidden="true" /></span>
-          <span className="dp-kpi-label">Ganancia diaria</span>
-          <strong>{r.gananciaPromedioKg != null ? `${r.gananciaPromedioKg.toLocaleString('es-BO', { maximumFractionDigits: 2 })} kg` : '—'}</strong>
-          <small>Promedio por animal</small>
         </div>
         <div className={`dp-kpi-card ${r.animalesSinPesaje > 0 ? 'is-warning' : ''}`}>
           <span className="dp-kpi-icon"><AlertTriangle size={17} aria-hidden="true" /></span>

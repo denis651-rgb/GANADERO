@@ -21,7 +21,10 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -30,6 +33,9 @@ class JornadaSanitariaServiceTest {
     private SanidadRepository planes;
     private AnimalRepository animales;
     private JornadaSanitariaService service;
+    private EventoCalendarioSanitarioRepository eventos;
+    private DosisCalculadaService dosis;
+    private MotorAlertas motor;
     private UUID empresa;
     private UUID jornadaId;
     private UUID planId;
@@ -55,9 +61,13 @@ class JornadaSanitariaServiceTest {
         usuarioId = UUID.randomUUID();
         CurrentUser user = new CurrentUser(usuarioId, empresa, UUID.randomUUID(), Set.of(),
                 Set.of("SANIDAD_VER", "SANIDAD_JORNADA_CREAR", "SANIDAD_JORNADA_CONFIRMAR"), Set.of(), true);
+        eventos = mock(EventoCalendarioSanitarioRepository.class);
+        dosis = mock(DosisCalculadaService.class);
+        motor = mock(MotorAlertas.class);
+        ObjectProvider<MotorAlertas> alertas = mock(ObjectProvider.class);
+        when(alertas.getIfAvailable()).thenReturn(motor);
         service = new JornadaSanitariaService(jornadas, planes, animales, new UserContext(() -> user),
-                mock(DosisCalculadaService.class), mock(EventoCalendarioSanitarioRepository.class),
-                mock(ObjectProvider.class), mock(TimelineEventPublisher.class), mock(ApplicationEventPublisher.class));
+                dosis, eventos, alertas, mock(TimelineEventPublisher.class), mock(ApplicationEventPublisher.class));
     }
 
     @Test
@@ -163,6 +173,101 @@ class JornadaSanitariaServiceTest {
         List<AplicacionSanitaria> resultado = service.aplicaciones(jornadaId);
 
         assertThat(resultado).containsExactly(aplicacion);
+    }
+
+    // ---------- confirmar: aplicar tarde cierra el evento vencido ----------
+
+    @Test
+    void alAplicarUnosDiasTardeCierraElEventoVencidoYNoElDelCicloSiguiente() {
+        LocalDate aplicacion = hoyLaPaz().minusDays(1);
+        EventoCalendarioSanitario vencido = evento(EstadoEventoCalendario.VENCIDO, aplicacion.minusDays(3));
+        EventoCalendarioSanitario siguiente = evento(EstadoEventoCalendario.PROGRAMADO, aplicacion.plusDays(18));
+        Animal animal = prepararConfirmacion(List.of(vencido, siguiente));
+
+        service.confirmar(jornadaId, comando(aplicacion));
+
+        verify(eventos).marcarEstado(eq(vencido.id()), eq(EstadoEventoCalendario.REALIZADO), eq(jornadaId), eq(usuarioId));
+        verify(eventos, never()).marcarEstado(eq(siguiente.id()), any(), any(), any());
+        org.mockito.ArgumentCaptor<AplicacionSanitaria> captor = org.mockito.ArgumentCaptor.forClass(AplicacionSanitaria.class);
+        verify(jornadas).crearAplicacion(captor.capture(), any());
+        assertThat(captor.getValue().animalId()).isEqualTo(animal.id());
+        assertThat(captor.getValue().eventoCalendarioId()).isEqualTo(vencido.id());
+    }
+
+    @Test
+    void siYaNoQuedaNingunEventoSinCerrarEnLaOcurrenciaResuelveSuAlerta() {
+        LocalDate aplicacion = hoyLaPaz().minusDays(1);
+        EventoCalendarioSanitario vencido = evento(EstadoEventoCalendario.VENCIDO, aplicacion.minusDays(3));
+        prepararConfirmacion(List.of(vencido));
+        when(eventos.tieneSinCerrar(vencido.ocurrenciaId())).thenReturn(false);
+
+        service.confirmar(jornadaId, comando(aplicacion));
+
+        verify(motor).resolverPorOrigen(empresa, "EVENTO_CALENDARIO_SANITARIO", vencido.ocurrenciaId());
+    }
+
+    @Test
+    void siOtrosAnimalesDeLaOcurrenciaSiguenVencidosLaAlertaSeMantiene() {
+        LocalDate aplicacion = hoyLaPaz().minusDays(1);
+        EventoCalendarioSanitario vencido = evento(EstadoEventoCalendario.VENCIDO, aplicacion.minusDays(3));
+        prepararConfirmacion(List.of(vencido));
+        // otros animales del mismo grupo todavía no la recibieron: siguen vencidos, no "pendientes"
+        when(eventos.tieneSinCerrar(vencido.ocurrenciaId())).thenReturn(true);
+        when(eventos.tienePendientes(vencido.ocurrenciaId())).thenReturn(false);
+
+        service.confirmar(jornadaId, comando(aplicacion));
+
+        verify(motor, never()).resolverPorOrigen(any(), any(), any());
+    }
+
+    @Test
+    void aplicarSinEventosEnElCalendarioSigueRegistrandoLaAplicacion() {
+        LocalDate aplicacion = hoyLaPaz().minusDays(1);
+        prepararConfirmacion(List.of());
+
+        service.confirmar(jornadaId, comando(aplicacion));
+
+        org.mockito.ArgumentCaptor<AplicacionSanitaria> captor = org.mockito.ArgumentCaptor.forClass(AplicacionSanitaria.class);
+        verify(jornadas).crearAplicacion(captor.capture(), any());
+        assertThat(captor.getValue().eventoCalendarioId()).isNull();
+        verify(eventos, never()).marcarEstado(any(), any(), any(), any());
+    }
+
+    private static LocalDate hoyLaPaz() {
+        return LocalDate.now(java.time.ZoneId.of("America/La_Paz"));
+    }
+
+    private EventoCalendarioSanitario evento(EstadoEventoCalendario estado, LocalDate fecha) {
+        java.time.Instant prevista = fecha.atTime(8, 0).atZone(java.time.ZoneId.of("America/La_Paz")).toInstant();
+        return new EventoCalendarioSanitario(UUID.randomUUID(), empresa, itemId, UUID.randomUUID(),
+                "PERIODO:" + fecha, prevista, prevista, prevista, estado, ModalidadActividad.PERIODICA, null, null,
+                null, UUID.randomUUID(), "NORMAL", java.time.Instant.now(), 0);
+    }
+
+    private ConfirmarJornadaCommand comando(LocalDate fechaAplicacion) {
+        return new ConfirmarJornadaCommand(UUID.randomUUID(), 0, itemId, null, null, null, null, null, null, null,
+                fechaAplicacion, "OK", null, null, null);
+    }
+
+    /** Deja listos los mocks para confirmar una jornada de un solo animal con los eventos dados. */
+    private Animal prepararConfirmacion(List<EventoCalendarioSanitario> eventosDelAnimal) {
+        Animal animal = animal("N-CONF", categoriaNovillo, LocalDate.of(2025, 1, 1));
+        JornadaSanitaria jornada = jornada(EstadoJornada.BORRADOR, 0);
+        PlanSanitario plan = new PlanSanitario(planId, empresa, "Plan", null, LocalDate.of(2026, 1, 1), null,
+                EstadoPlanSanitario.ACTIVO, null, null, 0);
+        PlanSanitarioItem item = new PlanSanitarioItem(itemId, empresa, planId, TipoActividadSanitaria.VACUNACION, null,
+                "Producto", null, null, null, null, null, null, null, 5, null, false, true, 0,
+                OrigenRegulatorioActividad.CONFIGURABLE_ESTABLECIMIENTO, "BOVINO", false);
+        when(jornadas.buscar(jornadaId, empresa)).thenReturn(Optional.of(jornada));
+        when(jornadas.seleccion(jornadaId, empresa)).thenReturn(List.of(animal.id()));
+        when(jornadas.confirmar(jornadaId, empresa, usuarioId)).thenReturn(jornada);
+        when(jornadas.crearAplicacion(any(), any())).thenAnswer(i -> i.getArgument(0));
+        when(planes.planes(empresa)).thenReturn(List.of(plan));
+        when(planes.items(planId, empresa, false)).thenReturn(List.of(item));
+        when(animales.findById(animal.id(), empresa)).thenReturn(Optional.of(animal));
+        when(dosis.calcular(any(), any(), any())).thenReturn(new CalculoDosis(null, null, null, null));
+        when(eventos.cerrablesPorAplicacion(itemId, animal.id())).thenReturn(eventosDelAnimal);
+        return animal;
     }
 
     private JornadaSanitaria jornada(EstadoJornada estado, long version) {
