@@ -149,6 +149,22 @@ class JornadaSanitariaServiceTest {
                 .hasMessageContaining("borrador");
     }
 
+    @Test
+    void devuelveLasAplicacionesDeLaJornada() {
+        JornadaSanitaria confirmada = jornada(EstadoJornada.CONFIRMADA, 4);
+        AplicacionSanitaria aplicacion = new AplicacionSanitaria(UUID.randomUUID(), empresa, jornadaId, itemId,
+                UUID.randomUUID(), null, null, null, "ml", null, new java.math.BigDecimal("5"), null, null, null,
+                "Producto aplicado", null, null, "SUBCUTANEA", null, null, null, null,
+                LocalDate.of(2026, 8, 14), null, null, null, usuarioId, "OK", null, "key",
+                EstadoAplicacionSanitaria.APLICADO, 0, OrigenRegistroAplicacion.APLICADA_FINCA);
+        when(jornadas.buscar(jornadaId, empresa)).thenReturn(Optional.of(confirmada));
+        when(jornadas.aplicaciones(jornadaId, empresa)).thenReturn(List.of(aplicacion));
+
+        List<AplicacionSanitaria> resultado = service.aplicaciones(jornadaId);
+
+        assertThat(resultado).containsExactly(aplicacion);
+    }
+
     private JornadaSanitaria jornada(EstadoJornada estado, long version) {
         return new JornadaSanitaria(jornadaId, empresa, TipoActividadSanitaria.VACUNACION,
                 LocalDate.of(2026, 8, 14), null, propiedadId, null, null,

@@ -1,10 +1,13 @@
 package bo.com.ganadero.sanidad.application;
 
+import bo.com.ganadero.alertas.application.MotorAlertas;
+import bo.com.ganadero.alertas.application.ProgramarAlertaCommand;
 import bo.com.ganadero.sanidad.domain.*;
 import bo.com.ganadero.sanidad.infrastructure.JdbcSanidadRepository;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.sqlite.SQLiteDataSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -17,7 +20,11 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Corre contra SQLite real: lo central a probar es que dos corridas del generador no dupliquen
@@ -102,17 +109,41 @@ class CalendarioSanitarioServiceTest {
         assertThat(generados).isEqualTo(1);
     }
 
+    @Test
+    void agrupaEnUnaSolaAlertaLosAnimalesQueCaenEnLaMismaOcurrencia(@TempDir Path tempDir) {
+        MotorAlertas motor = mock(MotorAlertas.class);
+        Fixture f = fixture(tempDir, motor);
+        f.crearActividadPorEdad(90, 5, 15);
+        LocalDate nacimiento = LocalDate.of(2026, 1, 10).minusDays(87);
+        f.crearAnimal("N-010", nacimiento, false);
+        f.crearAnimal("N-011", nacimiento, false);
+        f.crearAnimal("N-012", nacimiento, false);
+
+        f.service.procesar();
+
+        ArgumentCaptor<ProgramarAlertaCommand> captor = ArgumentCaptor.forClass(ProgramarAlertaCommand.class);
+        verify(motor, times(1)).evolucionar(captor.capture(), any());
+        assertThat(captor.getValue().animalId()).isNull();
+        assertThat(captor.getValue().metadata()).containsEntry("cantidadAnimales", 3)
+                .containsEntry("nombreActividad", "Desparasitación");
+    }
+
     private Fixture fixture(Path tempDir) {
+        return fixture(tempDir, null);
+    }
+
+    private Fixture fixture(Path tempDir, MotorAlertas motor) {
         DataSource dataSource = sqliteDataSource(tempDir);
         Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").mixed(true).load().migrate();
         JdbcClient jdbc = JdbcClient.create(dataSource);
         JdbcSanidadRepository planes = new JdbcSanidadRepository(jdbc, new tools.jackson.databind.ObjectMapper());
         @SuppressWarnings("unchecked")
-        ObjectProvider<bo.com.ganadero.alertas.application.MotorAlertas> sinAlertas = mock(ObjectProvider.class);
+        ObjectProvider<MotorAlertas> alertas = mock(ObjectProvider.class);
+        if (motor != null) when(alertas.getIfAvailable()).thenReturn(motor);
         CalendarioSanitarioService service = new CalendarioSanitarioService(planes, jdbc,
                 new bo.com.ganadero.sanidad.infrastructure.JdbcEventoCalendarioSanitarioRepository(jdbc),
                 new bo.com.ganadero.sanidad.infrastructure.JdbcOcurrenciaCalendarioSanitarioRepository(jdbc),
-                sinAlertas);
+                alertas);
         return new Fixture(jdbc, planes, service);
     }
 

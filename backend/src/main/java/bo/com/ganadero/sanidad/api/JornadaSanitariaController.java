@@ -3,6 +3,7 @@ package bo.com.ganadero.sanidad.api;
 import bo.com.ganadero.animales.domain.Animal;
 import bo.com.ganadero.animales.domain.SexoAnimal;
 import bo.com.ganadero.sanidad.application.*;
+import bo.com.ganadero.sanidad.domain.AplicacionSanitaria;
 import bo.com.ganadero.sanidad.domain.JornadaSanitaria;
 import bo.com.ganadero.shared.api.ApiResponse;
 import bo.com.ganadero.shared.web.CorrelationIdFilter;
@@ -25,6 +26,7 @@ public class JornadaSanitariaController {
     @PutMapping("/{id}") ApiResponse<JornadaSanitaria> actualizar(@PathVariable UUID id, @Valid @RequestBody ActualizarJornadaRequest body, HttpServletRequest request) { return ok(service.actualizar(id, body.command()), request); }
     @PostMapping("/{id}/anular") ApiResponse<JornadaSanitaria> anular(@PathVariable UUID id, @Valid @RequestBody AnularJornadaRequest body, HttpServletRequest request) { return ok(service.anular(id, body.version(), body.motivo()), request); }
     @GetMapping ApiResponse<List<JornadaSanitaria>> listar(HttpServletRequest request) { return ok(service.listar(), request); }
+    @GetMapping("/{id}/aplicaciones") ApiResponse<List<AplicacionSanitaria>> aplicaciones(@PathVariable UUID id, HttpServletRequest request) { return ok(service.aplicaciones(id), request); }
     @GetMapping("/animales-elegibles") ApiResponse<List<Animal>> elegibles(@RequestParam UUID propiedadId, @RequestParam(required=false) UUID loteId, @RequestParam(required=false) UUID categoriaId, @RequestParam(required=false) SexoAnimal sexo, HttpServletRequest request) { return ok(service.elegibles(propiedadId,loteId,categoriaId,sexo),request); }
     @GetMapping("/{id}/elegibilidad") ApiResponse<ResultadoElegibilidad> elegibilidad(@PathVariable UUID id, @RequestParam UUID planItemId, @RequestParam LocalDate fechaAplicacion, HttpServletRequest request) { return ok(service.elegibilidad(id,planItemId,fechaAplicacion),request); }
     @PutMapping("/{id}/animales") ApiResponse<List<UUID>> seleccionar(@PathVariable UUID id, @Valid @RequestBody SeleccionAnimalesRequest body, HttpServletRequest request) { return ok(service.seleccionar(id,body.planItemId(),body.fechaAplicacion(),body.animalIds()),request); }

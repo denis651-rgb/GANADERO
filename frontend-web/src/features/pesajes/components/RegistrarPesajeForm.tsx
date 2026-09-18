@@ -114,6 +114,9 @@ export function RegistrarPesajeForm({ onSaved, onCancel }: RegistrarPesajeFormPr
             value={selected}
             onChange={selectAnimal}
             error={errors.animalId?.message}
+            properties={catalogs.data?.properties}
+            paddocks={catalogs.data?.paddocks}
+            lots={catalogs.data?.lots.content}
           />
         </div>
         <Field label="Fecha" error={errors.fecha?.message}>

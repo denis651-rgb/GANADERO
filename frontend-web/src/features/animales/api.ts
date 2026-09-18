@@ -9,6 +9,7 @@ export async function listAnimals(filters: AnimalFilters) {
       estado: filters.estado || undefined,
       propiedadId: filters.propiedadId || undefined,
       potreroId: filters.potreroId || undefined,
+      loteId: filters.loteId || undefined,
       categoria: filters.categoria || undefined,
       sexo: filters.sexo || undefined,
       page: filters.page,

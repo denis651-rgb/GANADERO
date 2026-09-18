@@ -25,10 +25,11 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -106,6 +107,13 @@ public class JornadaSanitariaService {
     }
 
     @Transactional(readOnly = true)
+    public List<AplicacionSanitaria> aplicaciones(UUID id) {
+        CurrentUser u = context.requirePermission("SANIDAD_VER");
+        require(id, u);
+        return repo.aplicaciones(id, u.empresaId());
+    }
+
+    @Transactional(readOnly = true)
     public List<Animal> elegibles(UUID propiedad, UUID lote, UUID categoria, SexoAnimal sexo) {
         CurrentUser u = context.requirePermission("SANIDAD_VER");
         context.requirePropertyAccess(u, propiedad);
@@ -164,6 +172,7 @@ public class JornadaSanitariaService {
         LugarAplicacion lugar = c.lugarAplicacion() != null ? c.lugarAplicacion() : item.lugarAplicacion();
 
         List<AplicacionSanitaria> out = new ArrayList<>();
+        Set<UUID> ocurrenciasAplicadas = new HashSet<>();
         for (UUID aid : seleccion) {
             Animal a = animal(u, aid);
             AnimalElegibilidad elegibilidad = evaluar(a, j, item, c.fechaAplicacion());
@@ -188,6 +197,7 @@ public class JornadaSanitariaService {
             String key = c.operationId() + ":" + aid;
 
             Optional<EventoCalendarioSanitario> eventoPendiente = eventos.findPendientePorAnimalYActividad(item.id(), aid);
+            eventoPendiente.map(EventoCalendarioSanitario::ocurrenciaId).ifPresent(ocurrenciasAplicadas::add);
 
             AplicacionSanitaria ap = repo.crearAplicacion(new AplicacionSanitaria(UUID.randomUUID(), u.empresaId(),
                     id, c.planItemId(), aid, null, null, dosisAplicada, c.unidadDosis(), calculo.dosisCalculada(),
@@ -200,12 +210,28 @@ public class JornadaSanitariaService {
             out.add(ap);
             eventoPendiente.ifPresent(evt -> eventos.marcarEstado(evt.id(), EstadoEventoCalendario.REALIZADO, id, u.userId()));
             publicar(u, ap, j);
-            programar(u, ap, item, a);
+            programar(u, ap, item);
             audit(u, "APLICAR_SANIDAD", "APLICACION_SANITARIA", ap.id());
         }
         JornadaSanitaria done = repo.confirmar(id, u.empresaId(), u.userId());
+        resolverOcurrenciasAplicadas(u, ocurrenciasAplicadas);
         audit(u, "CONFIRMAR_JORNADA_SANITARIA", "JORNADA_SANITARIA", id);
         return new ConfirmacionJornadaResult(done, out, out.size());
+    }
+
+    /**
+     * Cierra la alerta grupal de cada ocurrencia que quedó completamente aplicada. Si todavía
+     * quedan eventos pendientes en la ocurrencia (se aplicó sólo una parte del grupo), la alerta
+     * se mantiene para no perder el seguimiento de los animales restantes.
+     */
+    private void resolverOcurrenciasAplicadas(CurrentUser u, Set<UUID> ocurrenciasAplicadas) {
+        MotorAlertas m = alertas.getIfAvailable();
+        if (m == null) return;
+        for (UUID ocurrenciaId : ocurrenciasAplicadas) {
+            if (!eventos.tienePendientes(ocurrenciaId)) {
+                m.resolverPorOrigen(u.empresaId(), "EVENTO_CALENDARIO_SANITARIO", ocurrenciaId);
+            }
+        }
     }
 
     private PlanSanitarioItem buscarItem(UUID id, UUID e) {
@@ -260,24 +286,17 @@ public class JornadaSanitariaService {
                 null, a.id(), Map.of("jornadaId", j.id()), u.userId(), Instant.now(), a.idempotencyKey()));
     }
 
-    private void programar(CurrentUser u, AplicacionSanitaria a, PlanSanitarioItem i, Animal animal) {
+    /**
+     * Las alertas "próxima/vencida" de una actividad del plan ya no se crean por animal al
+     * confirmar: {@link CalendarioSanitarioService} las genera una sola vez por ocurrencia
+     * (actividad + fecha + ubicación). Acá sólo se resuelven los avisos previos de la aplicación
+     * anterior y se programan los retiros, que sí son individuales por animal.
+     */
+    private void programar(CurrentUser u, AplicacionSanitaria a, PlanSanitarioItem i) {
         MotorAlertas m = alertas.getIfAvailable();
         if (m == null) return;
-        Map<String, Object> datosAnimal = new HashMap<>();
-        datosAnimal.put("animalCodigo", animal.codigo());
-        if (animal.nombre() != null && !animal.nombre().isBlank()) datosAnimal.put("animalNombre", animal.nombre());
-        datosAnimal.put("nombreActividad", i.nombre());
         for (UUID anterior : repo.aplicacionesPrevias(u.empresaId(), a.animalId(), i.id(), a.id())) {
             m.resolverPorOrigen(u.empresaId(), "APLICACION_SANITARIA", anterior);
-        }
-        if (a.proximaAplicacion() != null) {
-            Map<String, Object> datos = new HashMap<>(datosAnimal);
-            datos.put("diasRestantes", i.diasAlerta());
-            datos.put("fechaProximaAplicacion", a.proximaAplicacion().toString());
-            datos.put("eventoReferencia", a.proximaAplicacion().toString());
-            m.programar(new ProgramarAlertaCommand(u.empresaId(), a.animalId(), TipoAlerta.ACTIVIDAD_SANITARIA_PROXIMA,
-                    a.proximaAplicacion().minusDays(i.diasAlerta()).atStartOfDay(ZONA).toInstant(),
-                    a.proximaAplicacion().atStartOfDay(ZONA).toInstant(), "APLICACION_SANITARIA", a.id(), datos));
         }
         if (a.retiroCarneHasta() != null) {
             m.programar(new ProgramarAlertaCommand(u.empresaId(), a.animalId(), TipoAlerta.RETIRO_CARNE_VIGENTE,

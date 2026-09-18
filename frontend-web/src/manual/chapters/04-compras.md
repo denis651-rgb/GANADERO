@@ -39,6 +39,14 @@ Debes tener registrada una propiedad y al menos un potrero de esa propiedad.
    cuarentena.
 7. Presiona **Registrar lote**.
 
+> **Importante — qué potrero queda al final:** el potrero de "Datos comunes del lote" (paso 3)
+> es solo el punto de ingreso. Si marcás **Enviar a cuarentena**, apenas se confirma la compra
+> el sistema mueve automáticamente a todo el lote al **potrero de cuarentena** que elegiste en
+> el paso 6 — ese es el que queda registrado como ubicación final de los animales, no el de
+> "Datos comunes". Si querés que el lote quede en el mismo potrero de ingreso, elegí ese mismo
+> potrero también como potrero de cuarentena. Si no marcás la casilla, entonces sí quedan en el
+> potrero de "Datos comunes del lote".
+
 ### Declarar el historial sanitario del lote
 
 Al registrar el lote, la pantalla muestra los animales recién creados y te deja declarar el
@@ -54,8 +62,12 @@ Hay dos formas de declararlo, y podés combinarlas:
    del animal.
 2. Elige el tipo de actividad (vacunación, desparasitación, vitaminización, prueba
    diagnóstica, control ectoparasitario, vigilancia epidemiológica, tratamiento preventivo u
-   otra), la fecha, y si querés, una observación (por ejemplo, el dato del certificado).
-3. Presiona **Guardar**.
+   otra).
+3. Si el tipo de actividad elegido coincide con un ítem activo del plan sanitario, aparece
+   **Ítem del plan sanitario** para vincularlo (opcional; ver nota más abajo).
+4. Completa la fecha y, si querés, el producto o medicamento informado por el proveedor y una
+   observación (por ejemplo, el dato del certificado).
+5. Presiona **Guardar**.
 
 La fila de ese animal pasa a mostrar **Declarado**.
 
@@ -64,14 +76,20 @@ La fila de ese animal pasa a mostrar **Declarado**.
 1. Presiona **Declarar historial grupal**, arriba de la tabla.
 2. Selecciona los animales que comparten esos antecedentes (por defecto salen todos
    marcados).
-3. Completa una fila por cada actividad — tipo, fecha, producto o medicamento informado por
-   el proveedor y observaciones — y presiona **Agregar actividad** si necesitás declarar más
-   de una.
+3. Completa una fila por cada actividad — tipo, ítem del plan sanitario (opcional, si hay uno
+   activo de ese tipo), fecha, producto o medicamento informado por el proveedor y
+   observaciones — y presiona **Agregar actividad** si necesitás declarar más de una.
 4. Presiona **Confirmar declaración**.
 
 > Cada actividad declarada se aplica a **todos** los animales que dejaste seleccionados: si
 > declarás 2 actividades para 3 animales, quedan 6 registros de historial, uno por animal y
 > actividad.
+
+> **Vincular un ítem del plan sanitario** (individual o grupal) hace que el calendario
+> sanitario calcule la próxima aplicación desde la fecha que declaraste, y evita que
+> aparezcan alertas de vacuna próxima o vencida para ese ítem en ese animal. Si dejás
+> "Sin vincular", el antecedente igual queda guardado en el historial del animal, pero las
+> alertas automáticas de ese ítem del plan siguen su curso normal.
 
 ## Ejemplo
 
@@ -87,7 +105,9 @@ La fila de ese animal pasa a mostrar **Declarado**.
 
 El o los animales quedan registrados en el inventario, en la propiedad y el
 potrero seleccionados, con la compra confirmada asociada (visible en
-**Compras**, con su proveedor y precio).
+**Compras**, con su proveedor y precio). En una compra por lote con **Enviar
+a cuarentena** marcado, el potrero final es el de cuarentena, no el de
+"Datos comunes del lote" (ver nota en la sección anterior).
 
 > Importante: si indicás una edad aproximada en vez de la fecha de
 > nacimiento exacta, el sistema calcula y guarda una fecha de nacimiento

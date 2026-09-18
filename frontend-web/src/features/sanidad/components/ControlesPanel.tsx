@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Baby, Bug, Stethoscope } from 'lucide-react'
 import { getAnimal } from '@/features/animales/api'
+import { calcularEdadMeses } from '@/features/animales/edad'
 import type { AnimalSummary } from '@/features/animales/types'
 import { AnimalSearchSelect } from '@/features/reproduccion/components/AnimalSearchSelect'
 import {
   ESTADO_CALOSTRADO_LABELS,
+  getConfiguracionSanitaria,
   listControlesEctoparasitarios,
   listControlesNeonatales,
   listExamenesReproductivos,
@@ -24,6 +26,7 @@ import { Card } from '@/shared/components/Card'
 import { EmptyState } from '@/shared/components/EmptyState'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { normalizeApiError } from '@/shared/api/errors'
+import { todayInBolivia } from '@/shared/utils/date'
 
 type ModalActivo = 'neonatal' | 'ecto' | 'reproductivo' | null
 
@@ -37,10 +40,19 @@ export function ControlesPanel({ catalogs, initialAnimalId }: { catalogs: Sanida
   const neonatales = useQuery({ queryKey: ['sanidad-control-neonatal', animalId], queryFn: () => listControlesNeonatales(animalId), enabled })
   const ectoparasitarios = useQuery({ queryKey: ['sanidad-control-ecto', animalId], queryFn: () => listControlesEctoparasitarios({ animalId }), enabled })
   const reproductivos = useQuery({ queryKey: ['sanidad-examen-reproductivo', animalId], queryFn: () => listExamenesReproductivos(animalId), enabled })
+  const config = useQuery({ queryKey: ['sanidad-configuracion'], queryFn: getConfiguracionSanitaria })
   const error = loadedAnimal.error ?? neonatales.error ?? ectoparasitarios.error ?? reproductivos.error
   const loading = enabled && (neonatales.isPending || ectoparasitarios.isPending || reproductivos.isPending)
   const puedeNeonatal = animal ? esNeonatoElegible(animal) : false
-  const puedeReproductivo = Boolean(animal?.fechaNacimiento && animal.estado === 'ACTIVO')
+  const edadMinimaReproductiva = animal ? (animal.sexo === 'MACHO' ? config.data?.edadMinMachoMeses : config.data?.edadMinHembraMeses) : undefined
+  const edadMesesAnimal = animal?.fechaNacimiento ? calcularEdadMeses(animal.fechaNacimiento, todayInBolivia()) : undefined
+  const cumpleEdadReproductiva = edadMinimaReproductiva == null || (edadMesesAnimal != null && edadMesesAnimal >= edadMinimaReproductiva)
+  const puedeReproductivo = Boolean(animal?.fechaNacimiento && animal.estado === 'ACTIVO') && cumpleEdadReproductiva
+  const avisoReproductivo = !animal?.fechaNacimiento
+    ? 'No disponible: primero registra o estima la fecha de nacimiento para comprobar la edad.'
+    : animal.estado === 'ACTIVO' && edadMinimaReproductiva != null && !cumpleEdadReproductiva
+      ? `No disponible: el animal aún no alcanza la edad mínima configurada de ${edadMinimaReproductiva} meses para el examen reproductivo.`
+      : undefined
   const cerrar = () => setModal(null)
 
   return <div className="page-stack">
@@ -64,8 +76,8 @@ export function ControlesPanel({ catalogs, initialAnimalId }: { catalogs: Sanida
         {ectoparasitarios.data?.length ? <ul className="attention-list">{ectoparasitarios.data.map((control) => <li key={control.id}><div><strong>{new Date(control.fecha).toLocaleDateString('es-BO')} · {TIPO_ECTOPARASITO_LABELS[control.tipo]}</strong><span>Carga {NIVEL_CARGA_PARASITARIA_LABELS[control.nivelCarga]} · {control.tratado ? 'Tratado' : 'Sin tratamiento'}</span></div></li>)}</ul> : !loading && <p className="muted">Sin controles ectoparasitarios registrados.</p>}
       </Card>
       <Card>
-        <div className="section-heading"><div><h3><Stethoscope size={19} aria-hidden="true" /> Examen reproductivo</h3><p className="muted">La edad mínima configurada se valida al guardar.</p></div><Button variant="secondary" disabled={!puedeReproductivo} onClick={() => setModal('reproductivo')}>Registrar examen reproductivo</Button></div>
-        {!animal.fechaNacimiento && <Alert tone="info">No disponible: primero registra o estima la fecha de nacimiento para comprobar la edad.</Alert>}
+        <div className="section-heading"><div><h3><Stethoscope size={19} aria-hidden="true" /> Examen reproductivo</h3><p className="muted">La edad mínima configurada se comprueba antes de registrar y se valida al guardar.</p></div><Button variant="secondary" disabled={!puedeReproductivo} onClick={() => setModal('reproductivo')}>Registrar examen reproductivo</Button></div>
+        {avisoReproductivo && <Alert tone="info">{avisoReproductivo}</Alert>}
         {reproductivos.data?.length ? <ul className="attention-list">{reproductivos.data.map((examen) => <li key={examen.id}><div><strong>{new Date(examen.fecha).toLocaleDateString('es-BO')} · {RESULTADO_EXAMEN_REPRODUCTIVO_LABELS[examen.resultado]}</strong><span>{examen.observaciones || 'Sin observaciones.'}</span></div></li>)}</ul> : !loading && <p className="muted">Sin exámenes reproductivos registrados.</p>}
       </Card>
       {modal === 'neonatal' && <ControlNeonatalModal animalId={animal.id} animalCodigo={catalogs.animalLabel(animal.id)} onClose={cerrar} onSaved={cerrar} />}

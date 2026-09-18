@@ -194,6 +194,7 @@ export interface AplicacionTratamiento {
   aplicadoPor?: string
   estado: EstadoAplicacion
   observaciones?: string
+  productoTexto?: string
   version: number
 }
 
@@ -403,6 +404,7 @@ export interface CrearCasoInput {
 export interface DetalleTratamientoInput {
   productoId?: string
   loteProductoId?: string
+  productoTexto?: string
   dosis: number
   unidadDosis: string
   frecuenciaHoras: number
@@ -531,6 +533,7 @@ export interface CrearTratamientoInput {
   casoClinicoId?: string
   animalId: string
   fechaInicio: string
+  horaInicio?: string
   fechaFinEstimada: string
   diagnostico?: string
   veterinarioId?: string
@@ -756,7 +759,7 @@ export async function listEnfermedades(incluirInactivas = false) {
   return (await http.get<ApiResponse<Enfermedad[]>>('/api/v1/sanidad/enfermedades', { params: { incluirInactivas } })).data.data
 }
 
-export async function crearEnfermedad(input: { codigo: string; nombre: string; descripcion?: string; esNotificable: boolean }) {
+export async function crearEnfermedad(input: { nombre: string; descripcion?: string; esNotificable: boolean }) {
   return (await http.post<ApiResponse<Enfermedad>>('/api/v1/sanidad/enfermedades', input, { headers: { 'Idempotency-Key': crypto.randomUUID() } })).data.data
 }
 
@@ -778,6 +781,16 @@ export async function cambiarEstadoPlan(id: string, estado: EstadoPlan, version:
 
 export async function listPlanItems(planId: string, incluirInactivos = false) {
   return (await http.get<ApiResponse<PlanSanitarioItem[]>>(`/api/v1/sanidad/planes/${planId}/items`, { params: { incluirInactivos } })).data.data
+}
+
+/** Ítems activos de todos los planes activos, para vincular un antecedente declarado a uno
+ * concreto (registrarAplicacionDeclarada/registrarHistorialDeclaradoLote): vincularlo hace que
+ * el calendario sanitario calcule la próxima aplicación desde la fecha declarada y no dispare
+ * VACUNA_PROXIMA/VACUNA_VENCIDA para ese ítem (ver ProyectarCalendarioSanitarioService). */
+export async function listActivePlanItems() {
+  const planes = (await listPlanes()).filter((plan) => plan.estado === 'ACTIVO')
+  const listas = await Promise.all(planes.map((plan) => listPlanItems(plan.id)))
+  return listas.flat().filter((item) => item.activo)
 }
 
 export async function crearPlanItem(planId: string, input: CrearItemInput) {
@@ -824,6 +837,10 @@ export async function registrarHistorialDeclaradoLote(input: RegistrarHistorialD
 
 export async function listJornadas() {
   return (await http.get<ApiResponse<JornadaSanitaria[]>>('/api/v1/jornadas-sanitarias')).data.data
+}
+
+export async function listAplicacionesJornada(jornadaId: string) {
+  return (await http.get<ApiResponse<AplicacionSanitaria[]>>(`/api/v1/jornadas-sanitarias/${jornadaId}/aplicaciones`)).data.data
 }
 
 export async function crearJornada(input: CrearJornadaInput) {

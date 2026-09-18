@@ -64,6 +64,9 @@ export interface HistorialCategoriaAnimal {
 export interface CreateAnimalInput {
   fechaNacimientoEstimada?: boolean
   fechaIngreso?: string
+  color?: string
+  pesoNacimientoKg?: number
+  condicionCorporalActual?: number
   pesoIngresoKg?: number
   pesoIngresoEstimado?: boolean
   codigo?: string
@@ -226,6 +229,7 @@ export interface AnimalFilters {
   estado?: AnimalState | ''
   propiedadId?: string
   potreroId?: string
+  loteId?: string
   categoria?: string
   sexo?: 'MACHO' | 'HEMBRA' | ''
   page: number

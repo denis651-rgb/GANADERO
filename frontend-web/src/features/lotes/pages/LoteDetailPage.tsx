@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRightLeft, Bug, Plus, Search, Trash2 } from 'lucide-react'
 import { addAnimales, cerrarLote, getLote, listMembresias, retirarAnimales, updateLote } from '@/features/lotes/api'
 import type { ModoIngreso } from '@/features/lotes/api'
-import { listAnimals } from '@/features/animales/api'
+import { listAnimals, listRazas } from '@/features/animales/api'
 import { listPropiedades } from '@/features/propiedades/api'
 import { listAllPotreros } from '@/features/potreros/api'
 import { ControlEctoparasitarioModal } from '@/features/sanidad/components/ControlEctoparasitarioModal'
@@ -31,6 +31,8 @@ export function LoteDetailPage() {
   const [maximo, setMaximo] = useState('')
   const [addSearch, setAddSearch] = useState('')
   const deferredAddSearch = useDeferredValue(addSearch)
+  const [addSexo, setAddSexo] = useState<'' | 'MACHO' | 'HEMBRA'>('')
+  const [addRazaId, setAddRazaId] = useState('')
   const [addSelected, setAddSelected] = useState<Set<string>>(new Set())
   const [addFechaIngreso, setAddFechaIngreso] = useState('')
   const [addMotivo, setAddMotivo] = useState('')
@@ -50,12 +52,12 @@ export function LoteDetailPage() {
   const miembros = useQuery({ queryKey: ['lote-miembros', id, true], queryFn: () => listMembresias(id, true), enabled: Boolean(id) })
   const historicos = useQuery({ queryKey: ['lote-miembros', id, false], queryFn: () => listMembresias(id, false), enabled: Boolean(id) })
   const catalogs = useQuery({ queryKey: ['lote-catalogs'], queryFn: async () => {
-    const [propiedades, potreros] = await Promise.all([listPropiedades(), listAllPotreros()])
-    return { propiedades, potreros }
+    const [propiedades, potreros, razas] = await Promise.all([listPropiedades(), listAllPotreros(), listRazas()])
+    return { propiedades, potreros, razas }
   } })
   const disponiblesQuery = useQuery({
-    queryKey: ['lote-animales-disponibles', deferredAddSearch],
-    queryFn: () => listAnimals({ search: deferredAddSearch || undefined, estado: 'ACTIVO', sexo: '', page: 0, size: 200 }),
+    queryKey: ['lote-animales-disponibles', deferredAddSearch, addSexo],
+    queryFn: () => listAnimals({ search: deferredAddSearch || undefined, estado: 'ACTIVO', sexo: addSexo, page: 0, size: 200 }),
     enabled: showAdd,
   })
 
@@ -132,8 +134,10 @@ export function LoteDetailPage() {
   const candidatos = useMemo(() => {
     const asignados = new Set(miembros.data?.map((item) => item.animalId) ?? [])
     const property = lote.data?.propiedadId
-    return (disponiblesQuery.data?.content ?? []).filter((animal) => !asignados.has(animal.id) && animal.propiedadActualId === property)
-  }, [disponiblesQuery.data, miembros.data, lote.data?.propiedadId])
+    return (disponiblesQuery.data?.content ?? []).filter((animal) => !asignados.has(animal.id)
+      && animal.propiedadActualId === property
+      && (!addRazaId || animal.razaPrincipalId === addRazaId))
+  }, [disponiblesQuery.data, miembros.data, lote.data?.propiedadId, addRazaId])
 
   const toggleAdd = (animalId: string) => setAddSelected((prev) => {
     const next = new Set(prev)
@@ -191,7 +195,12 @@ export function LoteDetailPage() {
     </Modal>
     <Modal open={showAdd} title="Agregar animales al lote" onClose={() => { if (!add.isPending) setShowAdd(false) }} wide>
       <div className="page-stack">
-        <div className="filter-heading"><span className="search-box"><Search size={18} aria-hidden="true" /><input type="search" aria-label="Buscar animales para agregar al lote" value={addSearch} onChange={(event) => { setAddSearch(event.target.value); setAddSelected(new Set()) }} placeholder="Buscar por código o nombre…" /></span><span className="muted">{addSelected.size} seleccionado(s)</span></div>
+        <div className="filter-heading">
+          <span className="search-box"><Search size={18} aria-hidden="true" /><input type="search" aria-label="Buscar animales para agregar al lote" value={addSearch} onChange={(event) => { setAddSearch(event.target.value); setAddSelected(new Set()) }} placeholder="Buscar por código o nombre…" /></span>
+          <select aria-label="Filtrar por sexo" value={addSexo} onChange={(event) => { setAddSexo(event.target.value as typeof addSexo); setAddSelected(new Set()) }}><option value="">Sexo — todos</option><option value="HEMBRA">Hembra</option><option value="MACHO">Macho</option></select>
+          <select aria-label="Filtrar por raza" value={addRazaId} onChange={(event) => { setAddRazaId(event.target.value); setAddSelected(new Set()) }}><option value="">Raza — todas</option>{catalogs.data?.razas.map((raza) => <option key={raza.id} value={raza.id}>{raza.nombre}</option>)}</select>
+          <span className="muted">{addSelected.size} seleccionado(s)</span>
+        </div>
         <p>{cupos == null ? 'Sin límite configurado.' : `${cupos} cupos disponibles. Si la selección supera el máximo, no se incorporará ningún animal.`}</p>
         {cupos != null && addSelected.size > cupos && <p role="status">Seleccionaste {addSelected.size} animales y solo quedan {cupos} cupos. Reduce la selección.</p>}
         {add.isSuccess && !add.data.ok && <Alert tone="danger">{add.data.resultados.filter((r) => r.estado === 'ERROR').map((r) => `${r.mensaje} (${r.animalId})`).join(' · ')}</Alert>}

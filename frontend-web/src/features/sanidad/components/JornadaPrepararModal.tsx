@@ -169,9 +169,17 @@ export function JornadaPrepararModal({ jornada, catalogs, onClose, onSaved, pres
         {manualSelection === null && defaultSelected.size > 0 && (
           <Alert tone="info">Se preseleccionaron {defaultSelected.size} animal(es) de la visita anterior que también son elegibles para esta actividad. Podés ajustar la selección abajo.</Alert>
         )}
-        <div className="eligibility-summary" aria-live="polite">
-          <span><strong>{elegibles.length}</strong> elegibles</span>
-          <span className={excluidos.length ? 'eligibility-excluded-count' : undefined}><strong>{excluidos.length}</strong> excluidos</span>
+        <div className="eligibility-toolbar" aria-live="polite">
+          <div className="eligibility-summary">
+            <span><strong>{elegibles.length}</strong> elegibles</span>
+            <span className={excluidos.length ? 'eligibility-excluded-count' : undefined}><strong>{excluidos.length}</strong> excluidos</span>
+          </div>
+          <div className="inline-actions">
+            <Button onClick={() => setManualSelection(new Set(elegibles.map((animal) => animal.id)))} variant="secondary" disabled={elegibles.length === 0}>Seleccionar todos los elegibles</Button>
+            <Button onClick={() => void exportarPlanilla()} variant="secondary" loading={exportando} disabled={selected.size === 0}>
+              <Download size={16} aria-hidden="true" />Exportar planilla
+            </Button>
+          </div>
         </div>
         <div className="tabs" role="tablist" aria-label="Resultado de elegibilidad">
           <button type="button" role="tab" aria-selected={vista === 'ELEGIBLES'} className={`tab-button ${vista === 'ELEGIBLES' ? 'active' : ''}`} onClick={() => setVista('ELEGIBLES')}>Elegibles ({elegibles.length})</button>
@@ -193,10 +201,6 @@ export function JornadaPrepararModal({ jornada, catalogs, onClose, onSaved, pres
 
       <div className="form-actions">
         <span className="muted">{selected.size} animal(es) seleccionados.</span>
-        <Button onClick={() => setManualSelection(new Set(elegibles.map((animal) => animal.id)))} variant="secondary" disabled={elegibles.length === 0}>Seleccionar todos los elegibles</Button>
-        <Button onClick={() => void exportarPlanilla()} variant="secondary" loading={exportando} disabled={!itemSeleccionado || selected.size === 0}>
-          <Download size={16} aria-hidden="true" />Exportar planilla
-        </Button>
         <Button onClick={() => guardar.mutate()} loading={guardar.isPending} disabled={!planItemId || selected.size === 0}>Continuar a confirmación</Button>
       </div>
       {guardar.error && <Alert tone="danger">{normalizeApiError(guardar.error).message}</Alert>}

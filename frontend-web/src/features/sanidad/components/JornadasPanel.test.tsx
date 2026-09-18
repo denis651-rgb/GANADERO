@@ -43,6 +43,7 @@ describe('JornadasPanel — atajo desde "Registrar prueba diagnóstica"', () => 
     expect(screen.getAllByRole('button', { name: /Editar/ })).toHaveLength(2)
     expect(screen.getAllByRole('button', { name: /Preparar y confirmar/ })).toHaveLength(2)
     expect(screen.getAllByRole('button', { name: /Cancelar/ })).toHaveLength(2)
-    expect(screen.getAllByText('Sin acciones')).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: /Ver detalle de la jornada/ })).toHaveLength(2)
+    expect(screen.queryByText('Sin acciones')).not.toBeInTheDocument()
   })
 })

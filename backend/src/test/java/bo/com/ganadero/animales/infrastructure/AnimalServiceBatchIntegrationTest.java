@@ -142,6 +142,27 @@ class AnimalServiceBatchIntegrationTest {
         assertThat(f.jdbc().sql("select count(*) from animal").query(Integer.class).single()).isZero();
     }
 
+    @Test
+    void filtraPorPropiedadAlListarAnimales(@TempDir Path tempDir) {
+        Fixture f = fixture(tempDir);
+        UUID otraPropiedadId = UUID.randomUUID();
+        UUID otroPotreroId = UUID.randomUUID();
+        f.jdbc().sql("insert into potrero(id,codigo,nombre,propiedad_id,activo) values(:id,:c,'Otro potrero',:p,1)")
+                .param("id", otroPotreroId.toString()).param("c", "POT-" + otroPotreroId).param("p", otraPropiedadId.toString()).update();
+
+        f.tx().execute(status -> f.service().create(comando(f, "AQUI-001")));
+        AnimalCommand comandoOtraPropiedad = new AnimalCommand(null, "ALLA-001", null, SexoAnimal.HEMBRA, null, false,
+                f.razaId(), f.categoriaId(), null, PropositoAnimal.CARNE, OrigenAnimal.COMPRADO, otraPropiedadId, otroPotreroId, null,
+                LocalDate.now(java.time.ZoneId.of("America/La_Paz")), new BigDecimal("2500"), null, null, null, "Compra de prueba", 0L);
+        f.tx().execute(status -> f.service().create(comandoOtraPropiedad));
+
+        JdbcAnimalRepository repo = new JdbcAnimalRepository(f.jdbc());
+        AnimalFilter filtro = new AnimalFilter(null, PROPIEDAD_ID, null, null, null, null, null, 0, 20);
+        AnimalPage pagina = repo.findAll(null, Set.of(), filtro);
+
+        assertThat(pagina.content()).extracting(Animal::codigo).containsExactly("AQUI-001");
+    }
+
     private AnimalCommand comando(Fixture f, String codigo) {
         return new AnimalCommand(null, codigo, null, SexoAnimal.HEMBRA, null, false, f.razaId(), f.categoriaId(),
                 null, PropositoAnimal.CARNE, OrigenAnimal.COMPRADO, PROPIEDAD_ID, f.potreroId(), null,

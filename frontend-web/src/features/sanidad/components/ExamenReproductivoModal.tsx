@@ -50,6 +50,7 @@ export function ExamenReproductivoModal({ animal, onClose, onSaved }: ExamenRepr
         animalId: animal.id,
         fecha: String(data.get('fecha')),
         resultado: String(data.get('resultado')) as ResultadoExamenReproductivo,
+        veterinarioId: str('veterinarioId'),
         observaciones: str('observaciones'),
         pruebas,
         ...(animal.sexo === 'MACHO' ? {
@@ -81,6 +82,7 @@ export function ExamenReproductivoModal({ animal, onClose, onSaved }: ExamenRepr
       <form className="form-grid" onSubmit={(event) => { event.preventDefault(); crear.mutate(event.currentTarget) }}>
         <Field label="Fecha" required><input name="fecha" type="date" required /></Field>
         <Field label="Resultado general" required><select name="resultado" required defaultValue="OBSERVACION">{(Object.keys(RESULTADO_EXAMEN_REPRODUCTIVO_LABELS) as ResultadoExamenReproductivo[]).map((resultado) => <option key={resultado} value={resultado}>{RESULTADO_EXAMEN_REPRODUCTIVO_LABELS[resultado]}</option>)}</select></Field>
+        <Field label="Veterinario responsable"><input name="veterinarioId" maxLength={200} placeholder="Quién realizó o supervisó el examen" /></Field>
 
         {animal.sexo === 'MACHO' && <>
           <Field label="Circunferencia escrotal (cm)"><input name="circunferenciaEscrotalCm" type="number" inputMode="decimal" step="0.1" /></Field>
@@ -114,7 +116,7 @@ export function ExamenReproductivoModal({ animal, onClose, onSaved }: ExamenRepr
       {historial.data?.length === 0 && <p className="muted">Todavía no hay exámenes reproductivos registrados para este animal.</p>}
       {historial.data && historial.data.length > 0 && <ul className="attention-list">{historial.data.map((examen) => <li key={examen.id} className={examen.resultado === 'NO_APTO' ? 'attention-danger' : examen.resultado === 'OBSERVACION' ? 'attention-warning' : undefined}>
         <div><strong>{new Date(examen.fecha).toLocaleDateString('es-BO')} · {RESULTADO_EXAMEN_REPRODUCTIVO_LABELS[examen.resultado]}</strong>
-        <span>{examen.pruebas.map((prueba) => `${ENFERMEDAD_REPRODUCTIVA_LABELS[prueba.enfermedad]}: ${RESULTADO_PRUEBA_REPRODUCTIVA_LABELS[prueba.resultado]}`).join(' · ')}</span></div>
+        <span>{examen.veterinarioId ? `Veterinario: ${examen.veterinarioId} · ` : ''}{examen.pruebas.map((prueba) => `${ENFERMEDAD_REPRODUCTIVA_LABELS[prueba.enfermedad]}: ${RESULTADO_PRUEBA_REPRODUCTIVA_LABELS[prueba.resultado]}`).join(' · ')}</span></div>
       </li>)}</ul>}
     </div>
   </Modal>

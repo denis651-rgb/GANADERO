@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -94,13 +95,13 @@ public class MotorAlertasService implements MotorAlertas {
             case VACUNA_VENCIDA -> new Plantilla("Vacuna vencida",
                     "La vacunación de " + animal + " está vencida.", severidadVacuna(metadata));
             case ACTIVIDAD_SANITARIA_PROXIMA -> new Plantilla(
-                    String.valueOf(metadata.getOrDefault("nombreActividad", "Actividad sanitaria")) + " próxima",
-                    animal + " tiene " + String.valueOf(metadata.getOrDefault("nombreActividad", "una actividad sanitaria"))
-                            + " prevista para el " + fechaTexto, SeveridadAlerta.WARNING);
+                    nombreActividad(metadata) + " próxima",
+                    mensajeActividadProxima(metadata, animal, fechaTexto),
+                    severidadActividad(fecha));
             case ACTIVIDAD_SANITARIA_VENCIDA -> new Plantilla(
-                    String.valueOf(metadata.getOrDefault("nombreActividad", "Actividad sanitaria")) + " vencida",
-                    animal + " tiene " + String.valueOf(metadata.getOrDefault("nombreActividad", "una actividad sanitaria"))
-                            + " vencida desde el " + fechaTexto, SeveridadAlerta.WARNING);
+                    nombreActividad(metadata) + " vencida",
+                    mensajeActividadVencida(metadata, animal, fechaTexto),
+                    severidadActividad(fecha));
             case REVISION_SANITARIA_INGRESO -> new Plantilla(
                     tituloRevisionIngreso(metadata),
                     mensajeRevisionIngreso(metadata, animal),
@@ -184,6 +185,55 @@ public class MotorAlertasService implements MotorAlertas {
         if (nombre != null && !nombre.toString().isBlank()) return nombre.toString();
         if (codigo != null && !codigo.toString().isBlank()) return codigo.toString();
         return "El animal";
+    }
+
+    private String nombreActividad(Map<String, Object> metadata) {
+        return String.valueOf(metadata.getOrDefault("nombreActividad", "Actividad sanitaria"));
+    }
+
+    /**
+     * Las actividades del plan se agrupan por ocurrencia (actividad + fecha + ubicación): una sola
+     * alerta para todo el grupo en vez de una por animal. Cuando {@code cantidadAnimales} está
+     * presente el mensaje es grupal; si no, se conserva el mensaje por animal.
+     */
+    private Integer cantidadAnimales(Map<String, Object> metadata) {
+        Object valor = metadata.get("cantidadAnimales");
+        if (valor instanceof Number numero) return numero.intValue();
+        try {
+            return valor == null ? null : Integer.valueOf(valor.toString());
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private String mensajeActividadProxima(Map<String, Object> metadata, String animal, String fechaTexto) {
+        String actividad = nombreActividad(metadata);
+        Integer cantidad = cantidadAnimales(metadata);
+        if (cantidad != null) {
+            return actividad + ": " + (cantidad == 1 ? "1 animal previsto" : cantidad + " animales previstos")
+                    + " para el " + fechaTexto;
+        }
+        return animal + " tiene " + actividad + " prevista para el " + fechaTexto;
+    }
+
+    private String mensajeActividadVencida(Map<String, Object> metadata, String animal, String fechaTexto) {
+        String actividad = nombreActividad(metadata);
+        Integer cantidad = cantidadAnimales(metadata);
+        if (cantidad != null) {
+            return actividad + ": " + (cantidad == 1 ? "1 animal" : cantidad + " animales")
+                    + " con la fecha vencida desde el " + fechaTexto;
+        }
+        return animal + " tiene " + actividad + " vencida desde el " + fechaTexto;
+    }
+
+    /** Escala la severidad de una actividad sanitaria según qué tan cerca está la fecha prevista. */
+    private SeveridadAlerta severidadActividad(Instant fechaObjetivo) {
+        if (fechaObjetivo == null) return SeveridadAlerta.INFO;
+        long diasRestantes = ChronoUnit.DAYS.between(Instant.now(), fechaObjetivo);
+        if (diasRestantes <= -7) return SeveridadAlerta.CRITICA;
+        if (diasRestantes <= 0) return SeveridadAlerta.URGENTE;
+        if (diasRestantes <= 3) return SeveridadAlerta.WARNING;
+        return SeveridadAlerta.INFO;
     }
 
     private String claveIdempotencia(ProgramarAlertaCommand command, Map<String, Object> metadata) {

@@ -18,9 +18,10 @@ vi.mock('@/features/lotes/api', () => ({
 }))
 vi.mock('@/features/animales/api', () => ({
   listAnimals: vi.fn().mockResolvedValue({ content: [
-    { id: 'a-1', codigo: 'ANI-1', propiedadActualId: 'p-1' },
-    { id: 'a-2', codigo: 'ANI-2', propiedadActualId: 'p-1' },
+    { id: 'a-1', codigo: 'ANI-1', propiedadActualId: 'p-1', razaPrincipalId: 'r-1' },
+    { id: 'a-2', codigo: 'ANI-2', propiedadActualId: 'p-1', razaPrincipalId: 'r-2' },
   ] }),
+  listRazas: vi.fn().mockResolvedValue([{ id: 'r-1', nombre: 'Nelore' }, { id: 'r-2', nombre: 'Brahman' }]),
 }))
 vi.mock('@/features/propiedades/api', () => ({ listPropiedades: vi.fn().mockResolvedValue([{ id: 'p-1', nombre: 'Finca' }]) }))
 vi.mock('@/features/potreros/api', () => ({ listAllPotreros: vi.fn().mockResolvedValue([{ id: 'pt-1', propiedadId: 'p-1', nombre: 'Corral', activo: true }]) }))
@@ -70,6 +71,17 @@ it('muestra ocupación y bloquea la selección excesiva', async () => {
   fireEvent.click(within(modal).getByLabelText('ANI-2'))
   fireEvent.click(within(modal).getByRole('button', { name: 'Agregar 1 animal(es)' }))
   await waitFor(() => expect(addAnimales).toHaveBeenCalledWith('l-1', expect.objectContaining({ animalIds: ['a-1'] })))
+})
+
+it('filtra los candidatos por raza en el modal de agregar animales', async () => {
+  renderPage()
+  fireEvent.click(await screen.findByRole('button', { name: 'Agregar animales' }))
+  const modal = await screen.findByRole('dialog', { name: 'Agregar animales al lote' })
+  expect(await within(modal).findByLabelText('ANI-1')).toBeInTheDocument()
+  expect(within(modal).getByLabelText('ANI-2')).toBeInTheDocument()
+  fireEvent.change(within(modal).getByLabelText('Filtrar por raza'), { target: { value: 'r-1' } })
+  expect(within(modal).getByLabelText('ANI-1')).toBeInTheDocument()
+  expect(within(modal).queryByLabelText('ANI-2')).not.toBeInTheDocument()
 })
 
 it('edita el máximo enviando la versión actual y limita la reducción', async () => {

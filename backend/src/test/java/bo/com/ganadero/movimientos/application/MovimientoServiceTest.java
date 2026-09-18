@@ -8,6 +8,8 @@ import bo.com.ganadero.animales.domain.AnimalRepository;
 import bo.com.ganadero.animales.domain.EstadoAnimal;
 import bo.com.ganadero.animales.domain.OrigenAnimal;
 import bo.com.ganadero.animales.domain.PropositoAnimal;
+import bo.com.ganadero.animales.domain.Raza;
+import bo.com.ganadero.animales.domain.RazaRepository;
 import bo.com.ganadero.animales.domain.SexoAnimal;
 import bo.com.ganadero.lotes.domain.EstadoLote;
 import bo.com.ganadero.lotes.domain.Lote;
@@ -350,25 +352,30 @@ class MovimientoServiceTest {
     }
 
     @Test
-    void confirmIngresoCompraProgramaRecordatorioDeCuarentena() {
+    void confirmIngresoCompraDeUnSoloAnimalProgramaRecordatorioConNombreYRaza() {
         MotorAlertas motor = mock(MotorAlertas.class);
         @SuppressWarnings("unchecked")
         ObjectProvider<MotorAlertas> alertasProvider = mock(ObjectProvider.class);
         when(alertasProvider.getIfAvailable()).thenReturn(motor);
+        RazaRepository razas = mock(RazaRepository.class);
         CurrentUser user = new CurrentUser(userId, company, UUID.randomUUID(), Set.of(),
                 Set.of("MOVIMIENTO_VER", "MOVIMIENTO_CREAR", "MOVIMIENTO_CONFIRMAR",
                         "MOVIMIENTO_ANULAR", "MOVIMIENTO_REVERTIR"),
                 Set.of(), true);
         MovimientoService serviceConAlertas = new MovimientoService(movimientos, animales, lotes,
-                new UserContext(() -> user), published::add, published::add, estadoSanitario, alertasProvider);
+                new UserContext(() -> user), published::add, published::add, estadoSanitario, alertasProvider, razas);
 
+        Animal comprado = animalConNombre(animalId, "Lucera", property, paddock);
         when(movimientos.findByIdForUpdate(movId, company))
                 .thenReturn(Optional.of(movimiento(EstadoMovimiento.PENDIENTE, TipoMovimiento.INGRESO_COMPRA,
                         null, null, null, property, destinoPaddock, null, 0)));
         when(movimientos.findDetalles(movId))
                 .thenReturn(List.of(detalle(animalId, 0, property, paddock, null, null, null, null)));
         when(animales.findByIdForUpdate(animalId, company))
-                .thenReturn(Optional.of(animal(animalId, EstadoAnimal.ACTIVO, property, paddock, null, 0)));
+                .thenReturn(Optional.of(comprado));
+        when(animales.findById(animalId, company)).thenReturn(Optional.of(comprado));
+        when(razas.findById(comprado.razaPrincipalId(), company))
+                .thenReturn(Optional.of(new Raza(comprado.razaPrincipalId(), company, "R-1", "Brahman Blanco", "BOVINO", null, true)));
         when(animales.validLocation(company, property, destinoPaddock)).thenReturn(true);
         when(movimientos.confirm(eq(movId), eq(company), eq(0L), eq(userId)))
                 .thenReturn(movimiento(EstadoMovimiento.CONFIRMADO, TipoMovimiento.INGRESO_COMPRA,
@@ -381,6 +388,47 @@ class MovimientoServiceTest {
         assertThat(captor.getValue().tipo()).isEqualTo(TipoAlerta.MOVIMIENTO_PENDIENTE);
         assertThat(captor.getValue().origenTipo()).isEqualTo("INGRESO_COMPRA_CUARENTENA");
         assertThat(captor.getValue().origenId()).isEqualTo(movId);
+        assertThat(captor.getValue().metadata()).containsEntry("tituloPersonalizado", "Sugerencia: enviar Lucera a cuarentena");
+        assertThat(captor.getValue().metadata().get("mensajePersonalizado").toString())
+                .contains("El animal Lucera (raza Brahman Blanco)");
+    }
+
+    @Test
+    void confirmIngresoCompraDeVariosAnimalesProgramaRecordatorioGenericoDeLote() {
+        MotorAlertas motor = mock(MotorAlertas.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<MotorAlertas> alertasProvider = mock(ObjectProvider.class);
+        when(alertasProvider.getIfAvailable()).thenReturn(motor);
+        RazaRepository razas = mock(RazaRepository.class);
+        CurrentUser user = new CurrentUser(userId, company, UUID.randomUUID(), Set.of(),
+                Set.of("MOVIMIENTO_VER", "MOVIMIENTO_CREAR", "MOVIMIENTO_CONFIRMAR",
+                        "MOVIMIENTO_ANULAR", "MOVIMIENTO_REVERTIR"),
+                Set.of(), true);
+        MovimientoService serviceConAlertas = new MovimientoService(movimientos, animales, lotes,
+                new UserContext(() -> user), published::add, published::add, estadoSanitario, alertasProvider, razas);
+
+        when(movimientos.findByIdForUpdate(movId, company))
+                .thenReturn(Optional.of(movimiento(EstadoMovimiento.PENDIENTE, TipoMovimiento.INGRESO_COMPRA,
+                        null, null, null, property, destinoPaddock, null, 0)));
+        when(movimientos.findDetalles(movId)).thenReturn(List.of(
+                detalle(animalId, 0, property, paddock, null, null, null, null),
+                detalle(otherAnimalId, 0, property, paddock, null, null, null, null)));
+        when(animales.findByIdForUpdate(animalId, company))
+                .thenReturn(Optional.of(animal(animalId, EstadoAnimal.ACTIVO, property, paddock, null, 0)));
+        when(animales.findByIdForUpdate(otherAnimalId, company))
+                .thenReturn(Optional.of(animal(otherAnimalId, EstadoAnimal.ACTIVO, property, paddock, null, 0)));
+        when(animales.validLocation(company, property, destinoPaddock)).thenReturn(true);
+        when(movimientos.confirm(eq(movId), eq(company), eq(0L), eq(userId)))
+                .thenReturn(movimiento(EstadoMovimiento.CONFIRMADO, TipoMovimiento.INGRESO_COMPRA,
+                        null, null, null, property, destinoPaddock, null, 1));
+
+        serviceConAlertas.confirm(movId, 0);
+
+        ArgumentCaptor<ProgramarAlertaCommand> captor = ArgumentCaptor.forClass(ProgramarAlertaCommand.class);
+        verify(motor).programar(captor.capture());
+        assertThat(captor.getValue().metadata()).containsEntry("tituloPersonalizado", "Sugerencia: enviar el lote a cuarentena");
+        assertThat(captor.getValue().metadata().get("mensajePersonalizado").toString()).contains("El lote de 2 animales");
+        verify(razas, never()).findById(any(), any());
     }
 
     @Test
@@ -627,6 +675,12 @@ class MovimientoServiceTest {
         return new Animal(id, company, "A-1", null, SexoAnimal.HEMBRA, null, false,
                 UUID.randomUUID(), UUID.randomUUID(), null, PropositoAnimal.CARNE, OrigenAnimal.NACIDO,
                 prop, potrero, lote, state, LocalDate.now(), null, null, null, null, null, version);
+    }
+
+    private Animal animalConNombre(UUID id, String nombre, UUID prop, UUID potrero) {
+        return new Animal(id, company, "A-1", nombre, SexoAnimal.HEMBRA, null, false,
+                UUID.randomUUID(), UUID.randomUUID(), null, PropositoAnimal.CARNE, OrigenAnimal.COMPRADO,
+                prop, potrero, null, EstadoAnimal.ACTIVO, LocalDate.now(), null, null, null, null, null, 0);
     }
 
     private Lote lote(UUID id, EstadoLote estado) {

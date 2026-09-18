@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useAuth } from '@/auth/auth-context'
+import { AnimalSearchSelect } from '@/features/reproduccion/components/AnimalSearchSelect'
 import {
   cerrarCaso,
   crearCaso,
@@ -75,27 +76,29 @@ export function CasosPanel({ casos, isLoading, error, catalogs, refresh }: Casos
       </div>
       {isLoading && <LoadingState message="Cargando casos clínicos…" />}
       {!isLoading && casos.length === 0 && <EmptyState title="No hay casos clínicos" description="Registra el primer caso para dar seguimiento a la salud de tus animales." />}
-      {casos.length > 0 && <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Casos clínicos</caption><thead><tr><th scope="col">Animal</th><th scope="col">Inicio</th><th scope="col">Síntomas</th><th scope="col">Enfermedad</th><th scope="col">Severidad</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead><tbody>{casos.map((caso) => <tr key={caso.id}>
+      {casos.length > 0 && <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Casos clínicos</caption><thead><tr><th scope="col">Animal</th><th scope="col">Inicio</th><th scope="col">Síntomas</th><th scope="col">Enfermedad</th><th scope="col">Severidad</th><th scope="col">Estado</th><th scope="col">Veterinario</th><th scope="col">Acciones</th></tr></thead><tbody>{casos.map((caso) => <tr key={caso.id}>
         <td><strong>{catalogs?.animalLabel(caso.animalId)}</strong></td>
         <td>{new Date(caso.fechaInicio).toLocaleDateString('es-BO')}</td>
         <td className="table-secondary">{caso.sintomas}</td>
         <td>{enfermedades.data?.find((item) => item.id === caso.enfermedadId)?.nombre ?? '—'}</td>
         <td><span className={`status-badge ${SEVERIDAD_BADGE_CLASS[caso.severidad]}`}>{SEVERIDAD_LABELS[caso.severidad]}</span></td>
         <td><span className="status-badge">{ESTADO_CASO_LABELS[caso.estado]}</span></td>
+        <td className="table-secondary">{caso.veterinarioId ?? '—'}</td>
         <td>{!['CERRADO', 'ANULADO'].includes(caso.estado) && <Button variant="ghost" onClick={() => setCerrando(caso)}>Cerrar caso</Button>}</td>
       </tr>)}</tbody></table></div>}
       {casos.length > 0 && <div className="mobile-only">{casos.map((caso) => <div key={caso.id} className="mobile-entity-card">
-        <div><strong>{catalogs?.animalLabel(caso.animalId)}</strong><p className="muted">{caso.sintomas}</p><p className="muted">{new Date(caso.fechaInicio).toLocaleDateString('es-BO')} · {SEVERIDAD_LABELS[caso.severidad]} · {ESTADO_CASO_LABELS[caso.estado]}</p></div>
+        <div><strong>{catalogs?.animalLabel(caso.animalId)}</strong><p className="muted">{caso.sintomas}</p><p className="muted">{new Date(caso.fechaInicio).toLocaleDateString('es-BO')} · {SEVERIDAD_LABELS[caso.severidad]} · {ESTADO_CASO_LABELS[caso.estado]}{caso.veterinarioId ? ` · ${caso.veterinarioId}` : ''}</p></div>
         {!['CERRADO', 'ANULADO'].includes(caso.estado) && <Button variant="ghost" onClick={() => setCerrando(caso)}>Cerrar caso</Button>}
       </div>)}</div>}
     </Card>
 
     <Modal open={showForm} title="Nuevo caso clínico" onClose={() => setShowForm(false)} wide description="Registra el caso clínico de un animal.">
       <form className="form-grid" onSubmit={(event) => { event.preventDefault(); crear.mutate(event.currentTarget) }}>
-        <Field label="Animal" required><select name="animalId" required><option value="">Selecciona…</option>{catalogs?.animals.map((animal) => <option key={animal.id} value={animal.id}>{animal.nombre ? `${animal.codigo} · ${animal.nombre}` : animal.codigo}</option>)}</select></Field>
+        <AnimalSearchSelect label="Animal" name="animalId" />
         <Field label="Fecha de inicio" required><input name="fechaInicio" type="date" required /></Field>
         <Field label="Enfermedad"><select name="enfermedadId"><option value="">Sin identificar</option>{enfermedades.data?.map((enfermedad) => <option key={enfermedad.id} value={enfermedad.id}>{enfermedad.nombre}</option>)}</select></Field>
         <Field label="Severidad" required><select name="severidad" required defaultValue="LEVE">{(Object.keys(SEVERIDAD_LABELS) as SeveridadCaso[]).map((severidad) => <option key={severidad} value={severidad}>{SEVERIDAD_LABELS[severidad]}</option>)}</select></Field>
+        <Field label="Veterinario responsable"><input name="veterinarioId" maxLength={200} placeholder="Quién atendió el caso" /></Field>
         <div className="form-full"><Field label="Síntomas" required><textarea name="sintomas" required rows={3} maxLength={2000} placeholder="Describe los síntomas observados…" /></Field></div>
         <div className="form-full"><Field label="Diagnóstico"><textarea name="diagnosticoTexto" rows={3} maxLength={2000} /></Field></div>
         <div className="form-full"><Field label="Observaciones"><textarea name="observaciones" rows={3} maxLength={1000} /></Field></div>

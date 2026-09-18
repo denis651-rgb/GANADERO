@@ -3,7 +3,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 import { AnimalDetailPage } from './AnimalDetailPage'
-import { getAnimal } from '@/features/animales/api'
+import { getAnimal, getAnimalTimeline } from '@/features/animales/api'
+import type { AnimalSummary } from '@/features/animales/types'
 
 const changeAnimalState = vi.fn()
 vi.mock('@/features/animales/api', () => ({
@@ -29,8 +30,12 @@ vi.mock('@/features/sanidad/api', async () => {
     listTratamientos: (...args: unknown[]) => listTratamientos(...args),
   }
 })
-vi.mock('@/features/propiedades/api', () => ({ listPropiedades: vi.fn().mockResolvedValue([]) }))
-vi.mock('@/features/potreros/api', () => ({ listAllPotreros: vi.fn().mockResolvedValue([]) }))
+const listPropiedades = vi.fn().mockResolvedValue([])
+vi.mock('@/features/propiedades/api', () => ({ listPropiedades: (...args: unknown[]) => listPropiedades(...args) }))
+const listAllPotreros = vi.fn().mockResolvedValue([])
+vi.mock('@/features/potreros/api', () => ({ listAllPotreros: (...args: unknown[]) => listAllPotreros(...args) }))
+const listLotes = vi.fn().mockResolvedValue({ content: [], page: 0, size: 500, totalElements: 0, totalPages: 0 })
+vi.mock('@/features/lotes/api', () => ({ listLotes: (...args: unknown[]) => listLotes(...args) }))
 vi.mock('@/features/compras/api', () => ({ getResumenCompraAnimal: vi.fn().mockResolvedValue(null) }))
 vi.mock('@/features/pesajes/api', () => ({ getPesajeHistory: vi.fn().mockResolvedValue([]) }))
 vi.mock('@/features/animales/components/GenealogiaTab', () => ({ GenealogiaTab: () => null }))
@@ -130,5 +135,72 @@ describe('AnimalDetailPage state protection', () => {
     expect(genealogy).toHaveFocus()
     fireEvent.keyDown(genealogy, { key: 'ArrowLeft' })
     expect(photos).toHaveFocus()
+  })
+})
+
+describe('AnimalDetailPage línea de tiempo: nombres en vez de IDs', () => {
+  it('muestra el nombre de la propiedad y del potrero destino, no sus UUID', async () => {
+    listPropiedades.mockResolvedValueOnce([{ id: 'prop-1', nombre: 'Hacienda Santa Bárbara', activo: true }])
+    listAllPotreros.mockResolvedValueOnce([{ id: 'pot-1', propiedadId: 'prop-1', nombre: 'Potrero 4 - Las Palmas', activo: true }])
+    vi.mocked(getAnimalTimeline).mockResolvedValueOnce({
+      content: [{
+        id: 'ev-1', tipo: 'MOVIMIENTO_REGISTRADO', titulo: 'Movimiento registrado', descripcion: undefined,
+        fechaTecnica: '2026-03-01T00:00:00Z', fechaEvento: '2026-03-01T00:00:00Z', moduloOrigen: 'MOVIMIENTOS',
+        origenSync: false, metadata: { destinoPropiedadId: 'prop-1', destinoPotreroId: 'pot-1', destinoLoteId: '' },
+      }],
+      page: 0, size: 10, totalElements: 1, totalPages: 1,
+    })
+    renderPage()
+    expect(await screen.findByText(/Propiedad destino: Hacienda Santa Bárbara/)).toBeInTheDocument()
+    expect(screen.getByText(/Potrero destino: Potrero 4 - Las Palmas/)).toBeInTheDocument()
+    expect(screen.queryByText(/prop-1/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/pot-1/)).not.toBeInTheDocument()
+  })
+
+  it('oculta un UUID que no puede resolver a un nombre en lugar de mostrarlo crudo', async () => {
+    vi.mocked(getAnimalTimeline).mockResolvedValueOnce({
+      content: [{
+        id: 'ev-2', tipo: 'SERVICIO_REGISTRADO', titulo: 'Servicio registrado', descripcion: 'Monta natural',
+        fechaTecnica: '2026-03-02T00:00:00Z', fechaEvento: '2026-03-02T00:00:00Z', moduloOrigen: 'REPRODUCCION',
+        origenSync: false, metadata: { celoId: '11111111-2222-3333-4444-555555555555' },
+      }],
+      page: 0, size: 10, totalElements: 1, totalPages: 1,
+    })
+    renderPage()
+    expect(await screen.findByText('Monta natural')).toBeInTheDocument()
+    expect(screen.queryByText(/11111111-2222/)).not.toBeInTheDocument()
+  })
+
+  it('resuelve el macho referenciado a su código y nombre de animal', async () => {
+    const machoId = '11111111-1111-1111-1111-111111111111'
+    vi.mocked(getAnimalTimeline).mockResolvedValueOnce({
+      content: [{
+        id: 'ev-3', tipo: 'SERVICIO_REGISTRADO', titulo: 'Servicio registrado', descripcion: undefined,
+        fechaTecnica: '2026-03-03T00:00:00Z', fechaEvento: '2026-03-03T00:00:00Z', moduloOrigen: 'REPRODUCCION',
+        origenSync: false, metadata: { machoId },
+      }],
+      page: 0, size: 10, totalElements: 1, totalPages: 1,
+    })
+    vi.mocked(getAnimal).mockImplementation((animalId: string) => Promise.resolve((
+      animalId === machoId ? { id: machoId, codigo: 'ANI-000050', nombre: 'Lucero', estado: 'ACTIVO', sexo: 'MACHO', version: 0 }
+        : { id: 'a-1', codigo: 'A-001', nombre: 'Luna', estado: 'ACTIVO', sexo: 'HEMBRA', version: 3 }
+    ) as AnimalSummary))
+    renderPage()
+    expect(await screen.findByText(/Padre \(macho\): ANI-000050 · Lucero/)).toBeInTheDocument()
+  })
+
+  it('no repite el código del lote cuando el id del lote ya se resolvió a un nombre', async () => {
+    listLotes.mockResolvedValueOnce({ content: [{ id: 'lote-9', nombre: 'Lote Norte' }], page: 0, size: 500, totalElements: 1, totalPages: 1 })
+    vi.mocked(getAnimalTimeline).mockResolvedValueOnce({
+      content: [{
+        id: 'ev-4', tipo: 'LOTE_CAMBIADO', titulo: 'Lote cambiado', descripcion: undefined,
+        fechaTecnica: '2026-03-04T00:00:00Z', fechaEvento: '2026-03-04T00:00:00Z', moduloOrigen: 'LOTE',
+        origenSync: false, metadata: { loteNuevoId: 'lote-9', loteNuevoCodigo: 'L-09' },
+      }],
+      page: 0, size: 10, totalElements: 1, totalPages: 1,
+    })
+    renderPage()
+    expect(await screen.findByText(/Lote nuevo: Lote Norte/)).toBeInTheDocument()
+    expect(screen.queryByText(/L-09/)).not.toBeInTheDocument()
   })
 })

@@ -25,6 +25,13 @@ interface AplicacionesModalProps {
 
 const ACTIVAS: Array<AplicacionTratamiento['estado']> = ['PENDIENTE', 'ATRASADA']
 
+function fechaHora(iso: string): string {
+  const fecha = new Date(iso)
+  const dia = new Intl.DateTimeFormat('es-BO', { timeZone: 'America/La_Paz', day: '2-digit', month: '2-digit', year: 'numeric' }).format(fecha)
+  const hora = new Intl.DateTimeFormat('es-BO', { timeZone: 'America/La_Paz', hour: '2-digit', minute: '2-digit', hour12: false }).format(fecha)
+  return hora === '00:00' ? dia : `${dia} ${hora}`
+}
+
 export function AplicacionesModal({ tratamiento, catalogs, onClose }: AplicacionesModalProps) {
   const client = useQueryClient()
   const [aplicando, setAplicando] = useState<AplicacionTratamiento | null>(null)
@@ -58,18 +65,20 @@ export function AplicacionesModal({ tratamiento, catalogs, onClose }: Aplicacion
       {query.data?.length === 0 && <p className="muted">Este tratamiento no tiene aplicaciones programadas.</p>}
       {proximas.length > 0 && <>
         <h3>Próximas por aplicar</h3>
-        <div className="table-wrapper"><table><caption className="visually-hidden">Aplicaciones pendientes</caption><thead><tr><th scope="col">Fecha</th><th scope="col">Dosis</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead><tbody>{proximas.map((aplicacion) => <tr key={aplicacion.id}>
-          <td>{new Date(aplicacion.fechaProgramada).toLocaleDateString('es-BO')}</td>
+        <div className="table-wrapper"><table><caption className="visually-hidden">Aplicaciones pendientes</caption><thead><tr><th scope="col">Fecha</th><th scope="col">Dosis</th><th scope="col">Producto</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead><tbody>{proximas.map((aplicacion) => <tr key={aplicacion.id}>
+          <td>{fechaHora(aplicacion.fechaProgramada)}</td>
           <td>{aplicacion.dosisProgramada}{aplicacion.estado === 'ATRASADA' ? ' (atrasada)' : ''}</td>
+          <td className="table-secondary">{aplicacion.productoTexto ?? '—'}</td>
           <td><span className={`status-badge ${aplicacion.estado === 'ATRASADA' ? 'status-badge-danger' : 'status-badge-pending'}`}>{ESTADO_APLICACION_LABELS[aplicacion.estado]}</span></td>
           <td><Button variant="secondary" onClick={() => setAplicando(aplicacion)}>Aplicar</Button></td>
         </tr>)}</tbody></table></div>
       </>}
       {query.data && query.data.length > 0 && <>
         <h3>Historial</h3>
-        <div className="table-wrapper"><table><caption className="visually-hidden">Historial de aplicaciones</caption><thead><tr><th scope="col">Fecha</th><th scope="col">Dosis</th><th scope="col">Aplicado</th><th scope="col">Estado</th></tr></thead><tbody>{query.data.filter((aplicacion) => !ACTIVAS.includes(aplicacion.estado)).sort((a, b) => new Date(b.fechaProgramada).getTime() - new Date(a.fechaProgramada).getTime()).map((aplicacion) => <tr key={aplicacion.id}>
-          <td>{new Date(aplicacion.fechaProgramada).toLocaleDateString('es-BO')}</td>
+        <div className="table-wrapper"><table><caption className="visually-hidden">Historial de aplicaciones</caption><thead><tr><th scope="col">Fecha</th><th scope="col">Dosis</th><th scope="col">Producto</th><th scope="col">Aplicado</th><th scope="col">Estado</th></tr></thead><tbody>{query.data.filter((aplicacion) => !ACTIVAS.includes(aplicacion.estado)).sort((a, b) => new Date(b.fechaProgramada).getTime() - new Date(a.fechaProgramada).getTime()).map((aplicacion) => <tr key={aplicacion.id}>
+          <td>{fechaHora(aplicacion.fechaProgramada)}</td>
           <td>{aplicacion.dosisAplicada ?? aplicacion.dosisProgramada}</td>
+          <td className="table-secondary">{aplicacion.productoTexto ?? '—'}</td>
           <td className="table-secondary">{aplicacion.aplicadoPor ? 'Usuario local' : '—'}</td>
           <td><span className="status-badge">{ESTADO_APLICACION_LABELS[aplicacion.estado]}</span></td>
         </tr>)}</tbody></table></div>

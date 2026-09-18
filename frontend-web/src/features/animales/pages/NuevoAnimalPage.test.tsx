@@ -81,6 +81,45 @@ describe('NuevoAnimalPage', () => {
     })))
   })
 
+  it('envía color, peso al nacer y condición corporal para un animal nacido', async () => {
+    createAnimal.mockClear()
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={client}><MemoryRouter><NuevoAnimalPage /></MemoryRouter></QueryClientProvider>)
+    await screen.findByText('Nelore')
+    for (const label of ['Raza', 'Categoría', 'Propiedad', 'Potrero']) {
+      fireEvent.change(screen.getByLabelText(label), { target: { value: catalogId } })
+    }
+    fireEvent.change(screen.getByLabelText('Fecha de nacimiento'), { target: { value: '2026-01-10' } })
+    fireEvent.change(screen.getByLabelText('Color'), { target: { value: 'Colorado' } })
+    fireEvent.change(screen.getByLabelText('Peso al nacer (kg)'), { target: { value: '32' } })
+    fireEvent.change(screen.getByLabelText('Condición corporal (1 a 5)'), { target: { value: '3.5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar animal' }))
+    await waitFor(() => expect(createAnimal).toHaveBeenCalledWith(expect.objectContaining({
+      color: 'Colorado', pesoNacimientoKg: 32, condicionCorporalActual: 3.5,
+    })))
+  })
+
+  it('no ofrece color, peso al nacer ni condición corporal para un animal comprado (no soportado por CompraDetalleRequest)', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={client}><MemoryRouter><NuevoAnimalPage /></MemoryRouter></QueryClientProvider>)
+    await screen.findByText('Nelore')
+    fireEvent.change(screen.getByLabelText('Origen'), { target: { value: 'COMPRADO' } })
+    expect(screen.queryByLabelText('Color')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Peso al nacer (kg)')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Condición corporal (1 a 5)')).not.toBeInTheDocument()
+  })
+
+  it('no borra la edad aproximada ya ingresada al cambiar el origen', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={client}><MemoryRouter><NuevoAnimalPage /></MemoryRouter></QueryClientProvider>)
+    await screen.findByText('Nelore')
+    fireEvent.change(screen.getByLabelText('Nacimiento'), { target: { value: 'EDAD_APROXIMADA' } })
+    fireEvent.change(screen.getByLabelText('Edad aproximada'), { target: { value: '18' } })
+    fireEvent.change(screen.getByLabelText('Origen'), { target: { value: 'COMPRADO' } })
+    expect(screen.getByLabelText('Nacimiento')).toHaveValue('EDAD_APROXIMADA')
+    expect(screen.getByLabelText('Edad aproximada')).toHaveValue(18)
+  })
+
   it('bloquea el envío de una compra sin proveedor seleccionado', async () => {
     createAnimal.mockClear()
     crearCompra.mockClear()

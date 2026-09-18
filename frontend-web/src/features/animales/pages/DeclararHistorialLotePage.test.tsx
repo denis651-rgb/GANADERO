@@ -6,10 +6,12 @@ import type { AnimalSummary } from '@/features/animales/types'
 import { DeclararHistorialLotePage } from './DeclararHistorialLotePage'
 
 const registrarHistorialDeclaradoLote = vi.fn()
+const listActivePlanItems = vi.fn().mockResolvedValue([])
 
 vi.mock('@/features/sanidad/api', () => ({
   TIPO_ACTIVIDAD_LABELS: { VACUNACION: 'Vacunación', DESPARASITACION: 'Desparasitación' },
   registrarHistorialDeclaradoLote: (...args: unknown[]) => registrarHistorialDeclaradoLote(...args),
+  listActivePlanItems: (...args: unknown[]) => listActivePlanItems(...args),
 }))
 
 const animales = [
@@ -56,5 +58,38 @@ describe('DeclararHistorialLotePage', () => {
     renderPage()
     expect(screen.getByText('Sin animales para declarar')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ir a Animales' })).toBeInTheDocument()
+  })
+
+  it('vincula la actividad a un ítem del plan sanitario cuando se elige uno', async () => {
+    registrarHistorialDeclaradoLote.mockReset().mockResolvedValue([{ id: 'a' }, { id: 'b' }])
+    listActivePlanItems.mockResolvedValueOnce([
+      { id: 'item-vacuna-1', tipoActividad: 'VACUNACION', nombre: 'Fiebre aftosa', activo: true },
+      { id: 'item-desparasitacion-1', tipoActividad: 'DESPARASITACION', nombre: 'Desparasitación de ingreso', activo: true },
+    ])
+    renderPage({ animales })
+
+    fireEvent.change(screen.getByLabelText(/^Tipo/), { target: { value: 'VACUNACION' } })
+    await screen.findByRole('option', { name: 'Fiebre aftosa' })
+    fireEvent.change(screen.getByLabelText('Ítem del plan'), { target: { value: 'item-vacuna-1' } })
+    fireEvent.change(screen.getByLabelText(/^Fecha/), { target: { value: '2026-09-01' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar declaración' }))
+
+    await waitFor(() => expect(registrarHistorialDeclaradoLote).toHaveBeenCalledWith({
+      animalIds: ['animal-1', 'animal-2'],
+      actividades: [expect.objectContaining({ tipoActividad: 'VACUNACION', planItemId: 'item-vacuna-1', fechaAplicacion: '2026-09-01' })],
+    }))
+  })
+
+  it('solo ofrece ítems del plan que coincidan con el tipo de actividad elegido', async () => {
+    listActivePlanItems.mockResolvedValueOnce([
+      { id: 'item-vacuna-1', tipoActividad: 'VACUNACION', nombre: 'Fiebre aftosa', activo: true },
+      { id: 'item-desparasitacion-1', tipoActividad: 'DESPARASITACION', nombre: 'Desparasitación de ingreso', activo: true },
+    ])
+    renderPage({ animales })
+
+    fireEvent.change(screen.getByLabelText(/^Tipo/), { target: { value: 'VACUNACION' } })
+    const opciones = await screen.findAllByRole('option', { name: /Fiebre aftosa|Desparasitación de ingreso/ })
+    expect(opciones).toHaveLength(1)
+    expect(opciones[0]).toHaveTextContent('Fiebre aftosa')
   })
 })

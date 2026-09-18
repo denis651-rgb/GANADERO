@@ -14,5 +14,8 @@ public interface EventoCalendarioSanitarioRepository {
 
     Optional<EventoCalendarioSanitario> findPendientePorAnimalYActividad(UUID actividadId, UUID animalId);
 
+    /** true si a la ocurrencia todavía le quedan eventos pendientes (PROYECTADO/PROGRAMADO/EN_PREPARACION). */
+    boolean tienePendientes(UUID ocurrenciaId);
+
     void marcarEstado(UUID id, EstadoEventoCalendario estado, UUID jornadaId, UUID actor);
 }

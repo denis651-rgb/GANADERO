@@ -88,6 +88,7 @@ public class CodigoService {
             case POTRERO -> "^.+-POT-(\\d+)$";
             case COMPRA -> "^COM-(\\d+)$";
             case CATEGORIA -> "^CAT-(\\d+)$";
+            case ENFERMEDAD -> "^ENF-(\\d+)$";
         };
         Matcher matcher = Pattern.compile(expresion).matcher(codigo);
         return matcher.matches() ? Long.parseLong(matcher.group(1)) : 0;
@@ -102,6 +103,7 @@ public class CodigoService {
             case POTRERO -> codigoConPropiedad(ambitoId, "POT", numero);
             case COMPRA -> "COM-" + rellenar(numero, 6);
             case CATEGORIA -> "CAT-" + rellenar(numero, 3);
+            case ENFERMEDAD -> "ENF-" + rellenar(numero, 3);
         };
     }
 
