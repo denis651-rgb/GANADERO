@@ -112,6 +112,24 @@ class ExamenReproductivoServiceTest {
     }
 
     @Test
+    void veterinarioResponsableSeGuardaComoTextoLibre(@TempDir Path tempDir) {
+        JdbcClient jdbc = jdbcClient(tempDir);
+        JdbcClinicaRepository repo = new JdbcClinicaRepository(jdbc);
+        Animal vaquilla = sembrarAnimal(jdbc, SexoAnimal.HEMBRA);
+        ClinicaService service = service(repo, mockAnimalRepository(vaquilla));
+
+        service.crearExamen(new CrearExamenReproductivoCommand(
+                vaquilla.id(), LocalDate.of(2026, 1, 1), ResultadoExamenReproductivo.OBSERVACION, "Dra. Ana Quispe",
+                null, null, null, null, null,
+                new BigDecimal("320"), new BigDecimal("65"), new BigDecimal("3.0"), "ADECUADO",
+                "Se reprograma la evaluación.", List.of()));
+
+        List<ExamenReproductivo> releidos = service.examenesReproductivos(vaquilla.id());
+        assertThat(releidos).hasSize(1);
+        assertThat(releidos.get(0).veterinarioId()).isEqualTo("Dra. Ana Quispe");
+    }
+
+    @Test
     void checklistConEnfermedadRepetidaFallaConPruebaDuplicada(@TempDir Path tempDir) {
         JdbcClient jdbc = jdbcClient(tempDir);
         JdbcClinicaRepository repo = new JdbcClinicaRepository(jdbc);

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.UUID;
 
@@ -43,6 +44,23 @@ class MotorAlertasServiceTest {
     }
 
     @Test
+    void agrupaLaActividadSanitariaDeVariosAnimalesEnUnaSolaAlerta() {
+        Alerta alerta = alertaActividad(10, 60);
+
+        assertThat(alerta.animalId()).isNull();
+        assertThat(alerta.titulo()).isEqualTo("Fiebre Aftosa próxima");
+        assertThat(alerta.mensaje()).contains("Fiebre Aftosa", "60 animales previstos");
+    }
+
+    @Test
+    void escalaLaSeveridadDeUnaActividadSegunSuCercania() {
+        assertThat(alertaActividad(-8, 60).severidad()).isEqualTo(SeveridadAlerta.CRITICA);
+        assertThat(alertaActividad(-1, 60).severidad()).isEqualTo(SeveridadAlerta.URGENTE);
+        assertThat(alertaActividad(2, 60).severidad()).isEqualTo(SeveridadAlerta.WARNING);
+        assertThat(alertaActividad(10, 60).severidad()).isEqualTo(SeveridadAlerta.INFO);
+    }
+
+    @Test
     void tratamientoAtrasadoIdentificaAlAnimal() {
         Alerta alerta = alerta(TipoAlerta.TRATAMIENTO_ATRASADO,
                 Map.of("animalCodigo", "H-0025"));
@@ -63,6 +81,20 @@ class MotorAlertasServiceTest {
 
         assertThat(segunda.claveIdempotencia()).isEqualTo(primera.claveIdempotencia());
         assertThat(primera.mensaje()).isEqualTo("H-0005 lleva 44 días sin pesaje.");
+    }
+
+    /** Actividad del plan agrupada: sin animalId y con la cantidad de animales en metadata. */
+    private Alerta alertaActividad(int diasDesdeHoy, int cantidadAnimales) {
+        AlertaRepository repository = mock(AlertaRepository.class);
+        when(repository.programar(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        MotorAlertasService service = new MotorAlertasService(repository);
+        Instant fecha = Instant.now().plus(diasDesdeHoy, ChronoUnit.DAYS);
+        service.programar(new ProgramarAlertaCommand(UUID.randomUUID(), null, TipoAlerta.ACTIVIDAD_SANITARIA_PROXIMA,
+                fecha, "EVENTO_CALENDARIO_SANITARIO", UUID.randomUUID(),
+                Map.of("nombreActividad", "Fiebre Aftosa", "cantidadAnimales", cantidadAnimales)));
+        ArgumentCaptor<Alerta> captor = ArgumentCaptor.forClass(Alerta.class);
+        verify(repository).programar(captor.capture());
+        return captor.getValue();
     }
 
     private Alerta alertaVacuna(int diasRestantes) {

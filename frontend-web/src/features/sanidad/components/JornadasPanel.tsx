@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Ban, Check, Pencil, Plus } from 'lucide-react'
+import { Ban, Check, Eye, Pencil, Plus } from 'lucide-react'
 import { useAuth } from '@/auth/auth-context'
 import {
   actualizarJornada,
@@ -16,6 +16,7 @@ import {
 } from '@/features/sanidad/api'
 import type { SanidadCatalogs } from '@/features/sanidad/catalogs'
 import { JornadaConfirmarModal } from '@/features/sanidad/components/JornadaConfirmarModal'
+import { JornadaDetalleModal } from '@/features/sanidad/components/JornadaDetalleModal'
 import { JornadaPrepararModal, type PreparacionJornada } from '@/features/sanidad/components/JornadaPrepararModal'
 import { normalizeApiError } from '@/shared/api/errors'
 import { Alert } from '@/shared/components/Alert'
@@ -89,6 +90,7 @@ export function JornadasPanel({ jornadas, isLoading, error, catalogs, refresh, t
   const [anulando, setAnulando] = useState<JornadaSanitaria | null>(null)
   const [propertyId, setPropertyId] = useState('')
   const [preparando, setPreparando] = useState<JornadaSanitaria | null>(null)
+  const [detalle, setDetalle] = useState<JornadaSanitaria | null>(null)
   const [confirmando, setConfirmando] = useState<({ jornada: JornadaSanitaria } & PreparacionJornada) | null>(null)
   const [resultado, setResultado] = useState<ConfirmacionJornadaResult | null>(null)
   const [visitaBase, setVisitaBase] = useState<VisitaBase | null>(null)
@@ -138,11 +140,17 @@ export function JornadasPanel({ jornadas, isLoading, error, catalogs, refresh, t
     setShowForm(true)
   }
 
-  const actions = (jornada: JornadaSanitaria) => jornada.estado === 'BORRADOR' ? <div className="inline-actions">
-    {canCrear && <Button className="jornada-icon-action" variant="ghost" aria-label="Editar jornada" title="Editar jornada" onClick={() => openEdit(jornada)}><Pencil size={19} aria-hidden="true" /></Button>}
-    {canConfirmar && <Button className="jornada-icon-action" variant="secondary" aria-label="Preparar y confirmar jornada" title="Preparar y confirmar jornada" onClick={() => setPreparando(jornada)}><Check size={20} strokeWidth={2.5} aria-hidden="true" /></Button>}
-    {canCrear && <Button className="jornada-icon-action" variant="danger" aria-label="Cancelar jornada" title="Cancelar jornada" onClick={() => setAnulando(jornada)}><Ban size={19} aria-hidden="true" /></Button>}
-  </div> : <span className="muted">Sin acciones</span>
+  const actions = (jornada: JornadaSanitaria) => jornada.estado === 'BORRADOR'
+    ? <div className="inline-actions">
+      {canCrear && <Button className="jornada-icon-action" variant="ghost" aria-label="Editar jornada" title="Editar jornada" onClick={() => openEdit(jornada)}><Pencil size={19} aria-hidden="true" /></Button>}
+      {canConfirmar && <Button className="jornada-icon-action" variant="secondary" aria-label="Preparar y confirmar jornada" title="Preparar y confirmar jornada" onClick={() => setPreparando(jornada)}><Check size={20} strokeWidth={2.5} aria-hidden="true" /></Button>}
+      {canCrear && <Button className="jornada-icon-action" variant="danger" aria-label="Cancelar jornada" title="Cancelar jornada" onClick={() => setAnulando(jornada)}><Ban size={19} aria-hidden="true" /></Button>}
+    </div>
+    : jornada.estado === 'CONFIRMADA' && catalogs
+      ? <div className="inline-actions">
+        <Button className="jornada-icon-action" variant="ghost" aria-label="Ver detalle de la jornada" title="Ver detalle de la jornada" onClick={() => setDetalle(jornada)}><Eye size={19} aria-hidden="true" /></Button>
+      </div>
+      : <span className="muted">Sin acciones</span>
 
   return <div className="page-stack">
     {errorVisible && <Alert tone="danger">{normalizeApiError(errorVisible).message}</Alert>}
@@ -193,5 +201,6 @@ export function JornadasPanel({ jornadas, isLoading, error, catalogs, refresh, t
       onSaved={(preparacion) => { setPreparando(null); setPreseleccion(undefined); setConfirmando({ jornada: preparando, ...preparacion }) }}
     />}
     {confirmando && catalogs && <JornadaConfirmarModal jornada={confirmando.jornada} animalesSeleccionados={confirmando.seleccionados} planItem={confirmando.planItem} fechaAplicacion={confirmando.fechaAplicacion} onClose={() => setConfirmando(null)} onConfirmado={(res) => { setConfirmando(null); setResultado(res); refresh() }} />}
+    {detalle && catalogs && <JornadaDetalleModal jornada={detalle} catalogs={catalogs} onClose={() => setDetalle(null)} />}
   </div>
 }

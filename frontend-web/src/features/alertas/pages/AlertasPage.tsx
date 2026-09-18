@@ -17,6 +17,8 @@ const PAGE_SIZE = 10
 const route = (a: GanaderoAlert) => {
   if (a.tipo === 'TRATAMIENTO_PROXIMO' || a.tipo === 'TRATAMIENTO_ATRASADO') return `/sanidad`
   if (a.tipo === 'CASO_CLINICO_CRITICO') return '/sanidad'
+  // Alerta grupal de una actividad del plan (una por ocurrencia, sin animalId): va a Sanidad.
+  if (a.tipo === 'ACTIVIDAD_SANITARIA_PROXIMA' || a.tipo === 'ACTIVIDAD_SANITARIA_VENCIDA') return '/sanidad'
   // Sugerencia de cuarentena tras una compra (ver MovimientoService.recordarCuarentena): no
   // tiene animalId porque aplica al lote completo, así que enlaza al movimiento de ingreso.
   if (a.tipo === 'MOVIMIENTO_PENDIENTE' && a.origenTipo === 'INGRESO_COMPRA_CUARENTENA' && a.origenId) return `/movimientos?movimientoId=${a.origenId}`

@@ -86,6 +86,17 @@ public class JdbcEventoCalendarioSanitarioRepository implements EventoCalendario
     }
 
     @Override
+    public boolean tienePendientes(UUID ocurrenciaId) {
+        if (ocurrenciaId == null) return false;
+        return jdbc.sql("""
+                select count(*) from evento_calendario_sanitario
+                where ocurrencia_id=:ocurrencia and estado in ('PROYECTADO','PROGRAMADO','EN_PREPARACION')
+                """)
+                .param("ocurrencia", ocurrenciaId.toString())
+                .query(Integer.class).single() > 0;
+    }
+
+    @Override
     public void marcarEstado(UUID id, EstadoEventoCalendario estado, UUID jornadaId, UUID actor) {
         jdbc.sql("""
                 update evento_calendario_sanitario

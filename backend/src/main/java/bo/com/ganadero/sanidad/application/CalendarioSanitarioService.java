@@ -9,15 +9,15 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -119,6 +119,7 @@ public class CalendarioSanitarioService {
     private int procesarPorEdad(PlanSanitarioItem item, PlanSanitario plan, LocalDate hoy, int horizonteMeses) {
         if (!(item.modalidadConfig() instanceof ModalidadConfig.PorEdadConfig cfg)) return 0;
         int generados = 0;
+        Map<UUID, OcurrenciaProgramada> programadas = new LinkedHashMap<>();
         LocalDate limite = hoy.plusMonths(horizonteMeses);
         for (CandidatoAnimal a : candidatos(item, plan.propiedadId())) {
             if (a.fechaNacimiento() == null) continue; // EXCLUIR e INCLUIR_MANUAL ambos evitan la generación automática
@@ -130,16 +131,18 @@ public class CalendarioSanitarioService {
             LocalDate ventanaHasta = fechaObjetivo.plusDays(cfg.ventanaPosteriorDias());
             String ciclo = "EDAD:" + edadObjetivoDias;
             Instant fechaPrevista = fechaObjetivo.atTime(item.horaEjecucion()).atZone(ZONA).toInstant();
-            crear(item, a, ciclo, fechaPrevista, ventanaDesde.atStartOfDay(ZONA).toInstant(),
-                    ventanaHasta.atStartOfDay(ZONA).toInstant(), ventanaDesde, hoy, ModalidadActividad.POR_EDAD);
+            acumular(programadas, crear(item, a, ciclo, fechaPrevista, ventanaDesde.atStartOfDay(ZONA).toInstant(),
+                    ventanaHasta.atStartOfDay(ZONA).toInstant(), ventanaDesde, hoy, ModalidadActividad.POR_EDAD));
             generados++;
         }
+        programarAlertas(item, programadas.values());
         return generados;
     }
 
     private int procesarPeriodica(PlanSanitarioItem item, PlanSanitario plan, LocalDate hoy, int horizonteMeses) {
         if (!(item.modalidadConfig() instanceof ModalidadConfig.PeriodicaConfig cfg)) return 0;
         int generados = 0;
+        Map<UUID, OcurrenciaProgramada> programadas = new LinkedHashMap<>();
         int frecuenciaDias = aDiasFrecuencia(cfg.frecuenciaValor(), cfg.frecuenciaUnidad());
         LocalDate limite = hoy.plusMonths(horizonteMeses);
         // frecuenciaDias<=0 no debería ocurrir en datos validados por PlanSanitarioService, pero si
@@ -156,11 +159,12 @@ public class CalendarioSanitarioService {
                 LocalDate ventanaHasta = proxima.plusDays(cfg.toleranciaPosteriorDias());
                 String claveCiclo = "PERIODO:" + proxima;
                 Instant fechaPrevista = proxima.atTime(item.horaEjecucion()).atZone(ZONA).toInstant();
-                crear(item, a, claveCiclo, fechaPrevista, ventanaDesde.atStartOfDay(ZONA).toInstant(),
-                        ventanaHasta.atStartOfDay(ZONA).toInstant(), ventanaDesde, hoy, ModalidadActividad.PERIODICA);
+                acumular(programadas, crear(item, a, claveCiclo, fechaPrevista, ventanaDesde.atStartOfDay(ZONA).toInstant(),
+                        ventanaHasta.atStartOfDay(ZONA).toInstant(), ventanaDesde, hoy, ModalidadActividad.PERIODICA));
                 generados++;
             }
         }
+        programarAlertas(item, programadas.values());
         return generados;
     }
 
@@ -189,18 +193,20 @@ public class CalendarioSanitarioService {
         LocalDate fechaDate = cfg.fechaProgramada().atZone(zona).toLocalDate();
         if (fechaDate.isAfter(hoy.plusMonths(horizonteMeses))) return 0;
         int generados = 0;
+        Map<UUID, OcurrenciaProgramada> programadas = new LinkedHashMap<>();
         for (CandidatoAnimal a : candidatos(item, plan.propiedadId())) {
             String ciclo = "FECHA:" + fechaDate;
-            crear(item, a, ciclo, cfg.fechaProgramada(), cfg.fechaProgramada(), cfg.fechaProgramada(), fechaDate, hoy,
-                    ModalidadActividad.FECHA_PROGRAMADA);
+            acumular(programadas, crear(item, a, ciclo, cfg.fechaProgramada(), cfg.fechaProgramada(),
+                    cfg.fechaProgramada(), fechaDate, hoy, ModalidadActividad.FECHA_PROGRAMADA));
             generados++;
         }
+        programarAlertas(item, programadas.values());
         return generados;
     }
 
-    private void crear(PlanSanitarioItem item, CandidatoAnimal a, String ciclo, Instant fechaPrevista,
-                       Instant ventanaDesde, Instant ventanaHasta, LocalDate ventanaDesdeDate, LocalDate hoy,
-                       ModalidadActividad modalidad) {
+    private OcurrenciaProgramada crear(PlanSanitarioItem item, CandidatoAnimal a, String ciclo, Instant fechaPrevista,
+                                       Instant ventanaDesde, Instant ventanaHasta, LocalDate ventanaDesdeDate, LocalDate hoy,
+                                       ModalidadActividad modalidad) {
         String ocurrenciaClave = item.id() + "|" + fechaPrevista + "|" + a.propiedadId() + "|" + a.potreroId() + "|"
                 + (a.loteId() == null ? "SIN_LOTE" : a.loteId());
         UUID ocurrenciaId = ocurrencias.crearOUsar(new OcurrenciaCalendarioSanitario(UUID.randomUUID(), item.id(),
@@ -211,7 +217,11 @@ public class CalendarioSanitarioService {
                 a.animalId(), ciclo, fechaPrevista, ventanaDesde, ventanaHasta, estado, modalidad,
                 null, null, null, ocurrenciaId, "NORMAL", Instant.now(), 0));
         encolarSincronizacionExterna(item, a, ocurrenciaId, fechaPrevista);
-        programarAlertas(item, a.animalId(), fechaPrevista);
+        return new OcurrenciaProgramada(ocurrenciaId, fechaPrevista, a.propiedadId(), a.potreroId(), a.loteId(), 1);
+    }
+
+    private void acumular(Map<UUID, OcurrenciaProgramada> programadas, OcurrenciaProgramada ocurrencia) {
+        programadas.merge(ocurrencia.id(), ocurrencia, (actual, nueva) -> actual.conUnAnimalMas());
     }
 
     /**
@@ -239,24 +249,37 @@ public class CalendarioSanitarioService {
                 .param("lote",a.loteId()==null?null:a.loteId().toString()).update();
     }
 
-    private void programarAlertas(PlanSanitarioItem item, UUID animalId, Instant fechaPrevista) {
+    /**
+     * Una sola alerta por ocurrencia (actividad + fecha + ubicación), no una por animal ni una por
+     * horario de aviso: los {@code horariosAviso} quedan en metadata como horarios de notificación.
+     * Así una jornada de 60 animales genera 1 alerta grupal en vez de 60.
+     */
+    private void programarAlertas(PlanSanitarioItem item, Collection<OcurrenciaProgramada> programadas) {
+        for (OcurrenciaProgramada p : programadas) programarAlertaOcurrencia(item, p);
+    }
+
+    private void programarAlertaOcurrencia(PlanSanitarioItem item, OcurrenciaProgramada p) {
         MotorAlertas m = alertas.getIfAvailable();
         if (m == null) return;
-        LocalDate fechaBase = fechaPrevista.atZone(ZONA).toLocalDate();
+        LocalDate fechaBase = p.fechaPrevista().atZone(ZONA).toLocalDate();
         List<LocalTime> horarios = item.horariosAviso() == null || item.horariosAviso().isEmpty()
                 ? List.of(LocalTime.of(8, 0)) : item.horariosAviso();
-        for (int n = 0; n < horarios.size(); n++) {
-            Map<String, Object> datos = new HashMap<>();
-            datos.put("nombreActividad", item.nombre());
-            datos.put("fechaProximaAplicacion", fechaBase.toString());
-            datos.put("eventoReferencia", item.id() + ":" + animalId + ":" + fechaBase);
-            UUID origenId = UUID.nameUUIDFromBytes((item.id() + ":" + animalId + ":" + fechaBase + ":r" + n)
-                    .getBytes(StandardCharsets.UTF_8));
-            Instant aviso = fechaBase.minusDays(item.diasAlerta()).atTime(horarios.get(n)).atZone(ZONA).toInstant();
-            m.evolucionar(new ProgramarAlertaCommand(item.empresaId(), animalId, TipoAlerta.ACTIVIDAD_SANITARIA_PROXIMA,
-                    aviso, fechaPrevista, "EVENTO_CALENDARIO_SANITARIO", origenId, datos),
-                    java.util.Set.of(TipoAlerta.ACTIVIDAD_SANITARIA_PROXIMA, TipoAlerta.ACTIVIDAD_SANITARIA_VENCIDA));
-        }
+        LocalTime primerAviso = horarios.stream().min(LocalTime::compareTo).orElse(LocalTime.of(8, 0));
+        Map<String, Object> datos = new HashMap<>();
+        datos.put("nombreActividad", item.nombre());
+        datos.put("fechaProximaAplicacion", fechaBase.toString());
+        datos.put("cantidadAnimales", p.cantidadAnimales());
+        datos.put("horariosAviso", horarios.stream().map(LocalTime::toString).toList());
+        datos.put("propiedadId", p.propiedadId().toString());
+        if (p.potreroId() != null) datos.put("potreroId", p.potreroId().toString());
+        if (p.loteGanaderoId() != null) datos.put("loteId", p.loteGanaderoId().toString());
+        datos.put("eventoReferencia", p.id().toString());
+        Instant aviso = fechaBase.minusDays(item.diasAlerta()).atTime(primerAviso).atZone(ZONA).toInstant();
+        TipoAlerta tipo = p.fechaPrevista().isBefore(Instant.now())
+                ? TipoAlerta.ACTIVIDAD_SANITARIA_VENCIDA : TipoAlerta.ACTIVIDAD_SANITARIA_PROXIMA;
+        m.evolucionar(new ProgramarAlertaCommand(item.empresaId(), null, tipo, aviso, p.fechaPrevista(),
+                "EVENTO_CALENDARIO_SANITARIO", p.id(), datos),
+                java.util.Set.of(TipoAlerta.ACTIVIDAD_SANITARIA_PROXIMA, TipoAlerta.ACTIVIDAD_SANITARIA_VENCIDA));
     }
 
     private List<CandidatoAnimal> candidatos(PlanSanitarioItem item, UUID propiedadId) {
@@ -313,5 +336,14 @@ public class CalendarioSanitarioService {
 
     private record CandidatoAnimal(UUID animalId, LocalDate fechaNacimiento, boolean fechaNacimientoEstimada,
                                    LocalDate fechaIngreso, UUID potreroId, UUID loteId, UUID propiedadId) {
+    }
+
+    /** Una ocurrencia ya proyectada con cuántos animales cayeron en ella en esta corrida. */
+    private record OcurrenciaProgramada(UUID id, Instant fechaPrevista, UUID propiedadId, UUID potreroId,
+                                        UUID loteGanaderoId, int cantidadAnimales) {
+        OcurrenciaProgramada conUnAnimalMas() {
+            return new OcurrenciaProgramada(id, fechaPrevista, propiedadId, potreroId, loteGanaderoId,
+                    cantidadAnimales + 1);
+        }
     }
 }

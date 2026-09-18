@@ -1,6 +1,8 @@
 package bo.com.ganadero.sanidad.application;
 
 import bo.com.ganadero.sanidad.domain.*;
+import bo.com.ganadero.shared.codigos.CodigoService;
+import bo.com.ganadero.shared.codigos.TipoCodigo;
 import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import bo.com.ganadero.shared.security.CurrentUser;
@@ -21,13 +23,15 @@ public class PlanSanitarioService {
     private final UserContext context;
     private final ApplicationEventPublisher events;
     private final EventoCalendarioSanitarioRepository eventos;
+    private final CodigoService codigos;
 
     public PlanSanitarioService(SanidadRepository repo, UserContext context, ApplicationEventPublisher events,
-                               EventoCalendarioSanitarioRepository eventos) {
+                               EventoCalendarioSanitarioRepository eventos, CodigoService codigos) {
         this.eventos = eventos;
         this.repo = repo;
         this.context = context;
         this.events = events;
+        this.codigos = codigos;
     }
 
     @Transactional(readOnly = true)
@@ -40,7 +44,8 @@ public class PlanSanitarioService {
     public Enfermedad crearEnfermedad(CrearEnfermedadCommand c) {
         CurrentUser u = context.requirePermission("SANIDAD_PLAN_ADMINISTRAR");
         UUID id = UUID.randomUUID();
-        Enfermedad e = repo.crearEnfermedad(new Enfermedad(id, u.empresaId(), c.codigo().trim().toUpperCase(),
+        String codigo = codigos.paraCreacion(u, TipoCodigo.ENFERMEDAD, null, null, c.codigo());
+        Enfermedad e = repo.crearEnfermedad(new Enfermedad(id, u.empresaId(), codigo,
                 c.nombre().trim(), c.descripcion(), c.esNotificable(), true, null, null));
         audit(u, "CREAR_ENFERMEDAD", "ENFERMEDAD", id);
         return e;

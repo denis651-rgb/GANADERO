@@ -229,6 +229,7 @@ export interface AnimalFilters {
   estado?: AnimalState | ''
   propiedadId?: string
   potreroId?: string
+  loteId?: string
   categoria?: string
   sexo?: 'MACHO' | 'HEMBRA' | ''
   page: number

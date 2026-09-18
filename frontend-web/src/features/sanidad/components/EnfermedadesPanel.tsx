@@ -24,7 +24,7 @@ export function EnfermedadesPanel() {
   const crear = useMutation({
     mutationFn: (form: HTMLFormElement) => {
       const data = new FormData(form)
-      return crearEnfermedad({ codigo: String(data.get('codigo')), nombre: String(data.get('nombre')), descripcion: String(data.get('descripcion') || '') || undefined, esNotificable: data.get('esNotificable') === 'on' })
+      return crearEnfermedad({ nombre: String(data.get('nombre')), descripcion: String(data.get('descripcion') || '') || undefined, esNotificable: data.get('esNotificable') === 'on' })
     },
     onSuccess: () => { setShowForm(false); void client.invalidateQueries({ queryKey: ['sanidad-enfermedades'] }) },
   })
@@ -51,7 +51,6 @@ export function EnfermedadesPanel() {
 
     <Modal open={showForm} title="Nueva enfermedad" onClose={() => setShowForm(false)} description="Registra una enfermedad del catálogo sanitario.">
       <form className="form-grid" onSubmit={(event) => { event.preventDefault(); crear.mutate(event.currentTarget) }}>
-        <Field label="Código" required><input name="codigo" required maxLength={60} placeholder="ENF-001…" autoComplete="off" spellCheck={false} /></Field>
         <Field label="Nombre" required><input name="nombre" required maxLength={160} autoComplete="off" /></Field>
         <div className="form-full"><Field label="Descripción"><textarea name="descripcion" rows={3} maxLength={2000} placeholder="Signos, transmisión…" /></Field></div>
         <label className="checkbox-line"><input name="esNotificable" type="checkbox" /> Es notificable a sanidad</label>

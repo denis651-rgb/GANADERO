@@ -2,6 +2,8 @@ package bo.com.ganadero.sanidad.application;
 
 import bo.com.ganadero.animales.domain.SexoAnimal;
 import bo.com.ganadero.sanidad.domain.*;
+import bo.com.ganadero.shared.codigos.CodigoService;
+import bo.com.ganadero.shared.codigos.TipoCodigo;
 import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import bo.com.ganadero.shared.security.CurrentUser;
@@ -30,21 +32,35 @@ import static org.mockito.Mockito.when;
 
 class PlanSanitarioServiceTest {
     private SanidadRepository repo;
+    private CodigoService codigos;
     private PlanSanitarioService service;
     private UUID empresa, plan, item;
 
     @BeforeEach
     void setUp() {
         repo = mock(SanidadRepository.class);
+        codigos = mock(CodigoService.class);
         empresa = UUID.randomUUID();
         plan = UUID.randomUUID();
         item = UUID.randomUUID();
         CurrentUser u = new CurrentUser(UUID.randomUUID(), empresa, UUID.randomUUID(), Set.of(),
                 Set.of("SANIDAD_VER", "SANIDAD_PLAN_ADMINISTRAR"), Set.of(), true);
         service = new PlanSanitarioService(repo, new UserContext(() -> u), mock(ApplicationEventPublisher.class),
-                mock(EventoCalendarioSanitarioRepository.class));
+                mock(EventoCalendarioSanitarioRepository.class), codigos);
         when(repo.plan(plan, empresa)).thenReturn(Optional.of(new PlanSanitario(plan, empresa, "Plan", null,
                 LocalDate.now(), null, EstadoPlanSanitario.ACTIVO, null, null, 0)));
+    }
+
+    @Test
+    void generaElCodigoDeUnaEnfermedadNuevaEnVezDeExigirloEnElFormulario() {
+        when(codigos.paraCreacion(any(), eq(TipoCodigo.ENFERMEDAD), eq(null), eq(null), eq(null)))
+                .thenReturn("ENF-001");
+        when(repo.crearEnfermedad(any())).thenAnswer(i -> i.getArgument(0));
+
+        Enfermedad creada = service.crearEnfermedad(new CrearEnfermedadCommand(null, "Fiebre aftosa", null, true));
+
+        assertThat(creada.codigo()).isEqualTo("ENF-001");
+        verify(codigos).paraCreacion(any(), eq(TipoCodigo.ENFERMEDAD), eq(null), eq(null), eq(null));
     }
 
     @Test

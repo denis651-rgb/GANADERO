@@ -292,6 +292,7 @@ button.text-link { background: none; border: 0; padding: 0; cursor: pointer; fon
 .button-secondary { color: var(--green-800); background: var(--green-100); }
 .button-ghost { color: var(--ink); background: transparent; border: 1px solid var(--border); }
 .button-danger { color: white; background: var(--danger); }
+.button-ghost.icon-action-danger { color: var(--danger); }
 .button-full { width: 100%; }
 .spin { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -385,6 +386,7 @@ button.text-link { background: none; border: 0; padding: 0; cursor: pointer; fon
 .age-range-feedback-error { color: #862a2a; background: #fff0f0; border-color: #f1cccc; }
 .eligibility-criteria { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: #f8faf8; font-size: .82rem; }
 .eligibility-criteria > strong { flex-basis: 100%; color: var(--green-800); }
+.eligibility-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .eligibility-summary { display: flex; gap: 12px; flex-wrap: wrap; }
 .eligibility-summary span { padding: 8px 12px; border-radius: 999px; background: var(--green-50); color: var(--green-800); font-size: .8rem; }
 .eligibility-summary .eligibility-excluded-count { color: #862a2a; background: #fff0f0; }
@@ -586,6 +588,7 @@ th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-s
 .status-descartado { background: #edf0ee; color: #5a6760; }
 
 .picker-root { position: relative; }
+.animal-picker-row { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
 .picker-results { position: absolute; z-index: 30; top: calc(100% - 1.4rem); left: 0; right: 0; border: 1px solid var(--border); border-radius: 12px; background: white; box-shadow: var(--shadow); overflow-y: auto; max-height: 280px; }
 .picker-option { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 14px; background: none; border: 0; border-bottom: 1px solid #edf0ee; font: inherit; text-align: left; cursor: pointer; }
 .picker-option:last-child { border-bottom: 0; }
@@ -841,6 +844,7 @@ th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-s
   .pwa-toast { bottom: calc(84px + env(safe-area-inset-bottom)); }
   .install-toast { bottom: calc(148px + env(safe-area-inset-bottom)); }
   .record-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .animal-picker-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 580px) {
@@ -870,6 +874,7 @@ th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-s
   .form-grid { grid-template-columns: 1fr; }
   .form-full { grid-column: auto; }
   .record-steps { grid-template-columns: 1fr; }
+  .animal-picker-row { grid-template-columns: 1fr; }
   .age-range-heading, .age-range-fields { grid-template-columns: 1fr; }
   .movement-picker-toolbar { align-items: stretch; flex-direction: column; }
   .movement-picker-toolbar .search-box { width: 100%; }

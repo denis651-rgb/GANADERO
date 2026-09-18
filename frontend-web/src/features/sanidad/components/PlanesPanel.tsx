@@ -9,7 +9,6 @@ import {
   crearPlan,
   crearPlanItem,
   listPlanItems,
-  listVersionesItem,
   LUGAR_APLICACION_LABELS,
   MODALIDAD_ACTIVIDAD_LABELS,
   ORIGEN_REGULATORIO_BADGE_CLASS,
@@ -80,18 +79,11 @@ export function PlanesPanel({ planes, isLoading, error, catalogs, refresh }: Pla
   const [tiposHallazgoSeleccionados, setTiposHallazgoSeleccionados] = useState<string[]>([])
   const [stateTarget, setStateTarget] = useState<{ plan: PlanSanitario; estado: EstadoPlan } | null>(null)
   const [itemTarget, setItemTarget] = useState<{ plan: PlanSanitario; item: { id: string; activo: boolean; version: number; nombre: string } } | null>(null)
-  const [historial, setHistorial] = useState<{ plan: PlanSanitario; itemId: string; nombre: string } | null>(null)
 
   const items = useQuery({
     queryKey: ['sanidad-items', expanded],
     queryFn: () => (expanded ? listPlanItems(expanded) : Promise.resolve([])),
     enabled: Boolean(expanded),
-  })
-
-  const versiones = useQuery({
-    queryKey: ['sanidad-item-versiones', historial?.plan.id, historial?.itemId],
-    queryFn: () => listVersionesItem(historial!.plan.id, historial!.itemId),
-    enabled: Boolean(historial),
   })
 
   const crearPlanMut = useMutation({
@@ -285,9 +277,8 @@ export function PlanesPanel({ planes, isLoading, error, catalogs, refresh }: Pla
         <td>v{item.numeroVersion}</td>
         <td><span className="status-badge">{item.activo ? 'ACTIVO' : 'INACTIVO'}</span></td>
         {canAdmin && <td className="inline-actions">
-          <Button variant="ghost" onClick={() => abrirFormularioItem(expanded, item)}><Pencil size={16} aria-hidden="true" />Editar</Button>
-          <Button variant="ghost" onClick={() => setHistorial({ plan: planes.find((plan) => plan.id === expanded)!, itemId: item.identidadLogicaId, nombre: item.nombre })}>Versiones</Button>
-          <Button variant="ghost" onClick={() => setItemTarget({ plan: planes.find((plan) => plan.id === expanded)!, item: { id: item.id, activo: item.activo, version: item.version, nombre: item.nombre } })}><Power size={16} aria-hidden="true" />{item.activo ? 'Desactivar' : 'Activar'}</Button>
+          <Button variant="ghost" className="jornada-icon-action" title="Editar actividad" aria-label={`Editar ${item.nombre}`} onClick={() => abrirFormularioItem(expanded, item)}><Pencil size={16} aria-hidden="true" /></Button>
+          <Button variant="ghost" className={`jornada-icon-action${item.activo ? ' icon-action-danger' : ''}`} title={item.activo ? 'Desactivar actividad' : 'Activar actividad'} aria-label={`${item.activo ? 'Desactivar' : 'Activar'} ${item.nombre}`} onClick={() => setItemTarget({ plan: planes.find((plan) => plan.id === expanded)!, item: { id: item.id, activo: item.activo, version: item.version, nombre: item.nombre } })}><Power size={16} aria-hidden="true" /></Button>
         </td>}
       </tr>)}</tbody></table></div>}
     </Card>}
@@ -431,16 +422,6 @@ export function PlanesPanel({ planes, isLoading, error, catalogs, refresh }: Pla
 
         <div className="form-actions"><Button type="submit" loading={crearItemMut.isPending} disabled={Boolean(edadError)}>{editingItem ? 'Guardar cambios' : 'Agregar actividad'}</Button></div>
       </form>
-    </Modal>
-
-    <Modal open={Boolean(historial)} title={`Historial de versiones — ${historial?.nombre ?? ''}`} onClose={() => setHistorial(null)}>
-      {versiones.isPending && <LoadingState message="Cargando versiones…" />}
-      {versiones.data && <ul className="detail-list">
-        {versiones.data.map((v) => <li key={v.id}>
-          <span><strong>v{v.numeroVersion}</strong> {v.vigenteHasta ? `vigente hasta ${new Date(v.vigenteHasta).toLocaleString('es-BO')}` : 'vigente actualmente'}</span>
-          {v.motivoVersion && <span className="table-secondary">{v.motivoVersion}</span>}
-        </li>)}
-      </ul>}
     </Modal>
 
     <ConfirmDialog
