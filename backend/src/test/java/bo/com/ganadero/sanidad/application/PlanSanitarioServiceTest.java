@@ -1,5 +1,6 @@
 package bo.com.ganadero.sanidad.application;
 
+import bo.com.ganadero.alertas.application.MotorAlertas;
 import bo.com.ganadero.animales.domain.SexoAnimal;
 import bo.com.ganadero.sanidad.domain.*;
 import bo.com.ganadero.shared.codigos.CodigoService;
@@ -10,6 +11,7 @@ import bo.com.ganadero.shared.security.CurrentUser;
 import bo.com.ganadero.shared.security.UserContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
@@ -34,6 +36,9 @@ class PlanSanitarioServiceTest {
     private SanidadRepository repo;
     private CodigoService codigos;
     private PlanSanitarioService service;
+    private EventoCalendarioSanitarioRepository eventos;
+    private MotorAlertas motor;
+    private ApplicationEventPublisher publicador;
     private UUID empresa, plan, item;
 
     @BeforeEach
@@ -45,8 +50,14 @@ class PlanSanitarioServiceTest {
         item = UUID.randomUUID();
         CurrentUser u = new CurrentUser(UUID.randomUUID(), empresa, UUID.randomUUID(), Set.of(),
                 Set.of("SANIDAD_VER", "SANIDAD_PLAN_ADMINISTRAR"), Set.of(), true);
-        service = new PlanSanitarioService(repo, new UserContext(() -> u), mock(ApplicationEventPublisher.class),
-                mock(EventoCalendarioSanitarioRepository.class), codigos);
+        eventos = mock(EventoCalendarioSanitarioRepository.class);
+        motor = mock(MotorAlertas.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<MotorAlertas> alertas = mock(ObjectProvider.class);
+        when(alertas.getIfAvailable()).thenReturn(motor);
+        publicador = mock(ApplicationEventPublisher.class);
+        service = new PlanSanitarioService(repo, new UserContext(() -> u), publicador,
+                eventos, codigos, alertas);
         when(repo.plan(plan, empresa)).thenReturn(Optional.of(new PlanSanitario(plan, empresa, "Plan", null,
                 LocalDate.now(), null, EstadoPlanSanitario.ACTIVO, null, null, 0)));
     }
@@ -116,10 +127,275 @@ class PlanSanitarioServiceTest {
     }
 
     @Test
+    void rechazaLugarOtroSinDetalleAunqueNoHayaVia() {
+        CrearPlanItemCommand c = conVia(null, LugarAplicacion.OTRO);
+        assertThatThrownBy(() -> service.crearItem(plan, c))
+                .isInstanceOfSatisfying(BusinessException.class, e -> {
+                    assertThat(e.code()).isEqualTo(ErrorCode.SANIDAD_VIA_LUGAR_INCOMPATIBLE);
+                    assertThat(e.getMessage()).isEqualTo("Indica el detalle del lugar.");
+                });
+    }
+
+    @Test
     void permiteViaOralConBoca() {
         when(repo.crearItem(any(), any())).thenAnswer(i -> i.getArgument(0));
         CrearPlanItemCommand c = conVia(ViaAdministracion.ORAL, LugarAplicacion.BOCA);
         assertThat(service.crearItem(plan, c).viaAdministracionCodigo()).isEqualTo(ViaAdministracion.ORAL);
+    }
+
+    // ---------- planes: fechas, estado y efecto en el calendario ----------
+
+    @Test
+    void rechazaUnPlanConFechaDeFinAnteriorALaDeInicioConUnMensajeClaro() {
+        CrearPlanSanitarioCommand c = new CrearPlanSanitarioCommand("Plan", null, LocalDate.of(2026, 6, 1),
+                LocalDate.of(2026, 5, 31), null);
+        assertThatThrownBy(() -> service.crearPlan(c))
+                .isInstanceOfSatisfying(BusinessException.class, e -> {
+                    assertThat(e.code()).isEqualTo(ErrorCode.VALIDATION_ERROR);
+                    assertThat(e.getMessage()).isEqualTo("La fecha de fin no puede ser anterior a la fecha de inicio.");
+                });
+        verify(repo, never()).crearPlan(any(), any());
+    }
+
+    @Test
+    void unPlanFinalizadoOAnuladoYaNoAdmiteCrearEditarNiCambiarElEstadoDeSusActividades() {
+        for (EstadoPlanSanitario cerrado : List.of(EstadoPlanSanitario.FINALIZADO, EstadoPlanSanitario.ANULADO)) {
+            planEn(cerrado);
+            assertThatThrownBy(() -> service.crearItem(plan, comandoPeriodica(90)))
+                    .isInstanceOfSatisfying(BusinessException.class,
+                            e -> assertThat(e.code()).isEqualTo(ErrorCode.SANIDAD_PLAN_CERRADO));
+            assertThatThrownBy(() -> service.actualizarItem(plan, item, comandoPeriodica(90), 0))
+                    .isInstanceOfSatisfying(BusinessException.class,
+                            e -> assertThat(e.code()).isEqualTo(ErrorCode.SANIDAD_PLAN_CERRADO));
+            assertThatThrownBy(() -> service.estadoItem(plan, item, false, 0))
+                    .isInstanceOfSatisfying(BusinessException.class,
+                            e -> assertThat(e.code()).isEqualTo(ErrorCode.SANIDAD_PLAN_CERRADO));
+        }
+        verify(repo, never()).crearItem(any(), any());
+        verify(repo, never()).actualizarItem(any(), any());
+        verify(repo, never()).cambiarEstadoItem(any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean(), anyLong(), any());
+    }
+
+    @Test
+    void unPlanEnBorradorSiAdmiteActividadesParaIrPreparandolo() {
+        planEn(EstadoPlanSanitario.BORRADOR);
+        when(repo.crearItem(any(), any())).thenAnswer(i -> i.getArgument(0));
+
+        assertThat(service.crearItem(plan, comandoPeriodica(90))).isNotNull();
+    }
+
+    @Test
+    void alFinalizarOAnularUnPlanCancelaSusPendientesYResuelveSoloLasAlertasDeOcurrenciasVacias() {
+        UUID vacia = UUID.randomUUID(), conPendientes = UUID.randomUUID();
+        when(eventos.cancelarPendientesDePlan(plan)).thenReturn(List.of(vacia, conPendientes));
+        when(eventos.tienePendientes(vacia)).thenReturn(false);
+        when(eventos.tienePendientes(conPendientes)).thenReturn(true);
+        planEn(EstadoPlanSanitario.ACTIVO);
+
+        service.cambiarEstado(plan, EstadoPlanSanitario.FINALIZADO, 0);
+
+        verify(eventos).cancelarPendientesDePlan(plan);
+        verify(motor).resolverPorOrigen(empresa, "EVENTO_CALENDARIO_SANITARIO", vacia);
+        verify(motor, never()).resolverPorOrigen(empresa, "EVENTO_CALENDARIO_SANITARIO", conPendientes);
+
+        planEn(EstadoPlanSanitario.BORRADOR);
+        service.cambiarEstado(plan, EstadoPlanSanitario.ANULADO, 0);
+        verify(eventos, org.mockito.Mockito.times(2)).cancelarPendientesDePlan(plan);
+    }
+
+    @Test
+    void alActivarUnPlanNoSeCancelaNada() {
+        planEn(EstadoPlanSanitario.BORRADOR);
+
+        service.cambiarEstado(plan, EstadoPlanSanitario.ACTIVO, 0);
+
+        verify(eventos, never()).cancelarPendientesDePlan(any());
+    }
+
+    @Test
+    void alDesactivarUnaActividadCancelaSusPendientesYResuelveLasAlertasVacias() {
+        UUID vacia = UUID.randomUUID();
+        when(repo.cambiarEstadoItem(eq(item), eq(plan), eq(empresa), eq(false), eq(0L), any()))
+                .thenReturn(itemCon(null, null, null, TipoCalculoDosis.NO_APLICA, null, false));
+        when(eventos.cancelarPendientesDeActividad(item)).thenReturn(List.of(vacia));
+        when(eventos.tienePendientes(vacia)).thenReturn(false);
+
+        service.estadoItem(plan, item, false, 0);
+
+        verify(eventos).cancelarPendientesDeActividad(item);
+        verify(motor).resolverPorOrigen(empresa, "EVENTO_CALENDARIO_SANITARIO", vacia);
+        verify(eventos, never()).restaurarCanceladosFuturos(any());
+    }
+
+    @Test
+    void alReactivarUnaActividadVigenteRestauraLosCanceladosQueAunNoVencieron() {
+        when(repo.cambiarEstadoItem(eq(item), eq(plan), eq(empresa), eq(true), eq(0L), any()))
+                .thenReturn(itemCon(null, null, null, TipoCalculoDosis.NO_APLICA, null, false));
+
+        service.estadoItem(plan, item, true, 0);
+
+        verify(eventos).restaurarCanceladosFuturos(item);
+        verify(eventos, never()).cancelarPendientesDeActividad(any());
+    }
+
+    @Test
+    void reactivarUnaVersionYaCerradaNoResucitaSusEventos() {
+        when(repo.cambiarEstadoItem(eq(item), eq(plan), eq(empresa), eq(true), eq(0L), any()))
+                .thenReturn(itemCon(Instant.now(), null, null, TipoCalculoDosis.NO_APLICA, null, false));
+
+        service.estadoItem(plan, item, true, 0);
+
+        verify(eventos, never()).restaurarCanceladosFuturos(any());
+    }
+
+    // ---------- versionado: qué campos cuentan como cambio de la actividad ----------
+
+    @Test
+    void cambiarElPesoDeReferenciaDeUnaActividadEnUsoExigeUnaNuevaVersion() {
+        // El peso de referencia cambia la dosis que se calcula: no puede editarse en silencio.
+        when(repo.item(item, empresa)).thenReturn(Optional.of(
+                itemCon(null, new BigDecimal("1"), UnidadDosis.ML, TipoCalculoDosis.POR_PESO, new BigDecimal("50"), false)));
+        when(repo.itemEnUso(item)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.actualizarItem(plan, item,
+                comandoPorPeso(new BigDecimal("100")), 0))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.code()).isEqualTo(ErrorCode.SANIDAD_VERSION_MOTIVO_REQUERIDO));
+        verify(repo, never()).actualizarItem(any(), any());
+    }
+
+    @Test
+    void elMismoPesoConOtraEscalaNoGeneraUnaVersionFalsa() {
+        when(repo.item(item, empresa)).thenReturn(Optional.of(
+                itemCon(null, new BigDecimal("1.000"), UnidadDosis.ML, TipoCalculoDosis.POR_PESO, new BigDecimal("50.0"), false)));
+        when(repo.itemEnUso(item)).thenReturn(true);
+        when(repo.actualizarItem(any(), any())).thenAnswer(i -> i.getArgument(0));
+
+        service.actualizarItem(plan, item, comandoPorPeso(new BigDecimal("50")), 0);
+
+        verify(repo).actualizarItem(any(), any());
+        verify(repo, never()).crearItem(any(), any());
+    }
+
+    @Test
+    void cambiarLaPoliticaDeEdadDesconocidaDeUnaActividadEnUsoExigeUnaNuevaVersion() {
+        // Cambia a quién se le programa la actividad.
+        when(repo.item(item, empresa)).thenReturn(Optional.of(
+                itemCon(null, null, null, TipoCalculoDosis.NO_APLICA, null, false)));
+        when(repo.itemEnUso(item)).thenReturn(true);
+        CrearPlanItemCommand base = comandoPeriodica(90);
+        CrearPlanItemCommand permite = new CrearPlanItemCommand(base.codigoInterno(), base.nombre(), base.descripcion(),
+                base.tipoActividad(), base.modalidad(), base.modalidadConfig(), base.productoRecomendadoTexto(),
+                base.principioActivo(), base.instruccionesVeterinario(), base.observaciones(), base.dosisCantidad(),
+                base.dosisUnidad(), base.dosisUnidadDetalle(), base.dosisTipoCalculo(), base.dosisPesoReferenciaKg(),
+                base.dosisMinima(), base.dosisMaxima(), base.viaAdministracionCodigo(), base.viaAdministracionDetalle(),
+                base.lugarAplicacion(), base.lugarAplicacionDetalle(), base.categoriasAplicables(), base.sexoAplicable(),
+                base.edadMinDias(), base.edadMaxDias(), base.edadUnidad(), true, base.diasAlerta(), base.obligatorio(),
+                base.origenRegulatorio(), base.especieAplicable(), null, null);
+
+        assertThatThrownBy(() -> service.actualizarItem(plan, item, permite, 0))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.code()).isEqualTo(ErrorCode.SANIDAD_VERSION_MOTIVO_REQUERIDO));
+    }
+
+    private void planEn(EstadoPlanSanitario estado) {
+        when(repo.plan(plan, empresa)).thenReturn(Optional.of(new PlanSanitario(plan, empresa, "Plan", null,
+                LocalDate.now(), null, estado, null, null, 0)));
+    }
+
+    /** Actividad periódica vigente (o cerrada si se da {@code vigenteHasta}) con la dosis indicada. */
+    private PlanSanitarioItem itemCon(Instant vigenteHasta, BigDecimal cantidad, UnidadDosis unidad,
+                                      TipoCalculoDosis tipo, BigDecimal pesoReferencia, boolean permiteEdadDesconocida) {
+        Instant ahora = Instant.now();
+        return new PlanSanitarioItem(item, empresa, plan, TipoActividadSanitaria.DESPARASITACION, null,
+                "Ivermectina 1%", null, null, null, null, null, null, 90, 5, null, false, true, 0,
+                OrigenRegulatorioActividad.CONFIGURABLE_ESTABLECIMIENTO, "BOVINO", permiteEdadDesconocida, item, 1, null,
+                ahora, vigenteHasta, null, null, "Desparasitación trimestral", null, "Ivermectina", null, null,
+                cantidad, unidad, null, tipo, pesoReferencia, null, null, null, null, null, null, List.of(),
+                UnidadEdadActividad.DIAS, ModalidadActividad.PERIODICA,
+                new ModalidadConfig.PeriodicaConfig(90, UnidadFrecuencia.DIAS,
+                        ReferenciaCalculoPeriodica.ULTIMA_APLICACION, 7, 0), false);
+    }
+
+    private CrearPlanItemCommand comandoPorPeso(BigDecimal pesoReferencia) {
+        CrearPlanItemCommand base = comandoPeriodica(90);
+        return new CrearPlanItemCommand(base.codigoInterno(), base.nombre(), base.descripcion(), base.tipoActividad(),
+                base.modalidad(), base.modalidadConfig(), base.productoRecomendadoTexto(), base.principioActivo(),
+                base.instruccionesVeterinario(), base.observaciones(), new BigDecimal("1"), UnidadDosis.ML,
+                base.dosisUnidadDetalle(), TipoCalculoDosis.POR_PESO, pesoReferencia, base.dosisMinima(),
+                base.dosisMaxima(), base.viaAdministracionCodigo(), base.viaAdministracionDetalle(),
+                base.lugarAplicacion(), base.lugarAplicacionDetalle(), base.categoriasAplicables(),
+                base.sexoAplicable(), base.edadMinDias(), base.edadMaxDias(), base.edadUnidad(),
+                base.permiteEdadDesconocida(), base.diasAlerta(), base.obligatorio(), base.origenRegulatorio(),
+                base.especieAplicable(), null, null);
+    }
+
+    // ---------- POR_EDAD: la edad objetivo debe caer dentro del rango de animales elegibles ----------
+
+    @Test
+    void rechazaEdadObjetivoMayorQueLaEdadMaximaDeLosElegibles() {
+        // 7 meses = 210 días > máximo de 180 días: ningún animal llegaría a ser elegible.
+        CrearPlanItemCommand c = comandoPorEdad(7, UnidadEdadActividad.MESES, null, 180);
+        assertThatThrownBy(() -> service.crearItem(plan, c))
+                .isInstanceOfSatisfying(BusinessException.class, e -> {
+                    assertThat(e.code()).isEqualTo(ErrorCode.SANIDAD_ITEM_EDAD_INVALIDA);
+                    assertThat(e.getMessage()).contains("210").contains("supera").contains("180");
+                });
+        verify(repo, never()).crearItem(any(), any());
+    }
+
+    @Test
+    void rechazaEdadObjetivoMenorQueLaEdadMinimaDeLosElegibles() {
+        CrearPlanItemCommand c = comandoPorEdad(3, UnidadEdadActividad.MESES, 120, null);
+        assertThatThrownBy(() -> service.crearItem(plan, c))
+                .isInstanceOfSatisfying(BusinessException.class, e -> {
+                    assertThat(e.code()).isEqualTo(ErrorCode.SANIDAD_ITEM_EDAD_INVALIDA);
+                    assertThat(e.getMessage()).contains("90").contains("menor").contains("120");
+                });
+    }
+
+    @Test
+    void conviertePorLaUnidadAntesDeComparar() {
+        // 1 año = 365 días, que supera un máximo de 360 días; 12 meses = 360 días, que no.
+        assertThatThrownBy(() -> service.crearItem(plan, comandoPorEdad(1, UnidadEdadActividad.ANIOS, null, 360)))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.code()).isEqualTo(ErrorCode.SANIDAD_ITEM_EDAD_INVALIDA));
+        when(repo.crearItem(any(), any())).thenAnswer(i -> i.getArgument(0));
+        assertThat(service.crearItem(plan, comandoPorEdad(12, UnidadEdadActividad.MESES, null, 360))).isNotNull();
+    }
+
+    @Test
+    void aceptaEdadObjetivoDentroDelRangoIncluidosLosLimitesYSinRango() {
+        when(repo.crearItem(any(), any())).thenAnswer(i -> i.getArgument(0));
+        assertThat(service.crearItem(plan, comandoPorEdad(7, UnidadEdadActividad.MESES, 210, 210))).isNotNull();
+        assertThat(service.crearItem(plan, comandoPorEdad(7, UnidadEdadActividad.MESES, 90, 240))).isNotNull();
+        assertThat(service.crearItem(plan, comandoPorEdad(7, UnidadEdadActividad.MESES, null, null))).isNotNull();
+    }
+
+    @Test
+    void tambienValidaAlEditarUnaActividadPorEdad() {
+        PlanSanitarioItem actual = itemPeriodica(90, false);
+        when(repo.item(item, empresa)).thenReturn(Optional.of(actual));
+
+        assertThatThrownBy(() -> service.actualizarItem(plan, item,
+                comandoPorEdad(7, UnidadEdadActividad.MESES, null, 180), 0))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.code()).isEqualTo(ErrorCode.SANIDAD_ITEM_EDAD_INVALIDA));
+        verify(repo, never()).actualizarItem(any(), any());
+    }
+
+    private CrearPlanItemCommand comandoPorEdad(int edadObjetivo, UnidadEdadActividad unidad, Integer edadMinDias,
+                                                Integer edadMaxDias) {
+        CrearPlanItemCommand base = comandoBase(ModalidadActividad.POR_EDAD, new ModalidadConfig.PorEdadConfig(
+                edadObjetivo, unidad, 5, 15, PoliticaEdadEstimada.PERMITIR, PoliticaEdadDesconocida.EXCLUIR, true));
+        return new CrearPlanItemCommand(base.codigoInterno(), base.nombre(), base.descripcion(), base.tipoActividad(),
+                base.modalidad(), base.modalidadConfig(), base.productoRecomendadoTexto(), base.principioActivo(),
+                base.instruccionesVeterinario(), base.observaciones(), base.dosisCantidad(), base.dosisUnidad(),
+                base.dosisUnidadDetalle(), base.dosisTipoCalculo(), base.dosisPesoReferenciaKg(), base.dosisMinima(),
+                base.dosisMaxima(), base.viaAdministracionCodigo(), base.viaAdministracionDetalle(),
+                base.lugarAplicacion(), base.lugarAplicacionDetalle(), base.categoriasAplicables(),
+                base.sexoAplicable(), edadMinDias, edadMaxDias, base.edadUnidad(), base.permiteEdadDesconocida(),
+                base.diasAlerta(), base.obligatorio(), base.origenRegulatorio(), base.especieAplicable(), null, null);
     }
 
     private CrearPlanItemCommand conVia(ViaAdministracion via, LugarAplicacion lugar) {
@@ -149,6 +425,69 @@ class PlanSanitarioServiceTest {
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.VALIDATION_ERROR));
     }
 
+    // ---------- el calendario se genera al cambiar el plan, sin esperar a la corrida nocturna ----------
+
+    private void verificarQuePidioGenerarElCalendario(int veces) {
+        verify(publicador, org.mockito.Mockito.times(veces)).publishEvent(any(PlanSanitarioModificado.class));
+    }
+
+    @Test
+    void alCrearUnaActividadPideGenerarElCalendario() {
+        when(repo.crearItem(any(), any())).thenAnswer(i -> i.getArgument(0));
+
+        service.crearItem(plan, comandoPeriodica(90));
+
+        verificarQuePidioGenerarElCalendario(1);
+    }
+
+    @Test
+    void alEditarUnaActividadDeLaMismaFilaOCreandoVersionPideGenerarElCalendario() {
+        PlanSanitarioItem actual = itemPeriodica(90, false);
+        when(repo.item(item, empresa)).thenReturn(Optional.of(actual));
+        when(repo.actualizarItem(any(), any())).thenAnswer(i -> i.getArgument(0));
+        when(repo.crearItem(any(), any())).thenAnswer(i -> i.getArgument(0));
+
+        when(repo.itemEnUso(item)).thenReturn(false);
+        service.actualizarItem(plan, item, comandoPeriodica(120), 0);
+        verificarQuePidioGenerarElCalendario(1);
+
+        when(repo.itemEnUso(item)).thenReturn(true);
+        service.actualizarItem(plan, item, comandoPeriodicaConVersion(120, "Cambio de protocolo", Instant.now()), 0);
+        verificarQuePidioGenerarElCalendario(2);
+    }
+
+    @Test
+    void alReactivarUnaActividadPideGenerarElCalendarioPeroAlDesactivarlaNo() {
+        when(repo.cambiarEstadoItem(eq(item), eq(plan), eq(empresa), eq(true), eq(0L), any()))
+                .thenReturn(itemCon(null, null, null, TipoCalculoDosis.NO_APLICA, null, false));
+        when(repo.cambiarEstadoItem(eq(item), eq(plan), eq(empresa), eq(false), eq(0L), any()))
+                .thenReturn(itemCon(null, null, null, TipoCalculoDosis.NO_APLICA, null, false));
+
+        service.estadoItem(plan, item, false, 0);
+        verificarQuePidioGenerarElCalendario(0);
+
+        service.estadoItem(plan, item, true, 0);
+        verificarQuePidioGenerarElCalendario(1);
+    }
+
+    @Test
+    void alActivarUnPlanPideGenerarElCalendarioPeroAlFinalizarloNo() {
+        planEn(EstadoPlanSanitario.ACTIVO);
+        service.cambiarEstado(plan, EstadoPlanSanitario.FINALIZADO, 0);
+        verificarQuePidioGenerarElCalendario(0);
+
+        planEn(EstadoPlanSanitario.BORRADOR);
+        service.cambiarEstado(plan, EstadoPlanSanitario.ACTIVO, 0);
+        verificarQuePidioGenerarElCalendario(1);
+    }
+
+    @Test
+    void unaActividadRechazadaPorValidacionNoPideGenerarElCalendario() {
+        assertThatThrownBy(() -> service.crearItem(plan, comandoPeriodica(0))).isInstanceOf(BusinessException.class);
+
+        verificarQuePidioGenerarElCalendario(0);
+    }
+
     // ---------- actualizarItem(): versionado (sección 16-17) ----------
 
     @Test
@@ -163,6 +502,7 @@ class PlanSanitarioServiceTest {
         verify(repo).actualizarItem(any(), any());
         verify(repo, never()).cerrarVigenciaItem(any(), any(), anyLong(), any());
         verify(repo, never()).crearItem(any(), any());
+        verify(eventos, never()).cancelarPendientesDeActividad(any());
         assertThat(resultado.identidadLogicaId()).isEqualTo(actual.identidadLogicaId());
     }
 
@@ -185,6 +525,24 @@ class PlanSanitarioServiceTest {
     }
 
     @Test
+    void alCrearUnaVersionCancelaLosPendientesDeLaAnteriorYResuelveSoloLasAlertasDeOcurrenciasSinPendientes() {
+        PlanSanitarioItem actual = itemPeriodica(90, false);
+        when(repo.item(item, empresa)).thenReturn(Optional.of(actual));
+        when(repo.itemEnUso(item)).thenReturn(true);
+        when(repo.crearItem(any(), any())).thenAnswer(i -> i.getArgument(0));
+        UUID vacia = UUID.randomUUID(), conPendientes = UUID.randomUUID();
+        when(eventos.cancelarPendientesDeActividad(item)).thenReturn(List.of(vacia, conPendientes));
+        when(eventos.tienePendientes(vacia)).thenReturn(false);
+        when(eventos.tienePendientes(conPendientes)).thenReturn(true);
+
+        service.actualizarItem(plan, item, comandoPeriodicaConVersion(120, "Cambio de protocolo", Instant.now()), 0);
+
+        verify(eventos).cancelarPendientesDeActividad(item);
+        verify(motor).resolverPorOrigen(empresa, "EVENTO_CALENDARIO_SANITARIO", vacia);
+        verify(motor, never()).resolverPorOrigen(empresa, "EVENTO_CALENDARIO_SANITARIO", conPendientes);
+    }
+
+    @Test
     void exigeMotivoYVigenciaParaVersionarUnaActividadEnUso() {
         PlanSanitarioItem actual = itemPeriodica(90, false);
         when(repo.item(item, empresa)).thenReturn(Optional.of(actual));
@@ -193,6 +551,7 @@ class PlanSanitarioServiceTest {
         assertThatThrownBy(() -> service.actualizarItem(plan, item, comandoPeriodica(120), 0))
                 .isInstanceOfSatisfying(BusinessException.class,
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.SANIDAD_VERSION_MOTIVO_REQUERIDO));
+        verify(eventos, never()).cancelarPendientesDeActividad(any());
     }
 
     @Test

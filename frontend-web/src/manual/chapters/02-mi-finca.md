@@ -68,8 +68,8 @@ están **INACTIVOS** no aparecen en esas pantallas.
 Ajustar los valores con los que funciona toda la aplicación: unidades de
 superficie, cuántos días antes se emiten las alertas de reproducción y
 pesaje, cómo se guardan las fotografías y el nombre de usuario que se
-muestra en la barra lateral. También permite proteger la aplicación con un
-PIN.
+muestra en la barra lateral. También incluye el apartado **Bloqueo con PIN**,
+que todavía no está en funcionamiento (ver más abajo).
 
 ### Antes de comenzar
 
@@ -97,6 +97,11 @@ el servicio) conviene recibir el aviso.
    - **Días de gestación estimada**: cuánto dura una gestación en tu
      operación. Se usa para calcular la fecha probable de parto cuando
      registras un diagnóstico positivo.
+   - **Hora de los avisos**: a qué hora del día salen los avisos que nacen
+     de una fecha sin hora (parto probable, destete, fin de un retiro y
+     próxima vacunación declarada). Por defecto es **08:00**; los días de
+     anticipación de arriba se cuentan desde esa fecha. Ver
+     [A qué hora salen los avisos de una fecha](./10-alertas.md#a-que-hora-salen-los-avisos-de-una-fecha).
 3. Ajusta cómo se guardan las fotografías:
    - **Calidad de imagen (1-100)**: qué tan comprimida queda cada foto
      nueva al subirla. Un número más bajo ocupa menos espacio pero se ve
@@ -108,29 +113,38 @@ el servicio) conviene recibir el aviso.
 4. Escribe el **Nombre de usuario** que quieres ver en la aplicación.
 5. Presiona **Guardar configuración**.
 
-**Proteger la aplicación con PIN**
+**Guardar un PIN (el bloqueo todavía no está en funcionamiento)**
 
 1. En la misma pantalla, baja a **Bloqueo con PIN**.
-2. Escribe el **Nuevo PIN** y repítelo en **Confirmar PIN**.
-3. Presiona **Configurar PIN**. Para quitarlo después, presiona **Quitar PIN**.
+2. Escribe el **Nuevo PIN** (entre 4 y 20 caracteres) y repítelo en
+   **Confirmar PIN**. Si no coinciden, el sistema te avisa y no lo guarda.
+3. Presiona **Configurar PIN**. Para cambiarlo, escribe uno nuevo y presiona
+   **Cambiar PIN**. Para quitarlo, presiona **Quitar PIN**.
+
+> **El bloqueo con PIN todavía no está en funcionamiento.** El PIN se guarda
+> de forma cifrada, pero Ganadero no lo pide al abrirse, ni tampoco para
+> cambiarlo o quitarlo. Por eso hoy **no protege el acceso**: cualquiera que
+> abra la aplicación en este equipo ve los datos, haya o no un PIN guardado.
+> La pantalla lo recuerda con un aviso amarillo en ese apartado.
 
 ### Ejemplo
 
 La finca maneja superficie en hectáreas y quiere enterarse del parto 30 días
 antes y del destete 7 días antes. Como suele fotografiar con el celular y
 las fotos pesan mucho, deja marcada **Comprimir fotos al subirlas** con
-**Calidad de imagen** en 75. Con el PIN, solo la persona que lo conoce puede
-abrir Ganadero.
+**Calidad de imagen** en 75.
 
-> Sin PIN configurado, cualquiera que encienda la computadora puede abrir la
-> aplicación y ver los datos.
+> Mientras el bloqueo con PIN no esté en funcionamiento, cualquiera que
+> encienda la computadora puede abrir la aplicación y ver los datos. Para
+> protegerla, usa la clave de inicio de sesión de Windows del equipo y no
+> dejes la sesión abierta.
 
 ### Resultado esperado
 
 Los cambios aplican de inmediato: las alertas futuras usan los nuevos días
 de anticipación, las fotos que subas después se comprimen (o no) según lo
-configurado, y el nombre visible se actualiza. Si se configuró PIN, al abrir
-la aplicación se pide ingresarlo.
+configurado, y el nombre visible se actualiza. Si guardaste un PIN, queda
+almacenado, pero por ahora la aplicación no lo pide al abrirse.
 
 > La **Zona horaria**, **Moneda** y **Unidad de peso** se muestran fijas,
 > con los valores configurados en la instalación, y no son editables desde
@@ -289,6 +303,15 @@ fallan pueden reenviarse con **Reintentar errores**.
 > **Fecha programada**.
 
 ## Problemas frecuentes
+
+### Configuré un PIN y la aplicación no me lo pide
+
+Es lo esperado por ahora: el bloqueo con PIN todavía no está en funcionamiento.
+El PIN se guarda, pero Ganadero no lo pide al abrirse, así que no protege el
+acceso. Hasta que esté disponible, protege el equipo con la clave de inicio de
+sesión de Windows. Si guardaste un PIN, puedes cambiarlo o quitarlo desde
+**Mi finca** → **Configuración general** → **Bloqueo con PIN**, sin que te pida
+el anterior.
 
 ### Al guardar me avisa que la propiedad o el sector cambió
 

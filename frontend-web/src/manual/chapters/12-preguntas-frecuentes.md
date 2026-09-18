@@ -141,3 +141,10 @@ notificación, cantidad de avisos e intervalo. Ver [Programar recordatorios](./1
 
 Crea respaldos desde **Mi finca → Respaldos**; los archivos quedan guardados
 en tu Drive. Ver [Respaldos](./02-mi-finca.md#respaldos).
+
+## ¿Puedo proteger la aplicación con un PIN?
+
+Todavía no. Puedes guardar un PIN en **Mi finca** → **Configuración general**,
+pero por ahora Ganadero no lo pide al abrirse, así que no protege el acceso.
+Protege el equipo con la clave de inicio de sesión de Windows. Ver
+[Configuración general](./02-mi-finca.md#configuracion-general).

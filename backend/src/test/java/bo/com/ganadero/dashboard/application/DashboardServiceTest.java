@@ -1,5 +1,10 @@
 package bo.com.ganadero.dashboard.application;
 
+import bo.com.ganadero.alertas.application.AlertaQueryService;
+import bo.com.ganadero.alertas.application.AlertaQueryService.PendientesPorTipo;
+import bo.com.ganadero.alertas.application.CategoriaAlerta;
+import bo.com.ganadero.alertas.application.NivelAtencion;
+import bo.com.ganadero.alertas.application.TipoAlerta;
 import bo.com.ganadero.dashboard.domain.DashboardRepository;
 import bo.com.ganadero.dashboard.domain.DashboardResumen;
 import bo.com.ganadero.shared.error.BusinessException;
@@ -21,9 +26,10 @@ import static org.mockito.Mockito.*;
 class DashboardServiceTest {
 
     private final DashboardRepository repository = mock(DashboardRepository.class);
+    private final AlertaQueryService alertas = mock(AlertaQueryService.class);
 
     private DashboardService service(CurrentUser user) {
-        return new DashboardService(repository, new UserContext(() -> user));
+        return new DashboardService(repository, alertas, new UserContext(() -> user));
     }
 
     private CurrentUser propietario(UUID empresa) {
@@ -87,13 +93,10 @@ class DashboardServiceTest {
         when(repository.countLotesActivos(empresa, true, Set.of())).thenReturn(6L);
         when(repository.countPotrerosActivos(empresa, true, Set.of())).thenReturn(14L);
         when(repository.pesoPromedio(empresa, true, Set.of())).thenReturn(380.5);
-        when(repository.gananciaDiaria(empresa, true, Set.of())).thenReturn(0.42);
         when(repository.countPesajesUltimosDias(empresa, 7, true, Set.of())).thenReturn(33L);
         when(repository.countMovimientosUltimosDias(empresa, 7, true, Set.of())).thenReturn(5L);
         when(repository.countAnimalesSinPesaje(empresa, true, Set.of())).thenReturn(7L);
-        when(repository.countAnimalesGananciaNegativa(empresa, true, Set.of())).thenReturn(2L);
         when(repository.countPotrerosInactivos(empresa, true, Set.of())).thenReturn(1L);
-        when(repository.countLotesCerrados(empresa, true, Set.of())).thenReturn(0L);
         when(repository.animalesPorCategoria(empresa, true, Set.of()))
                 .thenReturn(List.of(new DashboardResumen.Distribucion("Vaca", 60)));
         when(repository.animalesPorPotrero(empresa, true, Set.of()))
@@ -110,26 +113,103 @@ class DashboardServiceTest {
         assertThat(resumen.totalAnimales()).isEqualTo(120L);
         assertThat(resumen.animalesEnPotrero()).isEqualTo(95L);
         assertThat(resumen.pesoPromedioKg()).isEqualTo(380.5);
-        assertThat(resumen.gananciaPromedioKg()).isEqualTo(0.42);
+        assertThat(resumen.animalesSinPesaje()).isEqualTo(7L);
         assertThat(resumen.animalesPorCategoria()).hasSize(1);
         assertThat(resumen.pesajesRecientes()).hasSize(1);
         assertThat(resumen.alertas()).extracting(DashboardResumen.AlertaBasica::tipo)
-                .containsExactly("SIN_PESAJE", "GANANCIA_NEGATIVA", "POTREROS_INACTIVOS");
+                .containsExactly("POTREROS_INACTIVOS");
     }
 
     @Test
     void sinRegistrosDevuelveCerosYListasVacias() {
         UUID empresa = UUID.randomUUID();
         when(repository.pesoPromedio(empresa, true, Set.of())).thenReturn(null);
-        when(repository.gananciaDiaria(empresa, true, Set.of())).thenReturn(null);
 
         DashboardResumen resumen = service(propietario(empresa)).resumen();
 
         assertThat(resumen.totalAnimales()).isZero();
         assertThat(resumen.pesoPromedioKg()).isNull();
-        assertThat(resumen.gananciaPromedioKg()).isNull();
         assertThat(resumen.animalesPorCategoria()).isEmpty();
         assertThat(resumen.pesajesRecientes()).isEmpty();
         assertThat(resumen.alertas()).isEmpty();
+    }
+
+    // ---------- «Atención requerida» ----------
+
+    @Test
+    void lasAlertasDeSanidadYReproduccionSeAgrupanConSuSeveridadDeLoUrgenteALoInformativo() {
+        UUID empresa = UUID.randomUUID();
+        when(alertas.pendientesPorTipo()).thenReturn(List.of(
+                new PendientesPorTipo(TipoAlerta.CELO_DETECTADO, 1, NivelAtencion.INFORMATIVO),
+                new PendientesPorTipo(TipoAlerta.PARTO_PROXIMO, 2, NivelAtencion.ADVERTENCIA),
+                new PendientesPorTipo(TipoAlerta.ACTIVIDAD_SANITARIA_VENCIDA, 3, NivelAtencion.URGENTE),
+                new PendientesPorTipo(TipoAlerta.VACUNA_VENCIDA, 5, NivelAtencion.URGENTE),
+                new PendientesPorTipo(TipoAlerta.CASO_CLINICO_CRITICO, 1, NivelAtencion.URGENTE)));
+
+        var lista = service(propietario(empresa)).resumen().alertas();
+
+        // más urgente primero; a igual nivel, el grupo con más alertas (y, si empatan, por nombre)
+        assertThat(lista).extracting(DashboardResumen.AlertaBasica::tipo).containsExactly(
+                "VACUNA_VENCIDA", "ACTIVIDAD_SANITARIA_VENCIDA", "CASO_CLINICO_CRITICO", "PARTO_PROXIMO", "CELO_DETECTADO");
+        assertThat(lista).extracting(DashboardResumen.AlertaBasica::severidad)
+                .containsExactly("danger", "danger", "danger", "warning", "info");
+        assertThat(lista.get(0).mensaje()).isEqualTo("Vacunas vencidas");
+        assertThat(lista.get(0).total()).isEqualTo(5L);
+        assertThat(lista.get(3).mensaje()).isEqualTo("Partos próximos");
+    }
+
+    @Test
+    void elAvisoDePesajeDelModuloDeAlertasNoSeRepiteEnElDashboard() {
+        UUID empresa = UUID.randomUUID();
+        when(repository.countAnimalesSinPesaje(empresa, true, Set.of())).thenReturn(7L);
+        when(alertas.pendientesPorTipo()).thenReturn(List.of(
+                new PendientesPorTipo(TipoAlerta.PESAJE_ATRASADO, 9, NivelAtencion.ADVERTENCIA),
+                new PendientesPorTipo(TipoAlerta.PARTO_PROXIMO, 1, NivelAtencion.ADVERTENCIA)));
+
+        DashboardResumen resumen = service(propietario(empresa)).resumen();
+
+        assertThat(resumen.alertas()).extracting(DashboardResumen.AlertaBasica::tipo).containsExactly("PARTO_PROXIMO");
+        // el dato sigue disponible para que la pantalla arme su único aviso de pesaje, con botón
+        assertThat(resumen.animalesSinPesaje()).isEqualTo(7L);
+    }
+
+    @Test
+    void yaNoSeAvisaPorSinPesajeNiPorGananciaNegativaDesdeElBackend() {
+        UUID empresa = UUID.randomUUID();
+        when(repository.countAnimalesSinPesaje(empresa, true, Set.of())).thenReturn(12L);
+        when(repository.countPotrerosInactivos(empresa, true, Set.of())).thenReturn(2L);
+
+        var tipos = service(propietario(empresa)).resumen().alertas().stream()
+                .map(DashboardResumen.AlertaBasica::tipo).toList();
+
+        assertThat(tipos).containsExactly("POTREROS_INACTIVOS").doesNotContain("SIN_PESAJE", "GANANCIA_NEGATIVA");
+    }
+
+    @Test
+    void losPotrerosInactivosSeMuestranDespuesDeLasAlertasDeLosModulos() {
+        UUID empresa = UUID.randomUUID();
+        when(repository.countPotrerosInactivos(empresa, true, Set.of())).thenReturn(1L);
+        when(alertas.pendientesPorTipo()).thenReturn(List.of(
+                new PendientesPorTipo(TipoAlerta.TRATAMIENTO_ATRASADO, 2, NivelAtencion.URGENTE)));
+
+        var tipos = service(propietario(empresa)).resumen().alertas().stream()
+                .map(DashboardResumen.AlertaBasica::tipo).toList();
+
+        assertThat(tipos).containsExactly("TRATAMIENTO_ATRASADO", "POTREROS_INACTIVOS");
+    }
+
+    @Test
+    void todosLosTiposDeAlertaQueSeMuestranTienenTextoPropio() {
+        for (TipoAlerta tipo : TipoAlerta.values()) {
+            if (tipo.categoria() == CategoriaAlerta.PESAJE) continue;
+            assertThat(DashboardService.etiqueta(tipo)).as("texto de " + tipo).isNotEqualTo(tipo.name());
+        }
+    }
+
+    @Test
+    void elNivelDeAtencionSeTraduceALosTresColoresDelDashboard() {
+        assertThat(DashboardService.severidad(NivelAtencion.URGENTE)).isEqualTo("danger");
+        assertThat(DashboardService.severidad(NivelAtencion.ADVERTENCIA)).isEqualTo("warning");
+        assertThat(DashboardService.severidad(NivelAtencion.INFORMATIVO)).isEqualTo("info");
     }
 }

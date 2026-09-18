@@ -56,6 +56,55 @@ programada y **estado**. Los contadores y las listas se actualizan solos
 > aviso, revisa que el dato esté registrado y con la fecha correcta en su
 > módulo.
 
+### Atención requerida en el Panel principal
+
+El **Panel principal** resume en **Atención requerida** lo que necesita tu
+atención hoy, ordenado de lo más urgente a lo más informativo. Cada fila
+tiene un color (rojo si es urgente, ámbar si es una advertencia, azul si es
+informativa) y, cuando corresponde, un botón que lleva a la pantalla donde se
+resuelve.
+
+| Aviso | Botón |
+| --- | --- |
+| **Animales sin pesaje reciente**: animales activos que nunca se pesaron o cuyo último pesaje es de hace más de 30 días. | **Registrar pesaje** |
+| **Sanidad**: vacunas y actividades sanitarias próximas o vencidas, revisiones sanitarias de ingreso pendientes, retiros de carne o leche vigentes, cuarentenas por finalizar, casos clínicos críticos y recordatorios de sanidad. | **Ir a Sanidad** |
+| **Tratamientos** próximos o atrasados. | **Ir a Sanidad** |
+| **Reproducción**: celos detectados, diagnósticos de gestación pendientes, partos próximos y destetes próximos. | **Ir a Reproducción** |
+| **Movimientos pendientes**. | **Ir a Movimientos** |
+| **Inventario bajo** y avisos del sistema. | **Ver alertas** |
+| **Potreros inactivos** (solo informativo). | — |
+
+Cada fila agrupa las alertas del mismo tipo y dice cuántas hay, por ejemplo
+"3 registros requieren atención". El color es el de la alerta más urgente del
+grupo: las alertas críticas y urgentes van en rojo. El contador **N
+pendientes** cuenta filas, no animales.
+
+> Solo aparecen las alertas pendientes cuya fecha ya llegó. Las programadas
+> para más adelante y las que ya atendiste o resolviste no se muestran. El
+> pesaje se resume en una única fila con su botón: las alertas de pesaje
+> atrasado del centro de alertas no se repiten en el Panel principal.
+
+### A qué hora salen los avisos de una fecha
+
+Algunos avisos nacen de una **fecha sin hora**: el parto probable, el destete,
+el fin de un retiro de carne o de leche y la próxima vacunación que declaraste
+en el historial de un animal. Esos avisos salen a la **Hora de los avisos**
+(por defecto **08:00**, hora de Bolivia) del día que corresponde, y no a la
+medianoche, cuando nadie los vería.
+
+- Los **días de anticipación** siguen siendo los de **Configuración general**.
+  Por ejemplo, con **Días de alerta antes del parto** en *15* y un parto
+  probable el 30/08, el aviso sale el 15/08 a las 08:00.
+- Si el día del aviso ya pasó cuando registras el dato (por ejemplo, un parto
+  probable a solo 3 días con 15 días de anticipación), el aviso aparece
+  enseguida, sin esperar a la hora de avisos.
+- Para cambiarla, ve a **Mi finca** → **Configuración general**, edita **Hora
+  de los avisos** y presiona **Guardar configuración**. El cambio vale para los
+  avisos que se programen desde ese momento; los que ya estaban programados
+  conservan su hora.
+- Los recordatorios que programas tú, los pesajes atrasados y las actividades
+  del calendario sanitario usan su propia hora y no cambian.
+
 ## Atender y resolver alertas
 
 ### Para qué sirve

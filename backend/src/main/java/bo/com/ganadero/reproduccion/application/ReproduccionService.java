@@ -290,8 +290,9 @@ public class ReproduccionService {
         if (saved.resultado() == ResultadoGestacion.POSITIVO && saved.fechaProbableParto() != null) {
             int dias = configuracion(user.empresaId()).diasAlertaPreparto();
             Instant objetivo=saved.fechaProbableParto().atStartOfDay(ZONA_NEGOCIO).toInstant();
-            motor().ifPresent(m -> m.programar(new ProgramarAlertaCommand(user.empresaId(),saved.animalId(),TipoAlerta.PARTO_PROXIMO,
-                    objetivo.minusSeconds(dias*86400L),objetivo,"GESTACION",saved.id(),
+            // El aviso sale `dias` antes del parto, a la hora de avisos configurada (no a medianoche).
+            motor().ifPresent(m -> m.programar(ProgramarAlertaCommand.alDia(user.empresaId(),saved.animalId(),TipoAlerta.PARTO_PROXIMO,
+                    saved.fechaProbableParto().minusDays(dias),objetivo,"GESTACION",saved.id(),
                     metadataAnimal(animal, Map.of("fechaProbableParto", objetivo.toString())))));
         }
         if (servicio != null) {

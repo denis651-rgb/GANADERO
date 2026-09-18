@@ -12,6 +12,7 @@ import { startGoogleCalendarSync, type GoogleCalendarSyncHandle } from './google
 import { exportarPlanillaSanitaria, type PlanillaSanitariaInput } from './sanidad-export'
 import { buscarActualizacionesManualmente, initAutoUpdater } from './updater'
 import { exportManualPdf } from './manual-export'
+import { createSplash, closeSplash } from './splash'
 import { DEV_SERVER_URL } from './constants'
 const ICON_PATH = path.join(__dirname, '..', 'build', 'icon.ico')
 
@@ -83,6 +84,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     serveFrontend()
+    createSplash()
     try {
       await backend.start()
     } catch (error) {
@@ -193,7 +195,10 @@ function createWindow(backendFailed: boolean): void {
     },
   })
 
-  mainWindow.once('ready-to-show', () => mainWindow?.show())
+  mainWindow.once('ready-to-show', () => {
+    closeSplash()
+    mainWindow?.show()
+  })
 
   if (app.isPackaged) {
     void mainWindow.loadURL(`${FRONTEND_SCHEME}://index.html`)
@@ -235,6 +240,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   quitting = true
+  closeSplash()
   stopNotifications?.()
   googleCalendarSync?.stop()
   backupScheduler?.stop()

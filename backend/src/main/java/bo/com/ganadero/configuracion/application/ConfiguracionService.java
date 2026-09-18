@@ -4,7 +4,13 @@ import org.springframework.context.ApplicationEventPublisher; import org.springf
 import org.springframework.stereotype.Service; import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant; import java.util.*;
 
-/** Ajustes globales de la app de escritorio (moneda, unidades, dias de alerta, PIN). */
+/**
+ * Ajustes globales de la app de escritorio (moneda, unidades, dias de alerta, PIN).
+ *
+ * <p>El PIN se guarda cifrado (BCrypt) pero todavía nada lo verifica: no hay pantalla de bloqueo al
+ * abrir la app ni se exige el PIN actual para cambiarlo o quitarlo. Mientras eso no exista no
+ * protege el acceso, y así lo documentan la pantalla de configuración y el manual.</p>
+ */
 @Service public class ConfiguracionService {
  private static final BCryptPasswordEncoder PIN_ENCODER=new BCryptPasswordEncoder();
  private final ConfiguracionRepository repo; private final UserContext context; private final ApplicationEventPublisher events;
@@ -15,7 +21,7 @@ import java.time.Instant; import java.util.*;
   Configuracion patch=new Configuracion(null,c.zonaHoraria(),c.moneda(),c.unidadPeso(),c.unidadSuperficie(),
    c.diasAlertaPreparto(),c.diasSinPesaje(),c.diasAlertaDestete(),
    c.diasDiagnosticoPostServicio(),c.diasGestacionEstimada(),c.comprimirImagenes(),c.calidadImagen(),c.nombreUsuario(),
-   false,c.diasToleranciaPesoCompra(),Objects.requireNonNull(c.version()));
+   false,c.diasToleranciaPesoCompra(),c.horaAvisos(),Objects.requireNonNull(c.version()));
   Configuracion saved=repo.update(patch,u.userId());
   if(c.nuevoPin()!=null&&!c.nuevoPin().isBlank())repo.updatePin(PIN_ENCODER.encode(c.nuevoPin()));
   else if(Boolean.TRUE.equals(c.quitarPin()))repo.updatePin(null);

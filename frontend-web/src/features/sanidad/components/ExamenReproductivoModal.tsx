@@ -19,6 +19,7 @@ import { Field } from '@/shared/components/Field'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { Modal } from '@/shared/components/Modal'
 import { normalizeApiError } from '@/shared/api/errors'
+import { formatDate } from '@/shared/utils/date'
 
 interface ExamenReproductivoModalProps {
   animal: AnimalSummary
@@ -115,7 +116,7 @@ export function ExamenReproductivoModal({ animal, onClose, onSaved }: ExamenRepr
       {historial.isPending && <LoadingState message="Cargando exámenes…" />}
       {historial.data?.length === 0 && <p className="muted">Todavía no hay exámenes reproductivos registrados para este animal.</p>}
       {historial.data && historial.data.length > 0 && <ul className="attention-list">{historial.data.map((examen) => <li key={examen.id} className={examen.resultado === 'NO_APTO' ? 'attention-danger' : examen.resultado === 'OBSERVACION' ? 'attention-warning' : undefined}>
-        <div><strong>{new Date(examen.fecha).toLocaleDateString('es-BO')} · {RESULTADO_EXAMEN_REPRODUCTIVO_LABELS[examen.resultado]}</strong>
+        <div><strong>{formatDate(examen.fecha)} · {RESULTADO_EXAMEN_REPRODUCTIVO_LABELS[examen.resultado]}</strong>
         <span>{examen.veterinarioId ? `Veterinario: ${examen.veterinarioId} · ` : ''}{examen.pruebas.map((prueba) => `${ENFERMEDAD_REPRODUCTIVA_LABELS[prueba.enfermedad]}: ${RESULTADO_PRUEBA_REPRODUCTIVA_LABELS[prueba.resultado]}`).join(' · ')}</span></div>
       </li>)}</ul>}
     </div>

@@ -43,3 +43,15 @@ en el navegador se usa `VITE_API_URL` (por defecto `http://localhost:8080`).
      persistente puede justificarse ahí porque un toast de 4.5s se puede perder entre entradas
      sucesivas — pero hoy ningún formulario del proyecto se queda montado así; todos cierran
      apenas termina la acción, así que no hay excepción vigente a la regla de arriba.
+
+- **Fechas.** El backend devuelve dos cosas distintas y se muestran distinto:
+  - **Fecha pura** (`LocalDate`, sin hora, como `"2024-01-01"`: apertura de un lote, fecha de venta, inicio
+    de un plan, fecha de un control…): se muestra con `formatDate()` de `@/shared/utils/date`. **Nunca**
+    con `new Date(valor).toLocaleDateString(...)`: JavaScript interpreta `"2024-01-01"` como medianoche UTC
+    y en Bolivia (UTC-4) se ve como el **31/12/2023**, un día antes de lo guardado.
+  - **Momento con hora** (`Instant`, con `T...Z`: creado el, sincronizado el, detección de un celo…): sí se
+    convierte con `new Date(valor)` a la hora local, porque ahí la conversión de zona es lo correcto.
+  - Para «hoy» en la zona del negocio usa `todayInBolivia()`, no `new Date().toISOString()` (que da la
+    fecha UTC).
+  - Las pruebas corren siempre en `America/La_Paz` (`test.env.TZ` en `vite.config.ts`), así este error se
+    detecta en cualquier máquina o CI aunque no esté en Bolivia.

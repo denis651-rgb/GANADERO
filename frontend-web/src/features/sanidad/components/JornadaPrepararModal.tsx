@@ -10,6 +10,7 @@ import {
   type JornadaSanitaria,
   type PlanSanitarioItem,
 } from '@/features/sanidad/api'
+import { categoriasDeLaActividad } from '@/features/sanidad/criteriosElegibilidad'
 import { datosPlanilla, filasCsvPlanilla, nombreArchivoPlanilla } from '@/features/sanidad/planilla'
 import type { SanidadCatalogs } from '@/features/sanidad/catalogs'
 import { Alert } from '@/shared/components/Alert'
@@ -69,9 +70,7 @@ export function JornadaPrepararModal({ jornada, catalogs, onClose, onSaved, pres
     },
   })
 
-  const categoria = itemSeleccionado?.categoriaAnimalId
-    ? catalogs.categories.find((item) => item.id === itemSeleccionado.categoriaAnimalId)?.nombre ?? 'Categoría específica'
-    : 'Todas'
+  const categorias = categoriasDeLaActividad(itemSeleccionado?.categoriasAplicables, catalogs.categories)
   const sexo = itemSeleccionado?.sexoAplicable === 'MACHO'
     ? 'Macho'
     : itemSeleccionado?.sexoAplicable === 'HEMBRA' ? 'Hembra' : 'Ambos'
@@ -157,7 +156,7 @@ export function JornadaPrepararModal({ jornada, catalogs, onClose, onSaved, pres
 
       {itemSeleccionado && <div className="eligibility-criteria" aria-label="Criterios de elegibilidad">
         <strong>Criterios aplicados automáticamente</strong>
-        <span>Categoría: <b>{categoria}</b></span>
+        <span>{categorias.length > 1 ? 'Categorías' : 'Categoría'}: <b>{categorias.length > 0 ? categorias.join(', ') : 'Todas'}</b></span>
         <span>Sexo: <b>{sexo}</b></span>
         <span>Edad: <b>{rangoEdad}</b></span>
       </div>}

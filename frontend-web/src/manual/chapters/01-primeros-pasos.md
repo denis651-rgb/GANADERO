@@ -114,7 +114,8 @@ ver el historial completo.
 ## Resultado esperado
 
 Después de estos pasos, en el **Panel principal** verás los totales de tu
-operación: animales, potreros, lotes y las alertas que necesitan atención.
+operación: animales, potreros, lotes y las alertas que necesitan atención
+(ver [Atención requerida en el Panel principal](./10-alertas.md#atencion-requerida-en-el-panel-principal)).
 
 ![Panel principal con los animales registrados y las alertas de atención requerida](/manual-images/primeros-pasos/panel-principal.jpg)
 

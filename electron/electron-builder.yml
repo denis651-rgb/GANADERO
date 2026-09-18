@@ -9,6 +9,8 @@ directories:
 files:
   - dist/**/*
   - build/icon.ico
+  - build/logo.png
+  - build/splash.html
   - package.json
 
 extraResources:

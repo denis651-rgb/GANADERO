@@ -80,9 +80,10 @@ desgloses por dimensión — para eso ya están las `Distribucion` de dashboard.
 
 Falta (trabajo nuevo real):
 
-- **GDP de rebaño por período.** `JdbcDashboardRepository.gananciaDiaria()` es un stub que
-  siempre devuelve `null` — el dashboard hoy "miente" mostrando ese campo vacío. Vale la
-  pena implementarlo de una vez, no solo para Reportes.
+- **GDP de rebaño por período.** El stub `JdbcDashboardRepository.gananciaDiaria()` ya no existe:
+  se quitó del dashboard junto con su indicador y con el aviso de ganancia negativa, porque los
+  animales no se pesan todos los días y el promedio del rebaño no era confiable. Si Reportes
+  lo necesita, hay que calcularlo aparte y por período entre pesajes reales.
 - **Peso por categoría** — no existe ninguna agregación de peso agrupada por categoría en
   ningún lado; hay que escribirla.
 

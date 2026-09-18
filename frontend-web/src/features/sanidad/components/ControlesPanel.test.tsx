@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ControlesPanel } from './ControlesPanel'
 import type { SanidadCatalogs } from '@/features/sanidad/catalogs'
 import { todayInBolivia } from '@/shared/utils/date'
+import { listControlesEctoparasitarios, listControlesNeonatales, listExamenesReproductivos } from '@/features/sanidad/api'
 
 vi.mock('@/features/reproduccion/components/AnimalSearchSelect', () => ({
   AnimalSearchSelect: () => <input aria-label="Animal" />,
@@ -54,5 +55,24 @@ describe('ControlesPanel', () => {
     const boton = await screen.findByRole('button', { name: 'Registrar examen reproductivo' })
     await waitFor(() => expect(boton).toBeDisabled())
     expect(screen.getByText(/no alcanza la edad mínima configurada de 25 meses/)).toBeInTheDocument()
+  })
+
+  it('muestra las fechas de los controles tal como se guardaron, sin correrlas un día', async () => {
+    vi.mocked(listControlesNeonatales).mockResolvedValueOnce([
+      { id: 'n-1', fechaControl: '2024-01-01', momento: 'DIA_0', calostrado: 'ADECUADO', diarrea: false },
+    ] as unknown as Awaited<ReturnType<typeof listControlesNeonatales>>)
+    vi.mocked(listControlesEctoparasitarios).mockResolvedValueOnce([
+      { id: 'e-1', fecha: '2024-02-01', tipo: 'GARRAPATA', nivelCarga: 'ALTA', tratado: true },
+    ] as unknown as Awaited<ReturnType<typeof listControlesEctoparasitarios>>)
+    vi.mocked(listExamenesReproductivos).mockResolvedValueOnce([
+      { id: 'x-1', fecha: '2024-03-31', resultado: 'APTO', observaciones: 'Sin novedades' },
+    ] as unknown as Awaited<ReturnType<typeof listExamenesReproductivos>>)
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={client}><ControlesPanel catalogs={catalogs} initialAnimalId="a-1" /></QueryClientProvider>)
+
+    expect(await screen.findByText(/^01\/01\/2024 · /)).toBeInTheDocument()
+    expect(screen.getByText(/^01\/02\/2024 · /)).toBeInTheDocument()
+    expect(screen.getByText(/^31\/03\/2024 · /)).toBeInTheDocument()
+    expect(screen.queryByText(/31\/12\/2023|31\/01\/2024|30\/03\/2024/)).not.toBeInTheDocument()
   })
 })

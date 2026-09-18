@@ -28,8 +28,8 @@ vi.mock('@/features/lotes/api', () => ({
 const animal1 = { id: 'animal-1', codigo: 'ANI-000001', nombre: 'Luna', estado: 'ACTIVO' }
 const animal2 = { id: 'animal-2', codigo: 'ANI-000002', nombre: 'Sol', estado: 'ACTIVO' }
 
-function renderPage() {
-  listVentas.mockResolvedValue([])
+function renderPage(ventas: unknown[] = []) {
+  listVentas.mockResolvedValue(ventas)
   listAnimals.mockResolvedValue({ content: [animal1, animal2], page: 0, size: 500, totalElements: 2, totalPages: 1 })
   getPesajeHistory.mockImplementation((id: string) => Promise.resolve([
     { id: `pesaje-${id}`, animalId: id, fecha: '2026-08-01', pesoKg: id === 'animal-1' ? 380 : 400, tipo: 'RUTINA', tipoPeso: 'MEDIDO', estado: 'ACTIVO', version: 0 },
@@ -81,5 +81,18 @@ describe('VentasPage — venta por lote', () => {
     fireEvent.click(screen.getByLabelText(/Carneado/))
 
     expect(screen.getByRole('button', { name: /Guardar venta de 1 animal/ })).toBeDisabled()
+  })
+})
+
+describe('VentasPage — fechas', () => {
+  it('muestra la fecha de la venta tal como se guardó, sin correrla un día', async () => {
+    renderPage([{
+      id: 'v-1', animalId: 'animal-1', movimientoId: 'm-1', fechaVenta: '2024-01-01', comprador: 'Frigorífico Norte',
+      precio: 5000, moneda: 'BOB', pesoVentaKg: 420, createdBy: 'u-1', createdAt: '2024-01-01T15:00:00Z', version: 0,
+      modalidad: 'EN_PIE',
+    }])
+
+    expect((await screen.findAllByText('01/01/2024')).length).toBeGreaterThan(0)
+    expect(screen.queryByText('31/12/2023')).not.toBeInTheDocument()
   })
 })

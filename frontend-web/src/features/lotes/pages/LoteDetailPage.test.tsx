@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { expect, it, vi } from 'vitest'
 import { LoteDetailPage } from './LoteDetailPage'
-import { listMembresias } from '@/features/lotes/api'
+import { getLote, listMembresias } from '@/features/lotes/api'
 
 const addAnimales = vi.fn().mockResolvedValue({ ok: true, ingresados: 1 })
 const updateLote = vi.fn().mockResolvedValue({})
@@ -93,4 +93,17 @@ it('edita el máximo enviando la versión actual y limita la reducción', async 
   fireEvent.change(input, { target: { value: '40' } })
   fireEvent.click(screen.getByRole('button', { name: 'Guardar máximo' }))
   await waitFor(() => expect(updateLote).toHaveBeenCalledWith('l-1', { cantidadMaxima: 40, version: 2 }))
+})
+
+it('muestra la apertura y el cierre del lote tal como se guardaron, sin correrlos un día', async () => {
+  vi.mocked(getLote).mockResolvedValueOnce({
+    id: 'l-1', codigo: 'LOT-1', nombre: 'Toros', propiedadId: 'p-1', estado: 'CERRADO',
+    fechaApertura: '2024-01-01', fechaCierre: '2024-03-31', version: 3, cantidadMaxima: 30, cantidadActual: 0,
+  } as Awaited<ReturnType<typeof getLote>>)
+  renderPage()
+
+  expect(await screen.findByText('01/01/2024')).toBeInTheDocument()
+  expect(screen.getByText('31/03/2024')).toBeInTheDocument()
+  expect(screen.queryByText('31/12/2023')).not.toBeInTheDocument()
+  expect(screen.queryByText('30/03/2024')).not.toBeInTheDocument()
 })

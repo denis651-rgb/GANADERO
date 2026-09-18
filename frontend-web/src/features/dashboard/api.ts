@@ -28,7 +28,6 @@ export interface DashboardResumen {
   lotesActivos: number
   potrerosActivos: number
   pesoPromedioKg?: number
-  gananciaPromedioKg?: number
   pesajesUltimos7Dias: number
   movimientosUltimos7Dias: number
   animalesSinPesaje: number

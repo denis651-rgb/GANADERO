@@ -12,6 +12,7 @@ import { Card } from '@/shared/components/Card'
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { LoadingState } from '@/shared/components/LoadingState'
 import { normalizeApiError } from '@/shared/api/errors'
+import { formatDate } from '@/shared/utils/date'
 
 interface ResumenPanelProps {
   planes: PlanSanitario[]
@@ -127,7 +128,7 @@ export function ResumenPanel({ planes, jornadas, casos, tratamientos, catalogs, 
         {recientes.length > 0 && <div className="table-wrapper"><table><caption className="visually-hidden">Jornadas sanitarias más recientes</caption><thead><tr><th scope="col">Propiedad</th><th scope="col">Estado</th><th scope="col">Fecha</th></tr></thead><tbody>{recientes.map((jornada) => <tr key={jornada.id}>
           <td>{catalogs.properties.find((item) => item.id === jornada.propiedadId)?.nombre ?? 'Propiedad'}</td>
           <td><span className="status-badge">{ESTADO_JORNADA_LABELS[jornada.estado]}</span></td>
-          <td>{new Date(jornada.fechaInicio).toLocaleDateString('es-BO')}</td>
+          <td>{formatDate(jornada.fechaInicio)}</td>
         </tr>)}</tbody></table></div>}
       </Card>
       <Card>

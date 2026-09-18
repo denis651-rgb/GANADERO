@@ -12,7 +12,6 @@ public record DashboardResumen(
         long lotesActivos,
         long potrerosActivos,
         Double pesoPromedioKg,
-        Double gananciaPromedioKg,
         long pesajesUltimos7Dias,
         long movimientosUltimos7Dias,
         long animalesSinPesaje,

@@ -96,8 +96,8 @@ public class ReproduccionCicloService {
     TipoPesaje.NACIMIENTO,null,null,u.userId(),madre.propiedadActualId(),potrero,null,null,UUID.randomUUID(),null,EstadoPesaje.ACTIVO,
     null,null,null,"Peso registrado al nacer",null,null,null,null,null,null,0),u.userId());
    publicar(u,animalId,TipoEventoAnimal.CRIA_REGISTRADA,parto.id(),"Cría registrada");
-   MotorAlertas motor=alertas.getIfAvailable(); if(motor!=null)motor.programar(new ProgramarAlertaCommand(u.empresaId(),animalId,
-    TipoAlerta.DESTETE_PROXIMO,parto.fechaParto().plusDays(diasHastaDestete-diasAlertaDestete(u.empresaId())).atStartOfDay(ZoneOffset.UTC).toInstant(),
+   MotorAlertas motor=alertas.getIfAvailable(); if(motor!=null)motor.programar(ProgramarAlertaCommand.alDia(u.empresaId(),animalId,
+    TipoAlerta.DESTETE_PROXIMO,parto.fechaParto().plusDays(diasHastaDestete-diasAlertaDestete(u.empresaId())),
     parto.fechaParto().plusDays(diasHastaDestete).atStartOfDay(ZoneOffset.UTC).toInstant(),"CRIA",animalId,Map.of("madreId",madre.id(),"partoId",parto.id())));
   }
   UUID id=UUID.randomUUID(); CriaParto cria=repo.createCria(new CriaParto(id,u.empresaId(),parto.id(),animalId,c.sexo(),c.pesoNacimientoKg(),

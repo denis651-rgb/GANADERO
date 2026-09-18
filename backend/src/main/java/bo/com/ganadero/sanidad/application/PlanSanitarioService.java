@@ -1,5 +1,6 @@
 package bo.com.ganadero.sanidad.application;
 
+import bo.com.ganadero.alertas.application.MotorAlertas;
 import bo.com.ganadero.sanidad.domain.*;
 import bo.com.ganadero.shared.codigos.CodigoService;
 import bo.com.ganadero.shared.codigos.TipoCodigo;
@@ -7,6 +8,7 @@ import bo.com.ganadero.shared.error.BusinessException;
 import bo.com.ganadero.shared.error.ErrorCode;
 import bo.com.ganadero.shared.security.CurrentUser;
 import bo.com.ganadero.shared.security.UserContext;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,9 +26,12 @@ public class PlanSanitarioService {
     private final ApplicationEventPublisher events;
     private final EventoCalendarioSanitarioRepository eventos;
     private final CodigoService codigos;
+    private final ObjectProvider<MotorAlertas> alertas;
 
     public PlanSanitarioService(SanidadRepository repo, UserContext context, ApplicationEventPublisher events,
-                               EventoCalendarioSanitarioRepository eventos, CodigoService codigos) {
+                               EventoCalendarioSanitarioRepository eventos, CodigoService codigos,
+                               ObjectProvider<MotorAlertas> alertas) {
+        this.alertas = alertas;
         this.eventos = eventos;
         this.repo = repo;
         this.context = context;
@@ -69,7 +74,7 @@ public class PlanSanitarioService {
         CurrentUser u = context.requirePermission("SANIDAD_PLAN_ADMINISTRAR");
         if (c.propiedadId() != null) context.requirePropertyAccess(u, c.propiedadId());
         if (c.fechaFin() != null && c.fechaFin().isBefore(c.fechaInicio())) {
-            throw new BusinessException(ErrorCode.REPRODUCCION_FECHA_INVALIDA);
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "La fecha de fin no puede ser anterior a la fecha de inicio.");
         }
         UUID id = UUID.randomUUID();
         PlanSanitario p = repo.crearPlan(new PlanSanitario(id, u.empresaId(), c.nombre(), c.descripcion(),
@@ -84,7 +89,13 @@ public class PlanSanitarioService {
         PlanSanitario actual = requirePlan(id, u);
         if (!permitida(actual.estado(), nuevo)) throw new BusinessException(ErrorCode.SANIDAD_TRANSICION_INVALIDA);
         PlanSanitario p = repo.cambiarEstadoPlan(id, u.empresaId(), nuevo, version, u.userId());
+        if (nuevo == EstadoPlanSanitario.FINALIZADO || nuevo == EstadoPlanSanitario.ANULADO) {
+            // El generador ya ignora los planes cerrados, pero lo pendiente que ya existía seguiría
+            // apareciendo en el calendario y en las alertas: se cancela junto con el plan.
+            resolverAlertasSinPendientes(u, eventos.cancelarPendientesDePlan(id));
+        }
         audit(u, "CAMBIAR_ESTADO_PLAN", "PLAN_SANITARIO", id);
+        if (nuevo == EstadoPlanSanitario.ACTIVO) generarCalendario();
         return p;
     }
 
@@ -122,12 +133,13 @@ public class PlanSanitarioService {
     @Transactional
     public PlanSanitarioItem crearItem(UUID planId, CrearPlanItemCommand c) {
         CurrentUser u = context.requirePermission("SANIDAD_PLAN_ADMINISTRAR");
-        requirePlan(planId, u);
+        requirePlanEditable(planId, u);
         validar(c);
         UUID id = UUID.randomUUID();
         PlanSanitarioItem creado = repo.crearItem(construir(id, u.empresaId(), planId, c, id, 1, null,
                 Instant.now(), null), u.userId());
         audit(u, "CREAR_ITEM_PLAN", "PLAN_SANITARIO_ITEM", id);
+        generarCalendario();
         return creado;
     }
 
@@ -140,7 +152,7 @@ public class PlanSanitarioService {
     @Transactional
     public PlanSanitarioItem actualizarItem(UUID planId, UUID itemId, CrearPlanItemCommand c, long version) {
         CurrentUser u = context.requirePermission("SANIDAD_PLAN_ADMINISTRAR");
-        requirePlan(planId, u);
+        requirePlanEditable(planId, u);
         validar(c);
         PlanSanitarioItem actual = requireItem(itemId, u);
         if (actual.version() != version) throw new BusinessException(ErrorCode.VERSION_CONFLICT);
@@ -152,6 +164,7 @@ public class PlanSanitarioService {
         if (!enUso || huella(actual).equals(huella(propuesto))) {
             PlanSanitarioItem guardado = repo.actualizarItem(propuesto, u.userId());
             audit(u, "ACTUALIZAR_ITEM_PLAN", "PLAN_SANITARIO_ITEM", itemId);
+            generarCalendario();
             return guardado;
         }
 
@@ -163,15 +176,53 @@ public class PlanSanitarioService {
         PlanSanitarioItem nuevaVersion = construir(nuevoId, u.empresaId(), planId, c, actual.identidadLogicaId(),
                 actual.numeroVersion() + 1, itemId, c.fechaVigencia(), null);
         PlanSanitarioItem creado = repo.crearItem(nuevaVersion, u.userId());
+        cancelarCalendarioPendiente(u, itemId);
         audit(u, "CREAR_VERSION_ACTIVIDAD", "PLAN_SANITARIO_ITEM", nuevoId);
+        generarCalendario();
         return creado;
+    }
+
+    /** Pide generar el calendario apenas se confirme la operación (ver {@link RegenerarCalendarioAlCambiarPlan}). */
+    private void generarCalendario() {
+        events.publishEvent(new PlanSanitarioModificado());
+    }
+
+    /**
+     * La versión nueva regenera su propio calendario en la siguiente corrida: si los eventos
+     * todavía pendientes de la versión anterior siguieran vivos, cada animal quedaría con dos. Se
+     * cancelan (queda el rastro como CANCELADO) y se resuelven las alertas de las ocurrencias que
+     * se quedaron sin pendientes; el calendario externo retira esas ocurrencias por su cuenta.
+     */
+    private void cancelarCalendarioPendiente(CurrentUser u, UUID itemAnteriorId) {
+        resolverAlertasSinPendientes(u, eventos.cancelarPendientesDeActividad(itemAnteriorId));
+    }
+
+    /** Resuelve la alerta de cada ocurrencia que, tras cancelar eventos, ya no tiene nada pendiente. */
+    private void resolverAlertasSinPendientes(CurrentUser u, List<UUID> ocurrencias) {
+        MotorAlertas motor = alertas.getIfAvailable();
+        if (motor == null) return;
+        for (UUID ocurrenciaId : ocurrencias) {
+            if (!eventos.tienePendientes(ocurrenciaId)) {
+                motor.resolverPorOrigen(u.empresaId(), "EVENTO_CALENDARIO_SANITARIO", ocurrenciaId);
+            }
+        }
     }
 
     @Transactional
     public PlanSanitarioItem estadoItem(UUID plan, UUID id, boolean activo, long version) {
         CurrentUser u = context.requirePermission("SANIDAD_PLAN_ADMINISTRAR");
-        requirePlan(plan, u);
-        return repo.cambiarEstadoItem(id, plan, u.empresaId(), activo, version, u.userId());
+        requirePlanEditable(plan, u);
+        PlanSanitarioItem actualizado = repo.cambiarEstadoItem(id, plan, u.empresaId(), activo, version, u.userId());
+        if (!activo) {
+            // Desactivada, deja de generar y lo pendiente sale del calendario y de las alertas.
+            resolverAlertasSinPendientes(u, eventos.cancelarPendientesDeActividad(id));
+        } else if (actualizado.vigenteHasta() == null) {
+            // Reactivada: lo cancelado que aún no venció vuelve, porque el generador no puede recrearlo
+            // (la clave única del calendario lo impide). Una versión ya cerrada no se reactiva.
+            eventos.restaurarCanceladosFuturos(id);
+        }
+        if (activo) generarCalendario();
+        return actualizado;
     }
 
     @Transactional(readOnly = true)
@@ -191,6 +242,7 @@ public class PlanSanitarioService {
             throw new BusinessException(ErrorCode.SANIDAD_ITEM_EDAD_INVALIDA);
         }
         validarModalidad(c.modalidad(), c.modalidadConfig());
+        validarEdadObjetivoDentroDelRango(c.modalidadConfig(), c.edadMinDias(), c.edadMaxDias());
         validarViaLugar(c.viaAdministracionCodigo(), c.viaAdministracionDetalle(), c.lugarAplicacion(), c.lugarAplicacionDetalle());
         validarDosis(c.dosisTipoCalculo(), c.dosisCantidad(), c.dosisPesoReferenciaKg(), c.dosisMinima(), c.dosisMaxima());
         if (c.horaEjecucion() == null) {
@@ -216,7 +268,31 @@ public class PlanSanitarioService {
         if (!ok) throw new BusinessException(ErrorCode.SANIDAD_MODALIDAD_CONFIG_INVALIDA);
     }
 
+    /**
+     * En POR_EDAD el animal tiene exactamente la edad objetivo el día del evento: si esa edad cae
+     * fuera del rango de «Edad de los animales elegibles», el calendario descartaría a todos los
+     * animales y la actividad no se programaría nunca. Se rechaza al guardarla en vez de dejarla
+     * silenciosamente inútil.
+     */
+    private void validarEdadObjetivoDentroDelRango(ModalidadConfig config, Integer edadMinDias, Integer edadMaxDias) {
+        if (!(config instanceof ModalidadConfig.PorEdadConfig cfg)) return;
+        UnidadEdadActividad unidad = cfg.edadUnidad() == null ? UnidadEdadActividad.DIAS : cfg.edadUnidad();
+        int objetivo = unidad.aDias(cfg.edadObjetivoValor());
+        if (edadMinDias != null && objetivo < edadMinDias) {
+            throw new BusinessException(ErrorCode.SANIDAD_ITEM_EDAD_INVALIDA, "La edad objetivo (" + objetivo
+                    + " días) es menor que la edad mínima de los animales elegibles (" + edadMinDias + " días).");
+        }
+        if (edadMaxDias != null && objetivo > edadMaxDias) {
+            throw new BusinessException(ErrorCode.SANIDAD_ITEM_EDAD_INVALIDA, "La edad objetivo (" + objetivo
+                    + " días) supera la edad máxima de los animales elegibles (" + edadMaxDias + " días).");
+        }
+    }
+
     private void validarViaLugar(ViaAdministracion via, String viaDetalle, LugarAplicacion lugar, String lugarDetalle) {
+        // «Otro» lugar sin detalle no dice nada, haya o no vía elegida.
+        if (lugar == LugarAplicacion.OTRO && (lugarDetalle == null || lugarDetalle.isBlank())) {
+            throw new BusinessException(ErrorCode.SANIDAD_VIA_LUGAR_INCOMPATIBLE, "Indica el detalle del lugar.");
+        }
         if (via == null) return;
         boolean inyectable = via == ViaAdministracion.SUBCUTANEA || via == ViaAdministracion.INTRAMUSCULAR
                 || via == ViaAdministracion.INTRAVENOSA;
@@ -234,9 +310,6 @@ public class PlanSanitarioService {
         }
         if (via == ViaAdministracion.OTRA && (viaDetalle == null || viaDetalle.isBlank())) {
             throw new BusinessException(ErrorCode.SANIDAD_VIA_LUGAR_INCOMPATIBLE, "Indica el detalle de la vía.");
-        }
-        if (lugar == LugarAplicacion.OTRO && (lugarDetalle == null || lugarDetalle.isBlank())) {
-            throw new BusinessException(ErrorCode.SANIDAD_VIA_LUGAR_INCOMPATIBLE, "Indica el detalle del lugar.");
         }
     }
 
@@ -287,15 +360,23 @@ public class PlanSanitarioService {
                           BigDecimal dosisMinima, BigDecimal dosisMaxima, ViaAdministracion via, LugarAplicacion lugar,
                           Integer edadMin, Integer edadMax, bo.com.ganadero.animales.domain.SexoAnimal sexo,
                           List<UUID> categorias, String instrucciones, int diasAlerta,
-                          java.time.LocalTime horaEjecucion, List<java.time.LocalTime> horariosAviso) {
+                          java.time.LocalTime horaEjecucion, List<java.time.LocalTime> horariosAviso,
+                          BigDecimal pesoReferenciaKg, boolean permiteEdadDesconocida) {
     }
 
     private Huella huella(PlanSanitarioItem i) {
         return new Huella(i.nombre(), i.tipoActividad(), i.modalidad(), i.modalidadConfig(),
-                i.productoRecomendadoTexto(), i.principioActivo(), i.dosisCantidad(), i.dosisUnidad(),
-                i.dosisTipoCalculo(), i.dosisMinima(), i.dosisMaxima(), i.viaAdministracionCodigo(), i.lugarAplicacion(),
+                i.productoRecomendadoTexto(), i.principioActivo(), normalizar(i.dosisCantidad()), i.dosisUnidad(),
+                i.dosisTipoCalculo(), normalizar(i.dosisMinima()), normalizar(i.dosisMaxima()),
+                i.viaAdministracionCodigo(), i.lugarAplicacion(),
                 i.edadMinDias(), i.edadMaxDias(), i.sexoAplicable(), i.categoriasAplicables(),
-                i.instruccionesVeterinario(), i.diasAlerta(), i.horaEjecucion(), i.horariosAviso());
+                i.instruccionesVeterinario(), i.diasAlerta(), i.horaEjecucion(), i.horariosAviso(),
+                normalizar(i.dosisPesoReferenciaKg()), i.permiteEdadDesconocida());
+    }
+
+    /** 50 y 50.0 son la misma dosis: sin esto, releer un valor de la base con otra escala generaría una versión falsa. */
+    private static BigDecimal normalizar(BigDecimal valor) {
+        return valor == null ? null : valor.stripTrailingZeros();
     }
 
     @Transactional(readOnly = true)
@@ -306,6 +387,15 @@ public class PlanSanitarioService {
 
     private PlanSanitario requirePlan(UUID id, CurrentUser u) {
         return repo.plan(id, u.empresaId()).orElseThrow(() -> new BusinessException(ErrorCode.SANIDAD_PLAN_NOT_FOUND));
+    }
+
+    /** Un plan en borrador o activo admite cambios en sus actividades; uno finalizado o anulado ya no. */
+    private PlanSanitario requirePlanEditable(UUID id, CurrentUser u) {
+        PlanSanitario plan = requirePlan(id, u);
+        if (plan.estado() == EstadoPlanSanitario.FINALIZADO || plan.estado() == EstadoPlanSanitario.ANULADO) {
+            throw new BusinessException(ErrorCode.SANIDAD_PLAN_CERRADO);
+        }
+        return plan;
     }
 
     private PlanSanitarioItem requireItem(UUID id, CurrentUser u) {

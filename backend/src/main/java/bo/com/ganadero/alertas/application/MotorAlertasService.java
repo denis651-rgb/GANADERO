@@ -4,10 +4,12 @@ import bo.com.ganadero.alertas.domain.Alerta;
 import bo.com.ganadero.alertas.domain.AlertaRepository;
 import bo.com.ganadero.alertas.domain.EstadoAlerta;
 import bo.com.ganadero.alertas.domain.SeveridadAlerta;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -24,8 +26,17 @@ public class MotorAlertasService implements MotorAlertas {
 
     private final AlertaRepository repository;
 
+    private final AlertaConfiguracionPort configuracion;
+
+    /** Sin acceso a los ajustes (pruebas): los avisos «para un día» salen a la hora predeterminada. */
     public MotorAlertasService(AlertaRepository repository) {
+        this(repository, null);
+    }
+
+    @Autowired
+    public MotorAlertasService(AlertaRepository repository, AlertaConfiguracionPort configuracion) {
         this.repository = repository;
+        this.configuracion = configuracion;
     }
 
     @Override
@@ -47,14 +58,23 @@ public class MotorAlertasService implements MotorAlertas {
         Map<String, Object> metadata = command.metadata() == null
                 ? new HashMap<>() : new HashMap<>(command.metadata());
         Instant vencimiento = instant(metadata.remove("fechaVencimiento"));
+        Instant programada = fechaProgramada(command, metadata.remove(ProgramarAlertaCommand.CLAVE_DIA_DE_AVISO));
         Plantilla plantilla = plantilla(command.tipo(), vencimiento == null
-                ? command.fechaProgramada() : vencimiento, metadata);
+                ? programada : vencimiento, metadata);
         Alerta alerta = new Alerta(UUID.randomUUID(), command.empresaId(), command.animalId(), command.tipo(),
-                plantilla.titulo(), plantilla.mensaje(), plantilla.severidad(), command.fechaProgramada(),
+                plantilla.titulo(), plantilla.mensaje(), plantilla.severidad(), programada,
                 vencimiento, command.origenTipo(), command.origenId(), EstadoAlerta.PROGRAMADA, metadata,
                 null, null, null, null, null, null, null, 0, null, null, null,
                 claveIdempotencia(command, metadata));
         return new Preparacion(alerta);
+    }
+
+    /** Un aviso «para un día» sale a la hora de avisos configurada de ese día; el resto, cuando dice su comando. */
+    private Instant fechaProgramada(ProgramarAlertaCommand command, Object diaDeAviso) {
+        if (diaDeAviso == null) return command.fechaProgramada();
+        AlertaConfiguracion ajustes = configuracion == null ? null : configuracion.obtener(command.empresaId());
+        var hora = ajustes == null ? AlertaConfiguracion.HORA_AVISOS_PREDETERMINADA : ajustes.horaAvisos();
+        return LocalDate.parse(diaDeAviso.toString()).atTime(hora).atZone(ZONA_NEGOCIO).toInstant();
     }
 
     @Override

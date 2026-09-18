@@ -12,7 +12,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -74,15 +73,15 @@ public class JdbcEventoCalendarioSanitarioRepository implements EventoCalendario
     }
 
     @Override
-    public Optional<EventoCalendarioSanitario> findPendientePorAnimalYActividad(UUID actividadId, UUID animalId) {
+    public List<EventoCalendarioSanitario> cerrablesPorAplicacion(UUID actividadId, UUID animalId) {
         return jdbc.sql("""
                 select * from evento_calendario_sanitario
                 where actividad_id=:act and animal_id=:animal
-                    and estado in ('PROYECTADO','PROGRAMADO','EN_PREPARACION')
-                order by fecha_prevista asc limit 1
+                    and estado in ('PROYECTADO','PROGRAMADO','EN_PREPARACION','VENCIDO')
+                order by fecha_prevista asc
                 """)
                 .param("act", actividadId.toString()).param("animal", animalId.toString())
-                .query(this::map).optional();
+                .query(this::map).list();
     }
 
     @Override
@@ -91,6 +90,17 @@ public class JdbcEventoCalendarioSanitarioRepository implements EventoCalendario
         return jdbc.sql("""
                 select count(*) from evento_calendario_sanitario
                 where ocurrencia_id=:ocurrencia and estado in ('PROYECTADO','PROGRAMADO','EN_PREPARACION')
+                """)
+                .param("ocurrencia", ocurrenciaId.toString())
+                .query(Integer.class).single() > 0;
+    }
+
+    @Override
+    public boolean tieneSinCerrar(UUID ocurrenciaId) {
+        if (ocurrenciaId == null) return false;
+        return jdbc.sql("""
+                select count(*) from evento_calendario_sanitario
+                where ocurrencia_id=:ocurrencia and estado in ('PROYECTADO','PROGRAMADO','EN_PREPARACION','VENCIDO')
                 """)
                 .param("ocurrencia", ocurrenciaId.toString())
                 .query(Integer.class).single() > 0;
@@ -108,6 +118,59 @@ public class JdbcEventoCalendarioSanitarioRepository implements EventoCalendario
                 .param("jornada", jornadaId == null ? null : jornadaId.toString())
                 .param("id", id.toString())
                 .update();
+    }
+
+    @Override
+    public List<UUID> cancelarPendientesDeActividad(UUID actividadId) {
+        List<UUID> ocurrencias = jdbc.sql("""
+                select distinct ocurrencia_id from evento_calendario_sanitario
+                where actividad_id=:act and estado in ('PROYECTADO','PROGRAMADO') and ocurrencia_id is not null
+                """)
+                .param("act", actividadId.toString())
+                .query((r, n) -> UUID.fromString(r.getString("ocurrencia_id"))).list();
+        jdbc.sql("""
+                update evento_calendario_sanitario
+                set estado='CANCELADO', updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'), version=version+1
+                where actividad_id=:act and estado in ('PROYECTADO','PROGRAMADO')
+                """)
+                .param("act", actividadId.toString())
+                .update();
+        return ocurrencias;
+    }
+
+    @Override
+    public List<UUID> cancelarPendientesDePlan(UUID planId) {
+        String deLaPlan = "actividad_id in (select id from plan_sanitario_item where plan_id=:plan)";
+        List<UUID> ocurrencias = jdbc.sql("select distinct ocurrencia_id from evento_calendario_sanitario where "
+                        + deLaPlan + " and estado in ('PROYECTADO','PROGRAMADO') and ocurrencia_id is not null")
+                .param("plan", planId.toString())
+                .query((r, n) -> UUID.fromString(r.getString("ocurrencia_id"))).list();
+        jdbc.sql("update evento_calendario_sanitario set estado='CANCELADO',"
+                        + " updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'), version=version+1"
+                        + " where " + deLaPlan + " and estado in ('PROYECTADO','PROGRAMADO')")
+                .param("plan", planId.toString()).update();
+        return ocurrencias;
+    }
+
+    @Override
+    public List<EventoCalendarioSanitario> pendientesOCanceladosFuturosDeActividad(UUID actividadId) {
+        return jdbc.sql("""
+                select * from evento_calendario_sanitario
+                where actividad_id=:act
+                    and (estado in ('PROYECTADO','PROGRAMADO') or (estado='CANCELADO' and fecha_prevista >= :ahora))
+                """)
+                .param("act", actividadId.toString()).param("ahora", Instant.now().toString())
+                .query(this::map).list();
+    }
+
+    @Override
+    public void restaurarCanceladosFuturos(UUID actividadId) {
+        jdbc.sql("""
+                update evento_calendario_sanitario
+                set estado='PROYECTADO', updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'), version=version+1
+                where actividad_id=:act and estado='CANCELADO' and fecha_prevista >= :ahora
+                """)
+                .param("act", actividadId.toString()).param("ahora", Instant.now().toString()).update();
     }
 
     private EventoCalendarioSanitario map(ResultSet r, int n) throws SQLException {

@@ -278,7 +278,7 @@ export function VentasPage() {
       {query.data?.length === 0 && <EmptyState title="Sin ventas registradas" description="Registra la primera venta de un animal." />}
       {query.data && query.data.length > 0 && <>
         <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Ventas registradas</caption><thead><tr><th scope="col">Fecha</th><th scope="col">Animal</th><th scope="col">Comprador</th><th scope="col">Teléfono</th><th scope="col">Modalidad</th><th scope="col">Precio</th><th scope="col">Peso (kg)</th></tr></thead><tbody>{query.data.map((venta: Venta) => <tr key={venta.id}>
-          <td>{new Date(venta.fechaVenta).toLocaleDateString('es-BO')}</td>
+          <td>{formatDate(venta.fechaVenta)}</td>
           <td>{animalLabel(venta.animalId)}</td>
           <td>{venta.comprador}</td>
           <td>{venta.telefonoComprador ?? '—'}</td>
@@ -290,7 +290,7 @@ export function VentasPage() {
           key={venta.id}
           title={animalLabel(venta.animalId)}
           subtitle={venta.comprador}
-          metadata={<><span>{new Date(venta.fechaVenta).toLocaleDateString('es-BO')}</span><span>{venta.precio.toLocaleString('es-BO', { style: 'currency', currency: venta.moneda || 'BOB' })}</span></>}
+          metadata={<><span>{formatDate(venta.fechaVenta)}</span><span>{venta.precio.toLocaleString('es-BO', { style: 'currency', currency: venta.moneda || 'BOB' })}</span></>}
         />)}</div></div>
       </>}
     </Card>

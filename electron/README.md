@@ -31,6 +31,11 @@ con notificaciones nativas y ciclo de vida del backend embebido.
 
 ## Desarrollo
 
+Un solo comando: `cd electron && npm install && npm run dev:all`. Levanta Vite en `:5173`, compila
+Electron, empaqueta el backend y abre la app cuando Vite responde. Al cerrar la ventana se detiene todo.
+
+Alternativa en dos terminales:
+
 1. `cd frontend-web && npm run dev` (deja el servidor de Vite corriendo en `:5173`).
 2. `cd electron && npm install && npm run dev`
 

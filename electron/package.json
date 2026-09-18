@@ -8,6 +8,7 @@
     "build": "tsc -b",
     "test": "vitest run",
     "dev": "npm run build && npm run package:backend && electron .",
+    "dev:all": "concurrently -k -n vite,electron -c green,blue \"npm --prefix ../frontend-web run dev\" \"npm run build && npm run package:backend && wait-on http://localhost:5173 && electron .\"",
     "package:frontend": "cd ../frontend-web && npm run build",
     "package:backend": "node scripts/package-backend.js",
     "package:runtime": "node scripts/build-runtime.js",
@@ -27,9 +28,11 @@
   "devDependencies": {
     "@types/adm-zip": "^0.5.7",
     "@types/node": "^24.10.0",
+    "concurrently": "^10.0.5",
     "electron": "^44.0.0",
     "electron-builder": "^26.15.3",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "wait-on": "^9.1.0"
   }
 }
