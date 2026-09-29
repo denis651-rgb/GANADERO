@@ -1,6 +1,60 @@
 package bo.com.ganadero.sanidad.api;
-import bo.com.ganadero.sanidad.application.CrearExamenReproductivoCommand;import bo.com.ganadero.sanidad.domain.EnfermedadReproductiva;import bo.com.ganadero.sanidad.domain.ResultadoExamenReproductivo;import bo.com.ganadero.sanidad.domain.ResultadoPruebaReproductiva;import jakarta.validation.Valid;import jakarta.validation.constraints.*;import java.math.BigDecimal;import java.time.LocalDate;import java.util.*;
-public record CrearExamenReproductivoRequest(@NotNull UUID animalId,@NotNull LocalDate fecha,@NotNull ResultadoExamenReproductivo resultado,@Size(max=200) String veterinarioId,BigDecimal circunferenciaEscrotalCm,BigDecimal motilidadEspermaticaPct,BigDecimal morfologiaPct,String libido,String capacidadServicio,BigDecimal pesoKg,BigDecimal porcentajePesoAdulto,BigDecimal condicionCorporal,String desarrolloReproductivo,String observaciones,List<@Valid Prueba> pruebas){
- public record Prueba(@NotNull EnfermedadReproductiva enfermedad,@NotNull ResultadoPruebaReproductiva resultado){}
- public CrearExamenReproductivoCommand command(){return new CrearExamenReproductivoCommand(animalId,fecha,resultado,veterinarioId,circunferenciaEscrotalCm,motilidadEspermaticaPct,morfologiaPct,libido,capacidadServicio,pesoKg,porcentajePesoAdulto,condicionCorporal,desarrolloReproductivo,observaciones,pruebas==null?List.of():pruebas.stream().map(p->new CrearExamenReproductivoCommand.Prueba(p.enfermedad(),p.resultado())).toList());}
+
+import bo.com.ganadero.sanidad.application.CrearExamenReproductivoCommand;
+import bo.com.ganadero.sanidad.domain.EnfermedadReproductiva;
+import bo.com.ganadero.sanidad.domain.ResultadoExamenReproductivo;
+import bo.com.ganadero.sanidad.domain.ResultadoPruebaReproductiva;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+
+public record CrearExamenReproductivoRequest(
+        @NotNull UUID animalId,
+        @NotNull LocalDate fecha,
+        @NotNull ResultadoExamenReproductivo resultado,
+        @Size(max = 200) String veterinarioId,
+        BigDecimal circunferenciaEscrotalCm,
+        BigDecimal motilidadEspermaticaPct,
+        BigDecimal morfologiaPct,
+        String libido,
+        String capacidadServicio,
+        BigDecimal pesoKg,
+        BigDecimal porcentajePesoAdulto,
+        BigDecimal condicionCorporal,
+        String desarrolloReproductivo,
+        String observaciones,
+        List<@Valid Prueba> pruebas
+) {
+    public record Prueba(
+            @NotNull EnfermedadReproductiva enfermedad,
+            @NotNull ResultadoPruebaReproductiva resultado
+    ) {
+    }
+
+    public CrearExamenReproductivoCommand command() {
+        return new CrearExamenReproductivoCommand(
+                animalId,
+                fecha,
+                resultado,
+                veterinarioId,
+                circunferenciaEscrotalCm,
+                motilidadEspermaticaPct,
+                morfologiaPct,
+                libido,
+                capacidadServicio,
+                pesoKg,
+                porcentajePesoAdulto,
+                condicionCorporal,
+                desarrolloReproductivo,
+                observaciones,
+                pruebas == null ? List.of() : pruebas.stream()
+                        .map(p -> new CrearExamenReproductivoCommand.Prueba(p.enfermedad(), p.resultado()))
+                        .toList()
+        );
+    }
 }

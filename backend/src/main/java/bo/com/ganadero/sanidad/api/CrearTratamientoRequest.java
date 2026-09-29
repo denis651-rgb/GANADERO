@@ -1,3 +1,67 @@
 package bo.com.ganadero.sanidad.api;
-import bo.com.ganadero.sanidad.application.CrearTratamientoCommand;import bo.com.ganadero.sanidad.domain.RestriccionMovimiento;import jakarta.validation.Valid;import jakarta.validation.constraints.*;import java.math.BigDecimal;import java.time.LocalDate;import java.time.LocalTime;import java.time.ZoneId;import java.util.*;
-public record CrearTratamientoRequest(UUID casoClinicoId,@NotNull UUID animalId,@NotNull LocalDate fechaInicio,@NotNull LocalDate fechaFinEstimada,LocalTime horaInicio,String diagnostico,@Size(max=200) String veterinarioId,String observaciones,@NotEmpty List<@Valid Detalle> detalles,RestriccionMovimiento restriccionMovimiento){private static final ZoneId ZONA=ZoneId.of("America/La_Paz");public record Detalle(UUID productoId,UUID loteProductoId,@NotNull @DecimalMin("0.001") BigDecimal dosis,@NotBlank String unidadDosis,@NotNull @Min(1) Integer frecuenciaHoras,@NotNull @Min(1) Integer duracionDias,String viaAdministracion,@Min(0) Integer retiroCarneDias,@Min(0) Integer retiroLecheDias,@Size(max=200) String productoTexto){}public CrearTratamientoCommand command(){return new CrearTratamientoCommand(casoClinicoId,animalId,fechaInicio.atTime(horaInicio!=null?horaInicio:LocalTime.MIDNIGHT).atZone(ZONA).toInstant(),fechaFinEstimada.atStartOfDay(ZONA).toInstant(),diagnostico,veterinarioId,observaciones,detalles.stream().map(d->new CrearTratamientoCommand.Detalle(d.productoId,d.loteProductoId,d.dosis,d.unidadDosis,d.frecuenciaHoras,d.duracionDias,d.viaAdministracion,d.retiroCarneDias,d.retiroLecheDias,d.productoTexto())).toList(),restriccionMovimiento);}}
+
+import bo.com.ganadero.sanidad.application.CrearTratamientoCommand;
+import bo.com.ganadero.sanidad.domain.RestriccionMovimiento;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.util.List;
+import java.util.UUID;
+
+public record CrearTratamientoRequest(
+        UUID casoClinicoId,
+        @NotNull UUID animalId,
+        @NotNull LocalDate fechaInicio,
+        @NotNull LocalDate fechaFinEstimada,
+        LocalTime horaInicio,
+        String diagnostico,
+        @Size(max = 200) String veterinarioId,
+        String observaciones,
+        @NotEmpty List<@Valid Detalle> detalles,
+        RestriccionMovimiento restriccionMovimiento
+) {
+    private static final ZoneId ZONA = ZoneId.of("America/La_Paz");
+
+    public record Detalle(
+            UUID productoId,
+            UUID loteProductoId,
+            @NotNull @DecimalMin("0.001") BigDecimal dosis,
+            @NotBlank String unidadDosis,
+            @NotNull @Min(1) Integer frecuenciaHoras,
+            @NotNull @Min(1) Integer duracionDias,
+            String viaAdministracion,
+            @Min(0) Integer retiroCarneDias,
+            @Min(0) Integer retiroLecheDias,
+            @Size(max = 200) String productoTexto
+    ) {
+    }
+
+    public CrearTratamientoCommand command() {
+        return new CrearTratamientoCommand(
+                casoClinicoId,
+                animalId,
+                fechaInicio.atTime(horaInicio != null ? horaInicio : LocalTime.MIDNIGHT).atZone(ZONA).toInstant(),
+                fechaFinEstimada.atStartOfDay(ZONA).toInstant(),
+                diagnostico,
+                veterinarioId,
+                observaciones,
+                detalles.stream().map(d -> new CrearTratamientoCommand.Detalle(
+                        d.productoId(),
+                        d.loteProductoId(),
+                        d.dosis(),
+                        d.unidadDosis(),
+                        d.frecuenciaHoras(),
+                        d.duracionDias(),
+                        d.viaAdministracion(),
+                        d.retiroCarneDias(),
+                        d.retiroLecheDias(),
+                        d.productoTexto()
+                )).toList(),
+                restriccionMovimiento
+        );
+    }
+}

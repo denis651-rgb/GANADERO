@@ -38,7 +38,8 @@ public class MediaController {
         if (relative.isBlank() || relative.contains("..")) {
             throw new BusinessException(ErrorCode.STORAGE_FILE_INVALID);
         }
-        Path target = root.resolve(relative).normalize();
+        String cleanRelative = relative.replaceFirst("^[/\\\\]+", "");
+        Path target = root.resolve(cleanRelative).normalize();
         if (!target.startsWith(root) || !Files.isRegularFile(target)) {
             throw new BusinessException(ErrorCode.DOCUMENTO_NOT_FOUND);
         }

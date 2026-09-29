@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { filtrarAnimalesPorOrigen, movementSearchAvailable } from './MovimientosPage'
+import { filtrarAnimalesPorOrigen, movementSearchAvailable } from '../filtros'
 
 const animales = [
   { codigo: 'ANI-001', nombre: 'Uno', propiedadActualId: 'propiedad-a', potreroActualId: 'potrero-a', loteActualId: 'lote-a' },

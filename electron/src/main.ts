@@ -32,7 +32,7 @@ let backendRestartAttempt = 0
 
 const BACKEND_RESTART_DELAYS_MS = [2_000, 5_000, 10_000]
 
-function sendBackendStatus(status: { state: 'reconnecting' | 'restored' | 'failed'; attempt?: number; maxAttempts?: number }): void {
+function sendBackendStatus(status: { state: 'reconnecting' | 'restored' | 'failed'; attempt?: number; maxAttempts?: number; apiBaseUrl?: string }): void {
   mainWindow?.webContents.send('backend:status', status)
 }
 
@@ -55,9 +55,9 @@ async function handleBackendCrash(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, BACKEND_RESTART_DELAYS_MS[backendRestartAttempt - 1]))
   if (quitting) return
   try {
-    await backend.start()
+    const port = await backend.start()
     backendRestartAttempt = 0
-    sendBackendStatus({ state: 'restored' })
+    sendBackendStatus({ state: 'restored', apiBaseUrl: `http://127.0.0.1:${port}` })
   } catch (error) {
     console.error('[main] reintento de arranque del backend falló:', error)
     void handleBackendCrash()

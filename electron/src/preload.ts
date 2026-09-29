@@ -4,6 +4,7 @@ interface BackendStatus {
   state: 'reconnecting' | 'restored' | 'failed'
   attempt?: number
   maxAttempts?: number
+  apiBaseUrl?: string
 }
 
 function readApiBaseUrl(): string | undefined {

@@ -57,7 +57,8 @@ public class LocalFileStorageClient implements FileStorageClient {
         if (path == null || path.isBlank() || path.contains("..")) {
             throw new BusinessException(ErrorCode.STORAGE_FILE_INVALID);
         }
-        Path target = root.resolve(path).normalize();
+        String cleanPath = path.replaceFirst("^[/\\\\]+", "");
+        Path target = root.resolve(cleanPath).normalize();
         if (!target.startsWith(root)) {
             throw new BusinessException(ErrorCode.STORAGE_FILE_INVALID);
         }

@@ -48,26 +48,30 @@ public class ReproduccionService {
     private final UserContext context;
     private final ApplicationEventPublisher events;
     private final TimelineEventPublisher timeline;
-    private ObjectProvider<MotorAlertas> alertas;
-    private ObjectProvider<AlertaConfiguracionPort> configuracionAlertas;
+    private final ObjectProvider<MotorAlertas> alertas;
+    private final ObjectProvider<AlertaConfiguracionPort> configuracionAlertas;
     private final GestacionService gestaciones;
 
     public ReproduccionService(ReproduccionRepository registros, AnimalRepository animales,
                                UserContext context, ApplicationEventPublisher events,
                                TimelineEventPublisher timeline, GestacionService gestaciones) {
+        this(registros, animales, context, events, timeline, null, null, gestaciones);
+    }
+
+    @Autowired
+    public ReproduccionService(ReproduccionRepository registros, AnimalRepository animales, UserContext context,
+                               ApplicationEventPublisher events, TimelineEventPublisher timeline,
+                               ObjectProvider<MotorAlertas> alertas,
+                               ObjectProvider<AlertaConfiguracionPort> configuracionAlertas,
+                               GestacionService gestaciones) {
         this.registros = registros;
         this.animales = animales;
         this.context = context;
         this.events = events;
         this.timeline = timeline;
+        this.alertas = alertas;
+        this.configuracionAlertas = configuracionAlertas;
         this.gestaciones = gestaciones;
-    }
-
-    @Autowired
-    public ReproduccionService(ReproduccionRepository registros, AnimalRepository animales, UserContext context,
-            ApplicationEventPublisher events, TimelineEventPublisher timeline, ObjectProvider<MotorAlertas> alertas,
-            ObjectProvider<AlertaConfiguracionPort> configuracionAlertas, GestacionService gestaciones) {
-        this(registros, animales, context, events, timeline, gestaciones); this.alertas=alertas; this.configuracionAlertas=configuracionAlertas;
     }
 
     @Transactional(readOnly = true)

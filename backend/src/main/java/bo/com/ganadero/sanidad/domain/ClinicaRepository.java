@@ -1,2 +1,74 @@
-package bo.com.ganadero.sanidad.domain;import java.time.Instant;import java.util.*;
-public interface ClinicaRepository{CasoClinico crearCaso(CasoClinico c,UUID actor);Optional<CasoClinico>caso(UUID id,UUID empresa);List<CasoClinico>casos(UUID empresa,UUID animal);void estadoCaso(UUID id,UUID empresa,EstadoCasoClinico estado,Instant cierre,String resultado,UUID actor);Tratamiento crearTratamiento(Tratamiento t,UUID actor);Optional<Tratamiento>tratamiento(UUID id,UUID empresa);List<Tratamiento>tratamientos(UUID empresa,UUID animal);TratamientoDetalle crearDetalle(TratamientoDetalle d);List<TratamientoDetalle>detalles(UUID tratamiento,UUID empresa);AplicacionTratamiento crearAplicacion(AplicacionTratamiento a);List<AplicacionTratamiento>aplicaciones(UUID tratamiento,UUID empresa);Optional<AplicacionTratamiento>aplicacion(UUID id,UUID tratamiento,UUID empresa);void activar(UUID id,UUID empresa,UUID actor);void cancelarFuturas(UUID tratamiento,UUID empresa);AplicacionTratamiento aplicar(UUID id,UUID tratamiento,UUID empresa,Instant fecha,java.math.BigDecimal dosis,UUID actor,String obs,long version,java.time.LocalDate retiroCarneHasta,java.time.LocalDate retiroLecheHasta);List<AplicacionTratamiento> marcarAtrasadas(UUID empresa,Instant ahora);void finalizar(UUID id,UUID empresa,UUID actor);void reprogramarFin(UUID id,UUID empresa,Instant fin,UUID actor);ControlNeonatal crearControl(ControlNeonatal control,UUID usuarioId);List<ControlNeonatal> controles(UUID empresaId,UUID animalId);ControlEctoparasitario crearControlEcto(ControlEctoparasitario c,UUID usuarioId);List<ControlEctoparasitario> controlesEcto(UUID empresaId,UUID animalId,UUID loteGanaderoId);List<String> principiosActivosRecientes(UUID empresaId,UUID animalId,UUID loteGanaderoId,int limite);ExamenReproductivo crearExamen(ExamenReproductivo examen,List<PruebaReproductiva> pruebas,UUID usuarioId);List<ExamenReproductivo> examenes(UUID empresaId,UUID animalId);}
+package bo.com.ganadero.sanidad.domain;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+public interface ClinicaRepository {
+
+    CasoClinico crearCaso(CasoClinico c, UUID actor);
+
+    Optional<CasoClinico> caso(UUID id, UUID empresa);
+
+    List<CasoClinico> casos(UUID empresa, UUID animal);
+
+    void estadoCaso(UUID id, UUID empresa, EstadoCasoClinico estado, Instant cierre, String resultado, UUID actor);
+
+    Tratamiento crearTratamiento(Tratamiento t, UUID actor);
+
+    Optional<Tratamiento> tratamiento(UUID id, UUID empresa);
+
+    Optional<Tratamiento> tratamientoPorDetalle(UUID detalleId, UUID empresaId);
+
+    List<Tratamiento> tratamientos(UUID empresa, UUID animal);
+
+    TratamientoDetalle crearDetalle(TratamientoDetalle d);
+
+    List<TratamientoDetalle> detalles(UUID tratamiento, UUID empresa);
+
+    AplicacionTratamiento crearAplicacion(AplicacionTratamiento a);
+
+    List<AplicacionTratamiento> aplicaciones(UUID tratamiento, UUID empresa);
+
+    Optional<AplicacionTratamiento> aplicacion(UUID id, UUID tratamiento, UUID empresa);
+
+    void activar(UUID id, UUID empresa, UUID actor);
+
+    void cancelarFuturas(UUID tratamiento, UUID empresa);
+
+    AplicacionTratamiento aplicar(
+            UUID id,
+            UUID tratamiento,
+            UUID empresa,
+            Instant fecha,
+            BigDecimal dosis,
+            UUID actor,
+            String obs,
+            long version,
+            LocalDate retiroCarneHasta,
+            LocalDate retiroLecheHasta
+    );
+
+    List<AplicacionTratamiento> marcarAtrasadas(UUID empresa, Instant ahora);
+
+    void finalizar(UUID id, UUID empresa, UUID actor);
+
+    void reprogramarFin(UUID id, UUID empresa, Instant fin, UUID actor);
+
+    ControlNeonatal crearControl(ControlNeonatal control, UUID usuarioId);
+
+    List<ControlNeonatal> controles(UUID empresaId, UUID animalId);
+
+    ControlEctoparasitario crearControlEcto(ControlEctoparasitario c, UUID usuarioId);
+
+    List<ControlEctoparasitario> controlesEcto(UUID empresaId, UUID animalId, UUID loteGanaderoId);
+
+    List<String> principiosActivosRecientes(UUID empresaId, UUID animalId, UUID loteGanaderoId, int limite);
+
+    ExamenReproductivo crearExamen(ExamenReproductivo examen, List<PruebaReproductiva> pruebas, UUID usuarioId);
+
+    List<ExamenReproductivo> examenes(UUID empresaId, UUID animalId);
+}

@@ -52,7 +52,12 @@ function killOrphanFromPreviousRun(pidFile: string): void {
   const pid = Number.parseInt(raw, 10)
   if (Number.isInteger(pid) && pid > 0) {
     try {
-      process.kill(pid, 'SIGKILL')
+      if (process.platform === 'win32') {
+        const { execSync } = require('node:child_process')
+        execSync(`taskkill /pid ${pid} /T /F`, { stdio: 'ignore' })
+      } else {
+        process.kill(pid, 'SIGKILL')
+      }
     } catch {
       // ya no existe, no hay nada que limpiar
     }
@@ -153,7 +158,19 @@ export class BackendManager {
     const child = this.child
     if (!child) return
     await new Promise<void>((resolve) => {
-      const timeout = setTimeout(() => child.kill('SIGKILL'), 5_000)
+      const pid = child.pid
+      const timeout = setTimeout(() => {
+        if (pid && process.platform === 'win32') {
+          try {
+            const { execSync } = require('node:child_process')
+            execSync(`taskkill /pid ${pid} /T /F`, { stdio: 'ignore' })
+          } catch {
+            // proceso ya terminó
+          }
+        } else {
+          child.kill('SIGKILL')
+        }
+      }, 5_000)
       child.once('exit', () => {
         clearTimeout(timeout)
         resolve()

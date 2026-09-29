@@ -37,23 +37,23 @@ public class PesajeService {
     private final UserContext context;
     private final ApplicationEventPublisher events;
     private final TimelineEventPublisher timeline;
-    private ObjectProvider<MotorAlertas> alertas;
+    private final ObjectProvider<MotorAlertas> alertas;
 
     public PesajeService(PesajeRepository pesajes, AnimalRepository animales, LoteRepository lotes,
                          UserContext context, ApplicationEventPublisher events, TimelineEventPublisher timeline) {
-        this.pesajes = pesajes;
-        this.animales = animales;
-        this.lotes = lotes;
-        this.context = context;
-        this.events = events;
-        this.timeline = timeline;
+        this(pesajes, animales, lotes, context, events, timeline, null);
     }
 
     @Autowired
     public PesajeService(PesajeRepository pesajes, AnimalRepository animales, LoteRepository lotes,
                          UserContext context, ApplicationEventPublisher events, TimelineEventPublisher timeline,
                          ObjectProvider<MotorAlertas> alertas) {
-        this(pesajes, animales, lotes, context, events, timeline);
+        this.pesajes = pesajes;
+        this.animales = animales;
+        this.lotes = lotes;
+        this.context = context;
+        this.events = events;
+        this.timeline = timeline;
         this.alertas = alertas;
     }
 

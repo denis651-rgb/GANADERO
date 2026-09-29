@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import type { BackendStatus } from '@/shared/api/http'
+import { http } from '@/shared/api/http'
 import { useToast } from '@/shared/toast/useToast'
 
 /**
@@ -16,6 +17,12 @@ export function BackendStatusListener() {
       if (status.state === 'reconnecting') {
         showToast(`Se perdió la conexión con el backend local. Reintentando… (${status.attempt}/${status.maxAttempts})`, 'info')
       } else if (status.state === 'restored') {
+        if (status.apiBaseUrl) {
+          http.defaults.baseURL = status.apiBaseUrl
+          if (window.ganadero) {
+            window.ganadero.apiBaseUrl = status.apiBaseUrl
+          }
+        }
         showToast('Conexión con el backend restablecida.')
       } else {
         showToast('No se pudo reconectar con el backend local. Cierra Ganadero desde el Administrador de tareas y vuelve a abrirlo.', 'danger')

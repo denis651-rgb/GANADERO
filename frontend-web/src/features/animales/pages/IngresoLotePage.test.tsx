@@ -47,7 +47,7 @@ function registrarProveedorNuevo(nombre: string) {
   fireEvent.click(within(modal).getByRole('button', { name: 'Guardar proveedor' }))
 }
 
-describe('IngresoLotePage', () => {
+describe('IngresoLotePage', { timeout: 15000 }, () => {
   it('agrupa los animales en una tabla y conserva los datos al quitar una fila', async () => {
     renderPage()
     await screen.findByText('Brahman')

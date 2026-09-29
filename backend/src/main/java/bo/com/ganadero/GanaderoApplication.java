@@ -22,7 +22,8 @@ public class GanaderoApplication {
     // sqlite-jdbc no crea el directorio del archivo por si solo (a diferencia de LocalFileStorageClient
     // para media); sin esto, el primer arranque en una maquina limpia falla antes de que Flyway conecte.
     private static void ensureDatabaseDirectoryExists() {
-        String dbPath = System.getenv().getOrDefault("GANADERO_DB_PATH", "./data/ganadero.db");
+        String dbPath = System.getProperty("GANADERO_DB_PATH",
+                System.getenv().getOrDefault("GANADERO_DB_PATH", "./data/ganadero.db"));
         Path parent = Path.of(dbPath).toAbsolutePath().normalize().getParent();
         if (parent == null) return;
         try {

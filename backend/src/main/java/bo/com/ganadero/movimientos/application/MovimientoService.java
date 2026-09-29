@@ -48,8 +48,8 @@ public class MovimientoService {
     private final ApplicationEventPublisher events;
     private final TimelineEventPublisher timeline;
     private final ObjectProvider<EstadoSanitarioIngresoPort> estadoSanitario;
-    private ObjectProvider<MotorAlertas> alertas;
-    private RazaRepository razas;
+    private final ObjectProvider<MotorAlertas> alertas;
+    private final RazaRepository razas;
 
     @Value("${ganadero.sanidad.cuarentena-requiere-prueba:true}")
     private boolean cuarentenaRequierePrueba = true;
@@ -57,6 +57,15 @@ public class MovimientoService {
     public MovimientoService(MovimientoRepository movimientos, AnimalRepository animales, LoteRepository lotes,
                              UserContext context, ApplicationEventPublisher events, TimelineEventPublisher timeline,
                              ObjectProvider<EstadoSanitarioIngresoPort> estadoSanitario) {
+        this(movimientos, animales, lotes, context, events, timeline, estadoSanitario, null, null);
+    }
+
+    @Autowired
+    public MovimientoService(MovimientoRepository movimientos, AnimalRepository animales, LoteRepository lotes,
+                             UserContext context, ApplicationEventPublisher events, TimelineEventPublisher timeline,
+                             ObjectProvider<EstadoSanitarioIngresoPort> estadoSanitario,
+                             ObjectProvider<MotorAlertas> alertas,
+                             RazaRepository razas) {
         this.movimientos = movimientos;
         this.animales = animales;
         this.lotes = lotes;
@@ -64,14 +73,6 @@ public class MovimientoService {
         this.events = events;
         this.timeline = timeline;
         this.estadoSanitario = estadoSanitario;
-    }
-
-    @Autowired
-    public MovimientoService(MovimientoRepository movimientos, AnimalRepository animales, LoteRepository lotes,
-                             UserContext context, ApplicationEventPublisher events, TimelineEventPublisher timeline,
-                             ObjectProvider<EstadoSanitarioIngresoPort> estadoSanitario,
-                             ObjectProvider<MotorAlertas> alertas, RazaRepository razas) {
-        this(movimientos, animales, lotes, context, events, timeline, estadoSanitario);
         this.alertas = alertas;
         this.razas = razas;
     }

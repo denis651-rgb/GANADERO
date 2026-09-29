@@ -37,6 +37,7 @@ export interface BackendStatus {
   state: 'reconnecting' | 'restored' | 'failed'
   attempt?: number
   maxAttempts?: number
+  apiBaseUrl?: string
 }
 
 export interface PlanillaSanitariaAnimal {

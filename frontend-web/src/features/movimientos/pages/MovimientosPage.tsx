@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Eye, Plus, Search } from 'lucide-react'
 import { useSearchParams } from 'react-router'
@@ -9,7 +9,6 @@ import { MovimientoStatusBadge } from '@/features/movimientos/components/Movimie
 import { MovimientoValidationDialog } from '@/features/movimientos/components/MovimientoValidationDialog'
 import { MotivoModal } from '@/features/movimientos/components/MotivoModal'
 import { listAnimals } from '@/features/animales/api'
-import type { AnimalSummary } from '@/features/animales/types'
 import { listLotes } from '@/features/lotes/api'
 import { listPropiedades } from '@/features/propiedades/api'
 import { listAllPotreros } from '@/features/potreros/api'
@@ -26,39 +25,12 @@ import { normalizeApiError } from '@/shared/api/errors'
 import { recuperarOrigen, ubicacionMovimiento } from '../ubicacion'
 import { formatDate } from '@/shared/utils/date'
 
+import { destinoRequerido, filtrarAnimalesPorOrigen } from '../filtros'
+
 const tipos: TipoMovimiento[] = ['CAMBIO_POTRERO', 'CAMBIO_LOTE', 'TRANSFERENCIA_PROPIEDAD', 'INGRESO_COMPRA', 'SALIDA_VENTA', 'CUARENTENA', 'RETORNO_CUARENTENA']
 /** Compra y venta se registran solo desde sus propios módulos; aquí no se crean movimientos de esos tipos. */
 const tiposCreables: TipoMovimiento[] = ['CAMBIO_POTRERO', 'CAMBIO_LOTE', 'TRANSFERENCIA_PROPIEDAD', 'CUARENTENA', 'RETORNO_CUARENTENA']
 const estados: EstadoMovimiento[] = ['PENDIENTE', 'CONFIRMADO', 'ANULADO', 'REVERTIDO']
-export const movementSearchAvailable = false
-
-function destinoRequerido(tipo: TipoMovimiento): 'propiedad' | 'potrero' | 'lote' | 'potrero-o-lote' {
-  if (tipo === 'CAMBIO_LOTE') return 'lote'
-  if (tipo === 'CAMBIO_POTRERO' || tipo === 'CUARENTENA' || tipo === 'RETORNO_CUARENTENA') return 'potrero'
-  if (tipo === 'INGRESO_COMPRA' || tipo === 'TRANSFERENCIA_PROPIEDAD' || tipo === 'SALIDA_VENTA') return 'propiedad'
-  return 'potrero-o-lote'
-}
-
-interface FiltrosOrigen {
-  propiedadId: string
-  potreroId: string
-  loteId: string
-}
-
-type AnimalFiltrable = Pick<AnimalSummary, 'propiedadActualId' | 'potreroActualId' | 'loteActualId' | 'codigo' | 'nombre'>
-
-export function filtrarAnimalesPorOrigen<T extends AnimalFiltrable>(animales: T[], filtros: FiltrosOrigen, busqueda = ''): T[] {
-  if (!filtros.propiedadId) return []
-  const termino = busqueda.trim().toLocaleLowerCase('es-BO')
-  return animales.filter((animal) => {
-    if (animal.propiedadActualId !== filtros.propiedadId) return false
-    if (filtros.potreroId && animal.potreroActualId !== filtros.potreroId) return false
-    if (filtros.loteId && animal.loteActualId !== filtros.loteId) return false
-    if (!termino) return true
-    return animal.codigo.toLocaleLowerCase('es-BO').includes(termino)
-      || (animal.nombre ?? '').toLocaleLowerCase('es-BO').includes(termino)
-  })
-}
 
 export function MovimientosPage() {
   const [searchParams, setSearchParams] = useSearchParams()
