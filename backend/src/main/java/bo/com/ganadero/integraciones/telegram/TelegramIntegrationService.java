@@ -101,6 +101,96 @@ public class TelegramIntegrationService {
             FORMATO_FECHA.format(Instant.now())
         );
 
+        return enviarTextoATelegram(botToken, chatId, texto);
+    }
+
+    public ResultadoEnvioTelegram enviarAlertaEjemplo(UUID empresaId, String tipoEjemplo) {
+        ConfiguracionTelegram config = consultar(empresaId);
+        validarConfiguracion(config);
+
+        String texto;
+        String fechaHoy = FORMATO_FECHA.format(Instant.now());
+
+        if ("PARTO".equalsIgnoreCase(tipoEjemplo)) {
+            texto = String.format(
+                "🐮 *ALERTA REPRODUCTIVA: Parto Estimado*\n\n" +
+                "🏷 *Hembra:* `VACA-204` (Lote Maternidad)\n" +
+                "🤰 *Evento:* Cumplimiento de 283 días de gestación\n" +
+                "📅 *Fecha:* `%s`\n" +
+                "⚠️ *Recomendación:* Trasladar al corral de parición y alistar kit neonatal.\n\n" +
+                "_Sistema GANADERO Desktop (Alerta Real)_",
+                fechaHoy
+            );
+        } else if ("TRATAMIENTO".equalsIgnoreCase(tipoEjemplo)) {
+            texto = String.format(
+                "💊 *ALERTA DE TRATAMIENTO: Aplicación Pendiente*\n\n" +
+                "🏷 *Animal:* `TORO-05` (Potrero 3)\n" +
+                "💊 *Medicamento:* Oxitetraciclina L.A. (Segunda dosis)\n" +
+                "📅 *Fecha:* `%s`\n" +
+                "⛔ *Retiro en Carne:* 28 días de restricción activa\n\n" +
+                "_Sistema GANADERO Desktop (Alerta Real)_",
+                fechaHoy
+            );
+        } else {
+            texto = String.format(
+                "💉 *ALERTA SANITARIA: Vacunación Programada*\n\n" +
+                "🏷 *Animal:* `VACA-1042` (Hato Reproductoras)\n" +
+                "💉 *Vacuna:* Fiebre Aftosa (Bivalente O/A)\n" +
+                "📅 *Fecha Programada:* `%s`\n" +
+                "⚠️ *Dosis:* 2 ml vía subcutánea en tabla del cuello\n\n" +
+                "_Sistema GANADERO Desktop (Alerta Real)_",
+                fechaHoy
+            );
+        }
+
+        return enviarTextoATelegram(config.botToken(), config.chatIdPrincipal(), texto);
+    }
+
+    public int despacharAlertasReales(UUID empresaId) {
+        ConfiguracionTelegram config = consultar(empresaId);
+        validarConfiguracion(config);
+
+        List<OutboxAlerta> alertas = outboxRepository.buscarPendientes(15);
+        if (alertas.isEmpty()) {
+            return 0;
+        }
+
+        int enviadas = 0;
+        for (OutboxAlerta alerta : alertas) {
+            String texto = String.format(
+                "*%s*\n\n" +
+                "📅 *Fecha:* `%s`\n" +
+                "🏷 *Animal:* `%s`\n" +
+                "📋 *Módulo:* %s (%s)\n\n" +
+                "%s\n\n" +
+                "_Sistema GANADERO Desktop_",
+                alerta.titulo(),
+                FORMATO_FECHA.format(alerta.fechaProgramada()),
+                alerta.animalCodigo() != null && !alerta.animalCodigo().isBlank() ? alerta.animalCodigo() : "Hato general",
+                alerta.tipoModulo(),
+                alerta.subtipo(),
+                alerta.mensaje()
+            );
+
+            ResultadoEnvioTelegram res = enviarTextoATelegram(config.botToken(), config.chatIdPrincipal(), texto);
+            if (res.exito()) {
+                outboxRepository.marcarSincronizado(alerta.id());
+                enviadas++;
+            }
+        }
+        return enviadas;
+    }
+
+    private void validarConfiguracion(ConfiguracionTelegram config) {
+        if (config.botToken() == null || config.botToken().isBlank()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+        }
+        if (config.chatIdPrincipal() == null || config.chatIdPrincipal().isBlank()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+        }
+    }
+
+    private ResultadoEnvioTelegram enviarTextoATelegram(String botToken, String chatId, String texto) {
         try {
             Map<String, Object> body = new HashMap<>();
             body.put("chat_id", chatId);
@@ -120,7 +210,7 @@ public class TelegramIntegrationService {
             HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
 
             if (resp.statusCode() == 200) {
-                return new ResultadoEnvioTelegram(true, "Mensaje enviado exitosamente a Telegram.", 200);
+                return new ResultadoEnvioTelegram(true, "Notificación enviada exitosamente a Telegram.", 200);
             } else {
                 String desc = resp.body();
                 try {

@@ -52,6 +52,21 @@ public class TelegramIntegrationController {
         return ok(service.enviarMensajePrueba(user.empresaId(), body), request);
     }
 
+    @PostMapping("/simular")
+    public ApiResponse<TelegramIntegrationService.ResultadoEnvioTelegram> simular(
+            @RequestParam(defaultValue = "VACUNACION") String tipo,
+            HttpServletRequest request) {
+        CurrentUser user = context.requirePermission("SANIDAD_CONFIGURAR");
+        return ok(service.enviarAlertaEjemplo(user.empresaId(), tipo), request);
+    }
+
+    @PostMapping("/despachar-ahora")
+    public ApiResponse<Integer> despacharAhora(HttpServletRequest request) {
+        CurrentUser user = context.requirePermission("SANIDAD_CONFIGURAR");
+        int enviadas = service.despacharAlertasReales(user.empresaId());
+        return ok(enviadas, request);
+    }
+
     @PostMapping("/sincronizar")
     public ApiResponse<Integer> sincronizar(HttpServletRequest request) {
         context.requirePermission("SANIDAD_CONFIGURAR");

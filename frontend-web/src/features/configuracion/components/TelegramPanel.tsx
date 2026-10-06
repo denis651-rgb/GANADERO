@@ -1,11 +1,27 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, Clock, Cloud, HelpCircle, RefreshCw, Save, Send, Smartphone, XCircle } from 'lucide-react'
 import {
+  CheckCircle2,
+  Clock,
+  Cloud,
+  FlaskConical,
+  HeartPulse,
+  HelpCircle,
+  Pill,
+  RefreshCw,
+  Save,
+  Send,
+  Smartphone,
+  Syringe,
+  XCircle,
+} from 'lucide-react'
+import {
+  despacharAlertasReales,
   getConfiguracionTelegram,
   getEstadoIntegracionTelegram,
   guardarConfiguracionTelegram,
   probarNotificacionTelegram,
+  simularAlertaReal,
   sincronizarAlertasFirebase,
   type GuardarTelegramInput,
 } from '@/features/configuracion/telegramApi'
@@ -49,18 +65,50 @@ export function TelegramPanel() {
     },
   })
 
-  // Mutación para enviar prueba inmediata al celular
+  // Mutación para enviar prueba de conexión
   const testMutation = useMutation({
     mutationFn: (data: { botToken?: string; chatId?: string }) => probarNotificacionTelegram(data),
     onSuccess: (result) => {
       setTestResult(result)
       if (result.exito) {
-        showToast('¡Mensaje de prueba enviado a Telegram! Revisa tu celular.')
+        showToast('¡Prueba de conexión enviada a Telegram!')
       }
     },
     onError: (err) => {
       const errorMsg = normalizeApiError(err).message
       setTestResult({ exito: false, mensaje: errorMsg })
+    },
+  })
+
+  // Mutación para simular alerta sanitaria o reproductiva real
+  const simularMutation = useMutation({
+    mutationFn: (tipo: 'VACUNACION' | 'PARTO' | 'TRATAMIENTO') => simularAlertaReal(tipo),
+    onSuccess: (result) => {
+      setTestResult(result)
+      if (result.exito) {
+        showToast('¡Alerta de prueba enviada a Telegram con formato ganadero!')
+      }
+    },
+    onError: (err) => {
+      const errorMsg = normalizeApiError(err).message
+      setTestResult({ exito: false, mensaje: errorMsg })
+    },
+  })
+
+  // Mutación para despachar alertas reales de la base de datos
+  const despacharMutation = useMutation({
+    mutationFn: despacharAlertasReales,
+    onSuccess: (cantidad) => {
+      if (cantidad === 0) {
+        showToast('No hay alertas sanitarias ni reproductivas pendientes por despachar.')
+      } else {
+        showToast(`¡Se enviaron ${cantidad} alerta(s) reales a tu Telegram!`)
+      }
+      void client.invalidateQueries({ queryKey: ['estado-telegram'] })
+    },
+    onError: (err) => {
+      const errorMsg = normalizeApiError(err).message
+      showToast(errorMsg, 'danger')
     },
   })
 
@@ -155,7 +203,7 @@ export function TelegramPanel() {
               fontWeight: 500,
             }}>
               <Cloud size={16} />
-              Firebase Relay: {estado?.firebaseConectado ? 'Conectado (24/7)' : 'Modo local (Sin JSON)'}
+              Firebase Relay: {estado?.firebaseConectado ? 'Conectado (24/7)' : 'Modo local'}
             </div>
           </div>
         </div>
@@ -170,12 +218,61 @@ export function TelegramPanel() {
                 loading={syncMutation.isPending}
                 onClick={() => syncMutation.mutate()}
               >
-                <RefreshCw size={14} /> Sincronizar ahora
+                <RefreshCw size={14} /> Sincronizar con Firebase
               </Button>
             </Alert>
           </div>
         )}
       </Card>
+
+      {/* Tarjeta de Pruebas Reales en Vivo */}
+      {estado?.telegramConfigurado && (
+        <Card>
+          <h4 style={{ margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FlaskConical size={18} className="text-primary" /> Probar Alertas Ganaderas Reales en tu Celular
+          </h4>
+          <p className="muted" style={{ margin: '0 0 1rem 0' }}>
+            Prueba cómo se ven y suenan las distintas alertas en tu teléfono sin tener que esperar a que llegue la fecha del evento:
+          </p>
+
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <Button
+              type="button"
+              variant="secondary"
+              loading={simularMutation.isPending}
+              onClick={() => simularMutation.mutate('VACUNACION')}
+            >
+              <Syringe size={16} /> Probar Alerta de Vacunación
+            </Button>
+
+            <Button
+              type="button"
+              variant="secondary"
+              loading={simularMutation.isPending}
+              onClick={() => simularMutation.mutate('PARTO')}
+            >
+              <HeartPulse size={16} /> Probar Alerta de Parto Próximo
+            </Button>
+
+            <Button
+              type="button"
+              variant="secondary"
+              loading={simularMutation.isPending}
+              onClick={() => simularMutation.mutate('TRATAMIENTO')}
+            >
+              <Pill size={16} /> Probar Alerta de Tratamiento / Retiro
+            </Button>
+
+            <Button
+              type="button"
+              loading={despacharMutation.isPending}
+              onClick={() => despacharMutation.mutate()}
+            >
+              <Send size={16} /> Despachar Alertas Reales del Sistema Ahora
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {/* Formulario de Configuración */}
       <Card>
@@ -300,7 +397,7 @@ export function TelegramPanel() {
                   handleTestNotification(form)
                 }}
               >
-                <Send size={16} /> Probar en mi celular
+                <Send size={16} /> Probar Conexión
               </Button>
 
               {estado?.firebaseConectado && (
@@ -310,7 +407,7 @@ export function TelegramPanel() {
                   loading={syncMutation.isPending}
                   onClick={() => syncMutation.mutate()}
                 >
-                  <RefreshCw size={16} /> Forzar Sincronización Nube
+                  <RefreshCw size={16} /> Sincronizar Nube
                 </Button>
               )}
             </div>
@@ -337,7 +434,7 @@ export function TelegramPanel() {
             Para conocer tu <strong>Chat ID</strong>, busca el bot <strong>@userinfobot</strong> en Telegram y te responderá tu número de ID.
           </li>
           <li>
-            Pega tu Chat ID arriba y presiona <strong>&quot;Probar en mi celular&quot;</strong>. ¡Tu teléfono sonará al instante!
+            Pega tu Chat ID arriba y presiona <strong>&quot;Guardar configuración&quot;</strong>. Luego usa los botones de prueba para verificar cómo llegan los avisos.
           </li>
         </ol>
       </Card>

@@ -63,6 +63,14 @@ export async function probarNotificacionTelegram(input: EnviarPruebaInput): Prom
   return (await http.post<ApiResponse<ResultadoEnvioTelegram>>('/api/v1/integraciones/telegram/test', input)).data.data
 }
 
+export async function simularAlertaReal(tipo: 'VACUNACION' | 'PARTO' | 'TRATAMIENTO'): Promise<ResultadoEnvioTelegram> {
+  return (await http.post<ApiResponse<ResultadoEnvioTelegram>>(`/api/v1/integraciones/telegram/simular?tipo=${tipo}`)).data.data
+}
+
+export async function despacharAlertasReales(): Promise<number> {
+  return (await http.post<ApiResponse<number>>('/api/v1/integraciones/telegram/despachar-ahora')).data.data
+}
+
 export async function sincronizarAlertasFirebase(): Promise<number> {
   return (await http.post<ApiResponse<number>>('/api/v1/integraciones/telegram/sincronizar')).data.data
 }
