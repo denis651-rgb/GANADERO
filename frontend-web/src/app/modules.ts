@@ -46,6 +46,7 @@ export const appModules: AppModuleDefinition[] = [
       { key: 'propiedades-respaldos', label: 'Respaldos', path: '/propiedades/respaldos' },
       { key: 'propiedades-categorias', label: 'Categorías por edad', path: '/propiedades/categorias-edad' },
       { key: 'propiedades-calendario', label: 'Google Calendar', path: '/propiedades/google-calendar' },
+      { key: 'propiedades-telegram', label: 'Notificaciones Telegram', path: '/propiedades/telegram' },
     ],
   },
   { key: 'potreros', label: 'Potreros', path: '/potreros', icon: Sprout, phase: 0, status: 'LISTO' },

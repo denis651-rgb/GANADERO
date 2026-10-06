@@ -25,33 +25,61 @@ public class MotorAlertasService implements MotorAlertas {
             .withZone(ZONA_NEGOCIO);
 
     private final AlertaRepository repository;
-
     private final AlertaConfiguracionPort configuracion;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     /** Sin acceso a los ajustes (pruebas): los avisos «para un día» salen a la hora predeterminada. */
     public MotorAlertasService(AlertaRepository repository) {
-        this(repository, null);
+        this(repository, null, null);
+    }
+
+    public MotorAlertasService(AlertaRepository repository, AlertaConfiguracionPort configuracion) {
+        this(repository, configuracion, null);
     }
 
     @Autowired
-    public MotorAlertasService(AlertaRepository repository, AlertaConfiguracionPort configuracion) {
+    public MotorAlertasService(AlertaRepository repository, AlertaConfiguracionPort configuracion,
+                               org.springframework.context.ApplicationEventPublisher eventPublisher) {
         this.repository = repository;
         this.configuracion = configuracion;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
     @Transactional
     public UUID programar(ProgramarAlertaCommand command) {
         Preparacion preparacion = preparar(command);
-        return repository.programar(preparacion.alerta()).id();
+        Alerta guardada = repository.programar(preparacion.alerta());
+        publicarEvento(guardada);
+        return guardada.id();
     }
 
     @Override
     @Transactional
     public UUID evolucionar(ProgramarAlertaCommand command, Set<TipoAlerta> tiposAnteriores) {
         Preparacion preparacion = preparar(command);
-        return repository.evolucionarOrigen(preparacion.alerta(), tiposAnteriores)
-                .orElseGet(() -> repository.programar(preparacion.alerta())).id();
+        Alerta guardada = repository.evolucionarOrigen(preparacion.alerta(), tiposAnteriores)
+                .orElseGet(() -> repository.programar(preparacion.alerta()));
+        publicarEvento(guardada);
+        return guardada.id();
+    }
+
+    private void publicarEvento(Alerta alerta) {
+        if (eventPublisher != null && alerta != null) {
+            eventPublisher.publishEvent(new AlertaProgramadaEvent(
+                    alerta.id(),
+                    alerta.empresaId(),
+                    alerta.animalId(),
+                    alerta.tipo(),
+                    alerta.titulo(),
+                    alerta.mensaje(),
+                    alerta.severidad() != null ? alerta.severidad().name() : "MEDIA",
+                    alerta.fechaProgramada(),
+                    alerta.origenTipo(),
+                    alerta.origenId(),
+                    alerta.metadata()
+            ));
+        }
     }
 
     private Preparacion preparar(ProgramarAlertaCommand command) {
@@ -81,12 +109,18 @@ public class MotorAlertasService implements MotorAlertas {
     @Transactional
     public void resolverPorOrigen(UUID empresaId, String origenTipo, UUID origenId) {
         repository.resolverOrigen(empresaId, origenTipo, origenId, null);
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new AlertaCanceladaEvent(empresaId, origenTipo, origenId));
+        }
     }
 
     @Override
     @Transactional
     public void cancelarPorOrigen(UUID empresaId, String origenTipo, UUID origenId, String motivo) {
         repository.cancelarOrigen(empresaId, origenTipo, origenId, motivo);
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new AlertaCanceladaEvent(empresaId, origenTipo, origenId));
+        }
     }
 
     private Instant instant(Object value) {

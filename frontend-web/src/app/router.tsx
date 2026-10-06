@@ -6,6 +6,7 @@ import { ConfiguracionGeneralPage } from '@/features/propiedades/pages/Configura
 import { RespaldosPage } from '@/features/propiedades/pages/RespaldosPage'
 import { CategoriasEdadPage } from '@/features/propiedades/pages/CategoriasEdadPage'
 import { GoogleCalendarPage } from '@/features/propiedades/pages/GoogleCalendarPage'
+import { TelegramPage } from '@/features/propiedades/pages/TelegramPage'
 import { PotrerosPage } from '@/features/potreros/pages/PotrerosPage'
 import { AnimalesPage } from '@/features/animales/pages/AnimalesPage'
 import { NuevoAnimalPage } from '@/features/animales/pages/NuevoAnimalPage'
@@ -42,6 +43,7 @@ export function AppRouter() {
         <Route path="propiedades/respaldos" element={<RespaldosPage />} />
         <Route path="propiedades/categorias-edad" element={<CategoriasEdadPage />} />
         <Route path="propiedades/google-calendar" element={<GoogleCalendarPage />} />
+        <Route path="propiedades/telegram" element={<TelegramPage />} />
         <Route path="potreros" element={<PotrerosPage />} />
         <Route path="animales" element={<AnimalesPage />} />
         <Route path="animales/nuevo" element={<NuevoAnimalPage />} />
