@@ -157,6 +157,17 @@ public class TelegramIntegrationService {
 
         int enviadas = 0;
         for (OutboxAlerta alerta : alertas) {
+            String fechaTexto = alerta.fechaProgramada() != null
+                    ? FORMATO_FECHA.format(alerta.fechaProgramada())
+                    : FORMATO_FECHA.format(Instant.now());
+            String codigoAnimal = alerta.animalCodigo() != null && !alerta.animalCodigo().isBlank()
+                    ? alerta.animalCodigo()
+                    : "Hato General";
+            String modulo = alerta.tipoModulo() != null ? alerta.tipoModulo() : "SANIDAD";
+            String subtipo = alerta.subtipo() != null ? alerta.subtipo() : "AVISO";
+            String titulo = alerta.titulo() != null ? alerta.titulo() : "Aviso Ganadero";
+            String mensaje = alerta.mensaje() != null ? alerta.mensaje() : "Actividad sanitaria o reproductiva programada.";
+
             String texto = String.format(
                 "*%s*\n\n" +
                 "📅 *Fecha:* `%s`\n" +
@@ -164,12 +175,12 @@ public class TelegramIntegrationService {
                 "📋 *Módulo:* %s (%s)\n\n" +
                 "%s\n\n" +
                 "_Sistema GANADERO Desktop_",
-                alerta.titulo(),
-                FORMATO_FECHA.format(alerta.fechaProgramada()),
-                alerta.animalCodigo() != null && !alerta.animalCodigo().isBlank() ? alerta.animalCodigo() : "Hato general",
-                alerta.tipoModulo(),
-                alerta.subtipo(),
-                alerta.mensaje()
+                titulo,
+                fechaTexto,
+                codigoAnimal,
+                modulo,
+                subtipo,
+                mensaje
             );
 
             ResultadoEnvioTelegram res = enviarTextoATelegram(config.botToken(), config.chatIdPrincipal(), texto);

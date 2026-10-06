@@ -152,23 +152,53 @@ public class JdbcOutboxAlertaRepository implements OutboxAlertaRepository {
 
     private OutboxAlerta mapearOutbox(ResultSet rs, int rowNum) throws SQLException {
         return new OutboxAlerta(
-            UUID.fromString(rs.getString("id")),
-            UUID.fromString(rs.getString("empresa_id")),
+            parseUuidSeguro(rs.getString("id")),
+            parseUuidSeguro(rs.getString("empresa_id")),
             rs.getString("tipo_modulo"),
             rs.getString("subtipo"),
-            rs.getString("animal_id") != null ? UUID.fromString(rs.getString("animal_id")) : null,
+            rs.getString("animal_id") != null && !rs.getString("animal_id").isBlank() ? parseUuidSeguro(rs.getString("animal_id")) : null,
             rs.getString("animal_codigo"),
             rs.getString("titulo"),
             rs.getString("mensaje"),
-            Instant.parse(rs.getString("fecha_programada")),
+            parseInstantSeguro(rs.getString("fecha_programada")),
             rs.getString("prioridad"),
             rs.getString("estado_sincronizacion"),
             rs.getInt("intentos"),
             rs.getString("ultimo_error"),
             rs.getString("origen_tipo"),
-            rs.getString("origen_id") != null ? UUID.fromString(rs.getString("origen_id")) : null,
-            Instant.parse(rs.getString("creado_en")),
-            rs.getString("sincronizado_en") != null ? Instant.parse(rs.getString("sincronizado_en")) : null
+            rs.getString("origen_id") != null && !rs.getString("origen_id").isBlank() ? parseUuidSeguro(rs.getString("origen_id")) : null,
+            parseInstantSeguro(rs.getString("creado_en")),
+            parseInstantSeguro(rs.getString("sincronizado_en"))
         );
+    }
+
+    private UUID parseUuidSeguro(String text) {
+        if (text == null || text.isBlank()) {
+            return UUID.fromString("00000000-0000-0000-0000-000000000001");
+        }
+        try {
+            return UUID.fromString(text.trim());
+        } catch (Exception e) {
+            return UUID.fromString("00000000-0000-0000-0000-000000000001");
+        }
+    }
+
+    private Instant parseInstantSeguro(String text) {
+        if (text == null || text.isBlank()) {
+            return Instant.now();
+        }
+        try {
+            return Instant.parse(text.trim());
+        } catch (Exception e) {
+            try {
+                String iso = text.trim().replace(" ", "T");
+                if (!iso.endsWith("Z") && !iso.contains("+")) {
+                    iso = iso + "Z";
+                }
+                return Instant.parse(iso);
+            } catch (Exception ex) {
+                return Instant.now();
+            }
+        }
     }
 }
