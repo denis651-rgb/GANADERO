@@ -15,7 +15,8 @@ Debes tener registrada una propiedad y al menos un potrero de esa propiedad.
 2. Presiona **Compra individual**.
 3. Completa nombre (opcional), sexo y fecha de nacimiento o edad aproximada.
 4. Elige propósito, y en **Origen** selecciona **Comprado**.
-5. Selecciona raza; la categoría se calcula sola según sexo y edad.
+5. Selecciona la raza (o elige **Otro** para escribir y registrar una nueva);
+   la categoría se calcula sola según sexo y edad.
 6. Selecciona propiedad y potrero.
 7. En **Datos de la compra**, busca al proveedor o registra uno nuevo, e
    indica el precio pagado por este animal.
@@ -27,8 +28,8 @@ Debes tener registrada una propiedad y al menos un potrero de esa propiedad.
 
 1. Abre **Compras** en el menú lateral.
 2. Presiona **Compra por lote**.
-3. Completa los datos comunes del lote: raza, propósito, propiedad, potrero
-   y fecha de ingreso.
+3. Completa los datos comunes del lote: raza (del catálogo o una nueva con
+   **Otro**), propósito, propiedad, potrero y fecha de ingreso.
 4. Busca al proveedor o registra uno nuevo, elige la modalidad de precio
    (**Por unidad** o **Por tropa o punta**) e indica el precio.
 5. Agrega una fila por animal (o usa **+1/+5/+10/+20**) y completa sexo,

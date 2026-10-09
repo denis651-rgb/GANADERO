@@ -14,8 +14,6 @@ import { IngresoLotePage } from '@/features/animales/pages/IngresoLotePage'
 import { AnimalDetailPage } from '@/features/animales/pages/AnimalDetailPage'
 import { EditarAnimalPage } from '@/features/animales/pages/EditarAnimalPage'
 import { DeclararHistorialLotePage } from '@/features/animales/pages/DeclararHistorialLotePage'
-import { QrScannerPage } from '@/features/animales/qr/pages/QrScannerPage'
-import { QrPrintPage } from '@/features/animales/qr/pages/QrPrintPage'
 import { LotesPage } from '@/features/lotes/pages/LotesPage'
 import { LoteDetailPage } from '@/features/lotes/pages/LoteDetailPage'
 import { MovimientosPage } from '@/features/movimientos/pages/MovimientosPage'
@@ -44,6 +42,7 @@ export function AppRouter() {
         <Route path="propiedades/categorias-edad" element={<CategoriasEdadPage />} />
         <Route path="propiedades/google-calendar" element={<GoogleCalendarPage />} />
         <Route path="propiedades/telegram" element={<TelegramPage />} />
+        <Route path="propiedades/auditoria" element={<AuditoriaPage />} />
         <Route path="potreros" element={<PotrerosPage />} />
         <Route path="animales" element={<AnimalesPage />} />
         <Route path="animales/nuevo" element={<NuevoAnimalPage />} />
@@ -54,7 +53,7 @@ export function AppRouter() {
         <Route path="lotes" element={<LotesPage />} />
         <Route path="lotes/:id" element={<LoteDetailPage />} />
         <Route path="movimientos" element={<MovimientosPage />} />
-        <Route path="auditoria" element={<AuditoriaPage />} />
+        <Route path="auditoria" element={<Navigate to="/propiedades/auditoria" replace />} />
         <Route path="pesajes" element={<PesajesPage />} />
         <Route path="pesajes/:id" element={<PesajeDetailPage />} />
         <Route path="compras" element={<ComprasPage />} />
@@ -66,8 +65,6 @@ export function AppRouter() {
         <Route path="reportes" element={<ReportesPage />} />
         <Route path="manual" element={<ManualPage />} />
         <Route path="manual/:chapterId" element={<ManualPage />} />
-        <Route path="animales/qr/imprimir" element={<QrPrintPage />} />
-        <Route path="qr/escanear" element={<QrScannerPage />} />
       </Route>
 
       {/* Fuera de AppShell a propósito: es el destino que carga Electron en una ventana oculta

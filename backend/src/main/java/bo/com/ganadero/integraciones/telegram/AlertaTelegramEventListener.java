@@ -31,6 +31,11 @@ public class AlertaTelegramEventListener {
     @EventListener
     public void onAlertaProgramada(AlertaProgramadaEvent event) {
         try {
+            if (!esNotificableTelegram(event.tipo())) {
+                log.debug("Alerta de tipo {} excluida de Telegram (se mantiene en la web)", event.tipo());
+                return;
+            }
+
             String tipoModulo = clasificarModulo(event.tipo());
             String animalCodigo = extraerCodigoAnimal(event.metadata());
 
@@ -101,6 +106,17 @@ public class AlertaTelegramEventListener {
             return "REPRODUCCION";
         }
         return "GENERAL";
+    }
+
+    private boolean esNotificableTelegram(TipoAlerta tipo) {
+        if (tipo == null) return false;
+        return switch (tipo) {
+            case PARTO_PROXIMO, CELO_DETECTADO, DIAGNOSTICO_PENDIENTE, DESTETE_PROXIMO,
+                 VACUNA_PROXIMA, VACUNA_VENCIDA, ACTIVIDAD_SANITARIA_PROXIMA, ACTIVIDAD_SANITARIA_VENCIDA,
+                 RETIRO_CARNE_VIGENTE, RETIRO_LECHE_VIGENTE, TRATAMIENTO_PROXIMO, TRATAMIENTO_ATRASADO,
+                 CASO_CLINICO_CRITICO, RECORDATORIO_SANIDAD -> true;
+            default -> false;
+        };
     }
 
     private String extraerCodigoAnimal(Map<String, Object> metadata) {

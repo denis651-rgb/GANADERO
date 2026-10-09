@@ -260,12 +260,13 @@ public class CompraService {
             EstimacionEdadAnimal.Resultado edad = EstimacionEdadAnimal.resolver(item.fechaNacimiento(),
                     item.fechaNacimientoEstimada(), item.edadDeclaradaValor(), item.edadDeclaradaUnidad(),
                     item.fechaReferenciaEdad(), item.fuenteEdadDeclarada(), item.observacionEstimacion());
+            UUID razaId = animales.resolveBreed(item.razaNueva(), item.razaId());
             detalles.add(new CompraDetalle(UUID.randomUUID(), compraId, null, i + 1, preciosPorLinea.get(i),
                     item.pesoIngresoKg(), item.tipoPeso(), item.metodoPeso(),
                     item.propiedadId() != null ? item.propiedadId() : c.propiedadId(),
                     item.potreroId() != null ? item.potreroId() : c.potreroId(),
                     item.loteGanaderoId() != null ? item.loteGanaderoId() : c.loteGanaderoId(),
-                    item.codigoSolicitado(), item.nombre(), item.sexo(), item.razaId(), item.proposito(),
+                    item.codigoSolicitado(), item.nombre(), item.sexo(), razaId, item.proposito(),
                     edad.fechaNacimiento(), edad.estimada(), edad.valorDeclarado(), edad.unidad(),
                     edad.fechaReferencia(), edad.fuente(), edad.detalle(), item.categoriaActualId(),
                     item.categoriaManualMotivo(), item.observaciones(), Instant.now()));

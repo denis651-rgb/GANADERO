@@ -187,4 +187,75 @@ describe('IngresoLotePage', { timeout: 15000 }, () => {
     await waitFor(() => expect(confirmarCompra).toHaveBeenCalledOnce())
     expect(createMovimiento).not.toHaveBeenCalled()
   })
+
+  it('aplica nombres correlativos a todas las filas del lote según el patrón ingresado', async () => {
+    renderPage()
+    await screen.findByText('Brahman')
+
+    // Agregar 2 filas más (3 filas en total)
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar' }))
+
+    const inputNombreBulk = screen.getByLabelText('Nombre o prefijo correlativo a aplicar en lote')
+    fireEvent.change(inputNombreBulk, { target: { value: 'LTN-01' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+
+    expect(screen.getByLabelText('Nombre del animal 1')).toHaveValue('LTN-01')
+    expect(screen.getByLabelText('Nombre del animal 2')).toHaveValue('LTN-02')
+    expect(screen.getByLabelText('Nombre del animal 3')).toHaveValue('LTN-03')
+
+    // Probar con otro patrón
+    fireEvent.change(inputNombreBulk, { target: { value: 'Toro' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+
+    expect(screen.getByLabelText('Nombre del animal 1')).toHaveValue('Toro 1')
+    expect(screen.getByLabelText('Nombre del animal 2')).toHaveValue('Toro 2')
+    expect(screen.getByLabelText('Nombre del animal 3')).toHaveValue('Toro 3')
+  })
+
+  it('permite seleccionar "Otro…" para escribir una nueva raza y enviarla en la compra', async () => {
+    crearCompra.mockClear()
+    confirmarCompra.mockClear()
+    crearCompra.mockResolvedValue({ id: 'compra-raza', version: 0 })
+    confirmarCompra.mockResolvedValue({ id: 'compra-raza', version: 1 })
+    getCompraDetalles.mockResolvedValue([{ id: 'det-1', animalId: 'a-1', numeroLinea: 1, precioAsignado: 0 }])
+    getAnimal.mockResolvedValue({ id: 'a-1', codigo: 'ANI-000001', version: 0 })
+
+    renderPage()
+    await screen.findByText('Brahman')
+
+    const selectRaza = screen.getByLabelText(/^Raza/)
+    fireEvent.change(selectRaza, { target: { value: '__OTRA__' } })
+
+    // Se convierte en campo de texto
+    const inputRazaNueva = screen.getByPlaceholderText('Escribe la nueva raza…')
+    expect(inputRazaNueva).toBeInTheDocument()
+
+    // Si se borra o se des-enfoca vacío, vuelve a ser selector
+    fireEvent.change(inputRazaNueva, { target: { value: '' } })
+    expect(screen.getByLabelText(/^Raza/)).toBeInTheDocument()
+
+    // Volvemos a seleccionar Otro y escribimos
+    fireEvent.change(screen.getByLabelText(/^Raza/), { target: { value: '__OTRA__' } })
+    const inputRazaNueva2 = screen.getByPlaceholderText('Escribe la nueva raza…')
+    fireEvent.change(inputRazaNueva2, { target: { value: 'Senepol Cruce' } })
+
+    fireEvent.change(screen.getByLabelText(/^Propiedad/), { target: { value: 'prop-1' } })
+    fireEvent.change(screen.getByLabelText(/^Potrero/), { target: { value: 'pot-1' } })
+    fireEvent.change(screen.getByLabelText(/^Categoría/), { target: { value: 'cat-1' } })
+    registrarProveedorNuevo('Ganadería del Este')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar lote' }))
+
+    await waitFor(() => expect(crearCompra).toHaveBeenCalledOnce())
+    expect(crearCompra).toHaveBeenCalledWith(expect.objectContaining({
+      detalles: [
+        expect.objectContaining({
+          razaId: undefined,
+          razaNueva: 'Senepol Cruce',
+        }),
+      ],
+    }))
+  })
 })
+

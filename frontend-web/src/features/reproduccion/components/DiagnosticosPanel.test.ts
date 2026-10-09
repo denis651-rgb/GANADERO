@@ -27,3 +27,47 @@ it('completa el nombre del lote y lo limpia al cambiar a un animal sin lote', ()
   fireEvent.click(screen.getByRole('button', { name: 'Limpiar' }))
   expect(screen.getByLabelText('Lote')).toHaveValue('Selecciona primero el animal')
 })
+
+it('muestra el nombre del animal y la raza debajo en la tabla sin mostrar el codigo', async () => {
+  const catalogs = {
+    lots: [],
+    properties: [],
+    paddocks: [],
+    hembras: [{ id: 'ani-1', codigo: 'ANI-000040', nombre: 'LVN-10', razaPrincipalId: 'raza-nelore' } as unknown as AnimalSummary],
+    animales: [{ id: 'ani-1', codigo: 'ANI-000040', nombre: 'LVN-10', razaPrincipalId: 'raza-nelore' } as unknown as AnimalSummary],
+  } as unknown as ReproduccionCatalogs
+
+  const queryClient = new QueryClient()
+  queryClient.setQueryData(['razas'], [{ id: 'raza-nelore', nombre: 'Nelore' }])
+
+  render(createElement(QueryClientProvider, { client: queryClient }, createElement(DiagnosticosPanel, {
+    diagnosticos: {
+      content: [{
+        id: 'diag-1',
+        animalId: 'ani-1',
+        codigoAnimal: 'ANI-000040',
+        nombreAnimal: 'LVN-10',
+        fechaDiagnostico: '2026-10-09T11:10:00Z',
+        resultado: 'POSITIVO',
+        metodo: 'PALPACION',
+        fechaProbableParto: '2027-07-21',
+        estado: 'ACTIVO',
+        version: 1,
+      }],
+      page: 0,
+      size: 20,
+      totalPages: 1,
+      totalElements: 1,
+    },
+    servicios: [],
+    isLoading: false,
+    error: null,
+    catalogs,
+    refresh: vi.fn(),
+  })))
+
+  expect(screen.getAllByText('LVN-10')).toHaveLength(2)
+  expect(screen.getAllByText('Nelore')).toHaveLength(2)
+  expect(screen.queryByText('ANI-000040')).not.toBeInTheDocument()
+})
+

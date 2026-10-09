@@ -197,13 +197,13 @@ export function TelegramPanel() {
               gap: '0.4rem',
               padding: '0.35rem 0.75rem',
               borderRadius: '999px',
-              backgroundColor: estado?.firebaseConectado ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 179, 8, 0.15)',
-              color: estado?.firebaseConectado ? '#16a34a' : '#ca8a04',
+              backgroundColor: estado?.firebaseConectado ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+              color: estado?.firebaseConectado ? '#16a34a' : '#dc2626',
               fontSize: '0.875rem',
               fontWeight: 500,
             }}>
-              <Cloud size={16} />
-              Firebase Relay: {estado?.firebaseConectado ? 'Conectado (24/7)' : 'Modo local'}
+              {estado?.firebaseConectado ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+              Firebase Relay: {estado?.firebaseConectado ? 'Conectado (24/7)' : 'Desconectado / Local'}
             </div>
           </div>
         </div>

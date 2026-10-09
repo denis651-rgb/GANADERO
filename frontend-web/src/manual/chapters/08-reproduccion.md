@@ -151,11 +151,40 @@ El 10/10/2026, la ecografía de Lucera (**ANI-000142**) da **Positivo** con 30
 días de gestación estimados, asociada al servicio del 15/09 (#1). El sistema
 calcula la fecha probable de parto alrededor del 22/03/2027.
 
+### Cómo calcula el sistema la fecha probable de parto
+
+Cuando el diagnóstico es **Positivo**, el sistema determina la **Fecha probable de parto** utilizando la duración estándar de gestación bovina configurada para el establecimiento (por defecto **285 días**, ajustable en la configuración de la empresa):
+
+1. **Si ingresas días de gestación estimados** (por ecografía o palpación):
+   - El sistema calcula los días que faltan para completar la gestación:
+     $$\text{Días restantes} = 285\text{ días} - \text{Días estimados ingresados}$$
+   - Luego proyecta la fecha:
+     $$\text{Fecha probable de parto} = \text{Fecha del diagnóstico} + \text{Días restantes}$$
+   *(Ejemplo: un diagnóstico del 09/10/2026 con 60 días estimados da parto para el 22/05/2027).*
+
+2. **Si no ingresas días estimados, pero seleccionas un servicio asociado** (monta o inseminación):
+   - El sistema cuenta el período completo desde el momento de la fecundación:
+     $$\text{Fecha probable de parto} = \text{Fecha del servicio} + 285\text{ días}$$
+
+3. **Si no hay servicio ni días estimados** (antecedentes desconocidos):
+   - El sistema proyecta la gestación completa a partir de la fecha de la confirmación:
+     $$\text{Fecha probable de parto} = \text{Fecha del diagnóstico} + 285\text{ días}$$
+
+> **Avisos automáticos de parto escalonados (15d, 7d y 1d)**: Con la fecha de parto calculada, el sistema genera automáticamente tres avisos matutinos a la **Hora de avisos** configurada (ej. **07:00 a. m.**):
+> 1. **15 días antes:** Preparación y traslado al potrero o lote de maternidad.
+> 2. **7 días antes:** Seguimiento intermedio y condición corporal.
+> 3. **1 día antes:** Alerta de parición inminente para alistar kit neonatal y vigilar el corral.
+> Además, en cuanto se registra el diagnóstico **Positivo**, cualquier alerta vieja de diagnóstico pendiente de esa hembra se **cierra y cancela automáticamente**.
+
+### Visualización en la lista
+
+En la tabla y tarjetas de **Diagnósticos de gestación**, la columna **Animal** presenta de forma clara:
+- **Nombre del animal** (o código si no tiene nombre asignado) en la línea principal.
+- **Raza del animal** en la línea secundaria debajo, permitiendo identificar de un vistazo el biotipo de la vaca evaluada.
+
 ### Resultado esperado
 
-El diagnóstico aparece en **Diagnósticos** con **Resultado**, **Método** y
-**Parto probable**. El servicio pasa a **Gestación confirmada**, se abre la
-gestación de la hembra y el seguimiento queda visible en **Resumen**.
+El diagnóstico aparece en **Diagnósticos** con el **Animal** (nombre y raza), **Fecha**, **Resultado**, **Método** y **Parto probable**. El servicio asociado pasa automáticamente a **Gestación confirmada**, se abre la gestación de la hembra y el seguimiento queda visible en **Resumen**.
 
 > Con **Negativo** o **Pérdida de gestación**, el servicio pasa a
 > **No preñada** / fica la hembra disponible para un nuevo ciclo. Con

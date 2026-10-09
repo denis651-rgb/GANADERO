@@ -38,6 +38,8 @@ const ORIGEN_LABEL: Record<CreateAnimalInput['origen'], string> = {
   TRANSFERIDO: 'Transferido',
 }
 
+const RAZA_OTRA = '__OTRA__'
+
 function formatFecha(value?: string) {
   if (!value) return '—'
   const date = new Date(`${value}T12:00:00`)
@@ -62,16 +64,18 @@ export function NuevoAnimalPage() {
     },
   })
   const [tipoNacimiento, setTipoNacimiento] = useState<'CONOCIDA' | 'EDAD_APROXIMADA' | 'DESCONOCIDA'>('CONOCIDA')
+  const [razaEsNueva, setRazaEsNueva] = useState(false)
   const [proveedorSeleccion, setProveedorSeleccion] = useState<ProveedorSeleccion>({})
   const [precioCompra, setPrecioCompra] = useState('')
   const [monedaCompra, setMonedaCompra] = useState('BOB')
-  const unsaved = useUnsavedChanges(isDirty || tipoNacimiento !== 'CONOCIDA')
+  const unsaved = useUnsavedChanges(isDirty || tipoNacimiento !== 'CONOCIDA' || razaEsNueva)
   const propertyId = useWatch({ control, name: 'propiedadActualId' })
   const sexo = useWatch({ control, name: 'sexo' })
   const origen = useWatch({ control, name: 'origen' })
   const nombre = useWatch({ control, name: 'nombre' })
   const proposito = useWatch({ control, name: 'proposito' })
   const razaPrincipalId = useWatch({ control, name: 'razaPrincipalId' })
+  const razaNueva = useWatch({ control, name: 'razaNueva' })
   const potreroActualId = useWatch({ control, name: 'potreroActualId' })
   const fechaNacimiento = useWatch({ control, name: 'fechaNacimiento' })
   const fechaIngreso = useWatch({ control, name: 'fechaIngreso' })
@@ -103,14 +107,15 @@ export function NuevoAnimalPage() {
     if (categoriaAutomaticaId) setValue('categoriaActualId', categoriaAutomaticaId, { shouldValidate: true })
   }, [categoriaAutomaticaId, setValue])
 
-  const razaNombre = catalogs.data?.breeds.find((item) => item.id === razaPrincipalId)?.nombre
+  const razaNombre = razaEsNueva ? (razaNueva?.trim() || 'Otra (nueva raza)') : catalogs.data?.breeds.find((item) => item.id === razaPrincipalId)?.nombre
   const propiedadNombre = catalogs.data?.properties.find((item) => item.id === propertyId)?.nombre
   const potreroNombre = catalogs.data?.paddocks.find((item) => item.id === potreroActualId)?.nombre
 
   const proveedorDefinido = Boolean(proveedorSeleccion.proveedorId || proveedorSeleccion.proveedorNuevo?.nombre)
+  const razaDefinida = Boolean(razaEsNueva ? razaNueva?.trim() : razaPrincipalId)
   const camposObligatorios = 7 + (origen === 'COMPRADO' ? 2 : 0)
   const camposCompletos = [
-    sexo, origen, proposito, razaPrincipalId, categoriaActualId, propertyId, potreroActualId,
+    sexo, origen, proposito, razaDefinida, categoriaActualId, propertyId, potreroActualId,
     fechaNacimiento || edadDeclaradaValor,
     ...(origen === 'COMPRADO' ? [fechaIngreso, proveedorDefinido] : []),
   ].filter(Boolean).length
@@ -124,7 +129,7 @@ export function NuevoAnimalPage() {
   const datosNacimientoCompraSoportados = origen !== 'COMPRADO'
   const steps = [
     { id: 'paso-identificacion', label: 'Identificación básica', done: Boolean(sexo && (tipoNacimiento === 'CONOCIDA' ? fechaNacimiento : tipoNacimiento === 'EDAD_APROXIMADA' ? edadDeclaradaValor : true)) },
-    { id: 'paso-clasificacion', label: 'Clasificación y raza', done: Boolean(proposito && origen && razaPrincipalId && categoriaActualId) },
+    { id: 'paso-clasificacion', label: 'Clasificación y raza', done: Boolean(proposito && origen && razaDefinida && categoriaActualId) },
     { id: 'paso-ubicacion', label: 'Ubicación y potrero', done: Boolean(propertyId && potreroActualId) },
     { id: 'paso-ingreso', label: 'Ingreso y peso', done: origen === 'NACIDO' ? true : Boolean(fechaIngreso) },
     ...(origen === 'COMPRADO' ? [{ id: 'paso-compra', label: 'Datos de la compra', done: proveedorDefinido }] : []),
@@ -156,6 +161,9 @@ export function NuevoAnimalPage() {
         observacionEstimacion: tipoNacimiento === 'EDAD_APROXIMADA' ? values.observacionEstimacion : undefined,
       }
 
+      const razaFinalId = razaEsNueva ? undefined : values.razaPrincipalId
+      const razaFinalNueva = razaEsNueva ? values.razaNueva?.trim() : undefined
+
       if (values.origen === 'COMPRADO') {
         if (!proveedorSeleccion.proveedorId && !proveedorSeleccion.proveedorNuevo?.nombre) {
           setMessage({ tone: 'danger', text: 'Selecciona o registra el proveedor de la compra.' })
@@ -179,7 +187,8 @@ export function NuevoAnimalPage() {
           detalles: [{
             nombre: values.nombre,
             sexo: values.sexo,
-            razaId: values.razaPrincipalId,
+            razaId: razaFinalId,
+            razaNueva: razaFinalNueva,
             proposito: values.proposito,
             categoriaActualId: values.categoriaActualId,
             categoriaManualMotivo: values.categoriaManualMotivo,
@@ -201,6 +210,7 @@ export function NuevoAnimalPage() {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ['animals'] }),
           queryClient.invalidateQueries({ queryKey: ['compras'] }),
+          queryClient.invalidateQueries({ queryKey: ['animal-form-catalogs'] }),
         ])
         navigate(animalId ? `/animales/${animalId}` : '/animales')
         return
@@ -208,9 +218,15 @@ export function NuevoAnimalPage() {
 
       const created = await createAnimal({ ...values,
         ...common,
+        razaPrincipalId: razaFinalId,
+        razaNueva: razaFinalNueva,
         fechaIngreso: values.origen === 'NACIDO' ? values.fechaNacimiento : values.fechaIngreso,
         pesoIngresoEstimado: values.pesoIngresoKg != null ? values.pesoIngresoEstimado : undefined,
       })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['animals'] }),
+        queryClient.invalidateQueries({ queryKey: ['animal-form-catalogs'] }),
+      ])
       queryClient.setQueriesData<Page<AnimalSummary>>({ queryKey: ['animals'] }, (current) => current ? {
         ...current,
         content: [created, ...current.content.filter((animal) => animal.id !== created.id)].slice(0, current.size),
@@ -313,8 +329,56 @@ export function NuevoAnimalPage() {
                     if (event.target.value !== 'NACIDO' && tipoNacimiento === 'CONOCIDA' && !fechaNacimiento) setTipoNacimiento('DESCONOCIDA')
                   } })}><option value="NACIDO">Nacido</option><option value="COMPRADO">Comprado</option><option value="TRANSFERIDO">Transferido</option></select>
                 </Field>
-                <Field label="Raza" error={errors.razaPrincipalId?.message}>
-                  <select {...register('razaPrincipalId')}><option value="">Selecciona…</option>{catalogs.data?.breeds.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select>
+                <Field label="Raza" error={errors.razaPrincipalId?.message || errors.razaNueva?.message}>
+                  {razaEsNueva
+                    ? <input
+                        {...register('razaNueva', {
+                          onChange: (event) => {
+                            if (event.target.value === '') {
+                              setRazaEsNueva(false)
+                              setValue('razaNueva', undefined)
+                              setValue('razaPrincipalId', '')
+                            }
+                          },
+                          onBlur: (event) => {
+                            if (!event.target.value.trim()) {
+                              setRazaEsNueva(false)
+                              setValue('razaNueva', undefined)
+                              setValue('razaPrincipalId', '')
+                            }
+                          },
+                        })}
+                        placeholder="Escribe la nueva raza…"
+                        autoFocus
+                      />
+                    : <select
+                        {...register('razaPrincipalId', {
+                          onChange: (event) => {
+                            if (event.target.value === RAZA_OTRA) {
+                              setRazaEsNueva(true)
+                              setValue('razaPrincipalId', undefined)
+                              setValue('razaNueva', '')
+                            }
+                          },
+                        })}
+                      >
+                        <option value="">Selecciona…</option>
+                        {catalogs.data?.breeds.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}
+                        <option value={RAZA_OTRA}>Otro…</option>
+                      </select>}
+                  {razaEsNueva && (
+                    <button
+                      type="button"
+                      className="button button-ghost button-small"
+                      onClick={() => {
+                        setRazaEsNueva(false)
+                        setValue('razaNueva', undefined)
+                        setValue('razaPrincipalId', '')
+                      }}
+                    >
+                      Elegir de la lista
+                    </button>
+                  )}
                 </Field>
                 <Field label="Categoría" error={errors.categoriaActualId?.message} hint={categoriaAutomatica ? `Asignada automáticamente por sexo y edad (${categoriaAutomatica.edadMinMeses ?? 0}${categoriaAutomatica.edadMaxMeses == null ? '+ meses' : `–${categoriaAutomatica.edadMaxMeses} meses`}).` : 'Si la edad es desconocida, selecciona la categoría manualmente.'}>
                   {categoriaAutomatica

@@ -6,10 +6,6 @@ import java.time.Instant; import java.util.*;
 
 /**
  * Ajustes globales de la app de escritorio (moneda, unidades, dias de alerta, PIN).
- *
- * <p>El PIN se guarda cifrado (BCrypt) pero todavía nada lo verifica: no hay pantalla de bloqueo al
- * abrir la app ni se exige el PIN actual para cambiarlo o quitarlo. Mientras eso no exista no
- * protege el acceso, y así lo documentan la pantalla de configuración y el manual.</p>
  */
 @Service public class ConfiguracionService {
  private static final BCryptPasswordEncoder PIN_ENCODER=new BCryptPasswordEncoder();
@@ -19,7 +15,8 @@ import java.time.Instant; import java.util.*;
  @Transactional public Configuracion update(ConfiguracionCommand c){
   CurrentUser u=context.requirePermission("CONFIGURACION_EDITAR");
   Configuracion patch=new Configuracion(null,c.zonaHoraria(),c.moneda(),c.unidadPeso(),c.unidadSuperficie(),
-   c.diasAlertaPreparto(),c.diasSinPesaje(),c.diasAlertaDestete(),
+   c.diasAlertaPreparto(),c.diasAlertaPreparto2(),c.diasAlertaPreparto3(),c.diasAlertaVacunacion(),
+   c.diasSinPesaje(),c.diasAlertaDestete(),
    c.diasDiagnosticoPostServicio(),c.diasGestacionEstimada(),c.comprimirImagenes(),c.calidadImagen(),c.nombreUsuario(),
    false,c.diasToleranciaPesoCompra(),c.horaAvisos(),Objects.requireNonNull(c.version()));
   Configuracion saved=repo.update(patch,u.userId());

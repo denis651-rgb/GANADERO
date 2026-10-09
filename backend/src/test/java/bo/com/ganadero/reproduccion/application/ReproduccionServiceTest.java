@@ -43,6 +43,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -279,11 +280,16 @@ class ReproduccionServiceTest {
         LocalDate parto = fechaDiagnostico.atZone(java.time.ZoneOffset.UTC).toLocalDate().plusDays(282);
         assertThat(diagnostico.fechaProbableParto()).isEqualTo(parto);
         ArgumentCaptor<Alerta> captor = ArgumentCaptor.forClass(Alerta.class);
-        verify(alertasRepo).programar(captor.capture());
-        assertThat(captor.getValue().tipo()).isEqualTo(TipoAlerta.PARTO_PROXIMO);
-        assertThat(captor.getValue().fechaProgramada())
+        verify(alertasRepo, times(3)).programar(captor.capture());
+        var alertas = captor.getAllValues();
+        assertThat(alertas).allMatch(a -> a.tipo() == TipoAlerta.PARTO_PROXIMO);
+        assertThat(alertas.get(0).fechaProgramada())
                 .isEqualTo(parto.minusDays(15).atTime(8, 0).atZone(ZoneId.of("America/La_Paz")).toInstant());
-        assertThat(captor.getValue().fechaVencimiento())
+        assertThat(alertas.get(1).fechaProgramada())
+                .isEqualTo(parto.minusDays(7).atTime(8, 0).atZone(ZoneId.of("America/La_Paz")).toInstant());
+        assertThat(alertas.get(2).fechaProgramada())
+                .isEqualTo(parto.minusDays(1).atTime(8, 0).atZone(ZoneId.of("America/La_Paz")).toInstant());
+        assertThat(alertas.get(0).fechaVencimiento())
                 .isEqualTo(parto.atStartOfDay(ZoneId.of("America/La_Paz")).toInstant());
     }
 

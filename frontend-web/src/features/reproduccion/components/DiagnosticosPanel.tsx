@@ -14,6 +14,7 @@ import {
   type PageResponse,
   type ServicioResponse,
 } from '@/features/reproduccion/api'
+import { listRazas } from '@/features/animales/api'
 import type { ReproduccionCatalogs } from '@/features/reproduccion/catalogs'
 import { Alert } from '@/shared/components/Alert'
 import { Button } from '@/shared/components/Button'
@@ -79,6 +80,14 @@ export function DiagnosticosPanel({ diagnosticos, servicios, isLoading, error, c
     setLoteId(animal?.loteActualId ?? '')
   }
 
+  const { data: razas = [] } = useQuery({ queryKey: ['razas'], queryFn: listRazas })
+  const razasMap = new Map(razas.map((raza) => [raza.id, raza.nombre]))
+
+  const getAnimalRaza = (animalId: string) => {
+    const animal = catalogs?.animales?.find((item) => item.id === animalId) ?? catalogs?.hembras?.find((item) => item.id === animalId)
+    return animal?.razaPrincipalId ? razasMap.get(animal.razaPrincipalId) : undefined
+  }
+
   const errorVisible = error ?? crear.error
 
   return <div className="page-stack diagnosticos-panel">
@@ -90,16 +99,31 @@ export function DiagnosticosPanel({ diagnosticos, servicios, isLoading, error, c
       </div>
       {isLoading && <LoadingState message="Cargando diagnósticos…" />}
       {!isLoading && diagnosticos.content.length === 0 && <EmptyState title="No hay diagnósticos registrados" description="Registra el primer diagnóstico de gestación." />}
-      {diagnosticos.content.length > 0 && <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Diagnósticos de gestación</caption><thead><tr><th scope="col">Animal</th><th scope="col">Fecha</th><th scope="col">Resultado</th><th scope="col">Método</th><th scope="col">Parto probable</th></tr></thead><tbody>{diagnosticos.content.map((diagnostico) => <tr key={diagnostico.id}>
-        <td><strong className="diagnostico-animal">{diagnostico.nombreAnimal || diagnostico.codigoAnimal}</strong>{diagnostico.nombreAnimal && <span className="table-secondary">{diagnostico.codigoAnimal}</span>}</td>
-        <td><time dateTime={diagnostico.fechaDiagnostico}>{new Date(diagnostico.fechaDiagnostico).toLocaleDateString('es-BO', { timeZone: 'America/La_Paz' })}<span className="table-secondary">{new Date(diagnostico.fechaDiagnostico).toLocaleTimeString('es-BO', { timeZone: 'America/La_Paz', hour: '2-digit', minute: '2-digit' })}</span></time></td>
-        <td><span className={`status-badge status-badge-${diagnostico.resultado === 'POSITIVO' ? 'confirmed' : diagnostico.resultado === 'NEGATIVO' ? 'invalid' : diagnostico.resultado === 'PERDIDA_GESTACION' ? 'danger' : 'warning'}`}>{RESULTADO_GESTACION_LABELS[diagnostico.resultado]}</span></td>
-        <td>{diagnostico.metodo ? METODO_DIAGNOSTICO_LABELS[diagnostico.metodo] : 'No registrado'}</td>
-        <td>{diagnostico.fechaProbableParto ? formatDate(diagnostico.fechaProbableParto) : 'Sin fecha estimada'}</td>
-      </tr>)}</tbody></table></div>}
-      {diagnosticos.content.length > 0 && <div className="mobile-only">{diagnosticos.content.map((diagnostico) => <div key={diagnostico.id} className="mobile-entity-card">
-        <div><strong className="diagnostico-animal">{diagnostico.nombreAnimal || diagnostico.codigoAnimal}</strong>{diagnostico.nombreAnimal && <span className="table-secondary">{diagnostico.codigoAnimal}</span>}<p className="muted">{new Date(diagnostico.fechaDiagnostico).toLocaleString('es-BO', { timeZone: 'America/La_Paz' })} · {RESULTADO_GESTACION_LABELS[diagnostico.resultado]}</p><p>Método: {diagnostico.metodo ? METODO_DIAGNOSTICO_LABELS[diagnostico.metodo] : 'No registrado'}</p><p>Parto probable: {diagnostico.fechaProbableParto ? formatDate(diagnostico.fechaProbableParto) : 'Sin fecha estimada'}</p></div>
-      </div>)}</div>}
+      {diagnosticos.content.length > 0 && <div className="table-wrapper desktop-only"><table><caption className="visually-hidden">Diagnósticos de gestación</caption><thead><tr><th scope="col">Animal</th><th scope="col">Fecha</th><th scope="col">Resultado</th><th scope="col">Método</th><th scope="col">Parto probable</th></tr></thead><tbody>{diagnosticos.content.map((diagnostico) => {
+        const raza = getAnimalRaza(diagnostico.animalId)
+        return <tr key={diagnostico.id}>
+          <td>
+            <strong className="diagnostico-animal">{diagnostico.nombreAnimal || diagnostico.codigoAnimal}</strong>
+            {raza && <span className="table-secondary">{raza}</span>}
+          </td>
+          <td><time dateTime={diagnostico.fechaDiagnostico}>{new Date(diagnostico.fechaDiagnostico).toLocaleDateString('es-BO', { timeZone: 'America/La_Paz' })}<span className="table-secondary">{new Date(diagnostico.fechaDiagnostico).toLocaleTimeString('es-BO', { timeZone: 'America/La_Paz', hour: '2-digit', minute: '2-digit' })}</span></time></td>
+          <td><span className={`status-badge status-badge-${diagnostico.resultado === 'POSITIVO' ? 'confirmed' : diagnostico.resultado === 'NEGATIVO' ? 'invalid' : diagnostico.resultado === 'PERDIDA_GESTACION' ? 'danger' : 'warning'}`}>{RESULTADO_GESTACION_LABELS[diagnostico.resultado]}</span></td>
+          <td>{diagnostico.metodo ? METODO_DIAGNOSTICO_LABELS[diagnostico.metodo] : 'No registrado'}</td>
+          <td>{diagnostico.fechaProbableParto ? formatDate(diagnostico.fechaProbableParto) : 'Sin fecha estimada'}</td>
+        </tr>
+      })}</tbody></table></div>}
+      {diagnosticos.content.length > 0 && <div className="mobile-only">{diagnosticos.content.map((diagnostico) => {
+        const raza = getAnimalRaza(diagnostico.animalId)
+        return <div key={diagnostico.id} className="mobile-entity-card">
+          <div>
+            <strong className="diagnostico-animal">{diagnostico.nombreAnimal || diagnostico.codigoAnimal}</strong>
+            {raza && <span className="table-secondary">{raza}</span>}
+            <p className="muted">{new Date(diagnostico.fechaDiagnostico).toLocaleString('es-BO', { timeZone: 'America/La_Paz' })} · {RESULTADO_GESTACION_LABELS[diagnostico.resultado]}</p>
+            <p>Método: {diagnostico.metodo ? METODO_DIAGNOSTICO_LABELS[diagnostico.metodo] : 'No registrado'}</p>
+            <p>Parto probable: {diagnostico.fechaProbableParto ? formatDate(diagnostico.fechaProbableParto) : 'Sin fecha estimada'}</p>
+          </div>
+        </div>
+      })}</div>}
     </Card>
 
     <Modal open={showForm} title="Registrar diagnóstico" onClose={() => setShowForm(false)} description="Registra el resultado de un diagnóstico de gestación.">

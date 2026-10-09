@@ -119,13 +119,14 @@ public class AnimalService {
         CategoriaResuelta categoriaResuelta = categoriaSegunEdad(c.sexo(), c.fechaNacimiento(), c.categoriaActualId(), u);
         UUID categoria = categoriaResuelta.id();
         validateEntryWeight(c.pesoIngresoKg(), c.pesoIngresoEstimado());
-        validateReferences(c.razaPrincipalId(), categoria, c.sexo(), c.propiedadActualId(),
+        UUID breed = resolveBreed(c, null);
+        validateReferences(breed, categoria, c.sexo(), c.propiedadActualId(),
                 c.potreroActualId(), u);
         UUID id = c.id() != null ? c.id() : UUID.randomUUID();
         String codigo = codigos.paraCreacion(u, TipoCodigo.ANIMAL, null, null, c.codigo());
         boolean estimada = c.fechaNacimiento() != null && Boolean.TRUE.equals(c.fechaNacimientoEstimada());
         Animal a = new Animal(id, u.empresaId(), codigo, c.nombre(), c.sexo(), c.fechaNacimiento(),
-                estimada, c.razaPrincipalId(), categoria,
+                estimada, breed, categoria,
                 c.color(), c.proposito(), c.origen(), c.propiedadActualId(), c.potreroActualId(), null,
                 EstadoAnimal.ACTIVO, fechaIngreso,
                 c.precioAdquisicion(), c.pesoNacimientoKg(), c.condicionCorporalActual(), c.fotoPrincipalPath(),
@@ -309,13 +310,17 @@ public class AnimalService {
      * animal), la reutiliza si ya existe una con ese nombre o la crea. Si no, se comporta como
      * antes: usa razaPrincipalId si vino, o mantiene la raza actual del animal.
      */
-    private UUID resolveBreed(AnimalCommand c, UUID currentBreedId) {
-        if (c.razaNueva() != null && !c.razaNueva().isBlank()) {
-            String nombre = c.razaNueva().trim();
+    public UUID resolveBreed(String razaNueva, UUID fallbackId) {
+        if (razaNueva != null && !razaNueva.isBlank()) {
+            String nombre = razaNueva.trim();
             return breeds.findByNombre(nombre).map(Raza::id)
                     .orElseGet(() -> breeds.crear(new Raza(UUID.randomUUID(), null, generarCodigoRaza(nombre), nombre, "BOVINO", null, true)).id());
         }
-        return c.razaPrincipalId() == null ? currentBreedId : c.razaPrincipalId();
+        return fallbackId;
+    }
+
+    private UUID resolveBreed(AnimalCommand c, UUID currentBreedId) {
+        return resolveBreed(c.razaNueva(), c.razaPrincipalId() == null ? currentBreedId : c.razaPrincipalId());
     }
 
     private String generarCodigoRaza(String nombre) {

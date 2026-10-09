@@ -26,10 +26,10 @@ y [Ingreso por lote de compra](./03-animales.md#ingreso-por-lote-de-compra).
 Clasifican a los animales por sexo y edad, y se ajustan al cruzar los límites
 de edad; se pueden modificar desde **Mi finca**. Ver [Categorías por edad](./02-mi-finca.md#categorias-por-edad).
 
-## ¿Cómo muestro el código QR de un animal?
+## ¿Cómo consulto los identificadores de un animal?
 
-Desde la **ficha del animal**, en la sección de identificadores. Ver
-[Identificadores y código QR](./03-animales.md#identificadores-y-codigo-qr).
+Desde la **ficha del animal**, en la pestaña **Identificadores**. Ver
+[Identificadores](./03-animales.md#identificadores).
 
 ## ¿Se puede registrar una compra de varios animales a la vez?
 
@@ -107,6 +107,14 @@ Con el **diagnóstico de gestación** posterior al servicio; el sistema
 recomienda la fecha de diagnóstico según el servicio registrado. Ver
 [Diagnóstico de gestación](./08-reproduccion.md#diagnostico-de-gestacion).
 
+## ¿Cómo calcula el sistema la fecha probable de parto?
+
+Usa la duración estándar de gestación (285 días por defecto): si ingresas días
+estimados de preñez, calcula los días restantes desde el diagnóstico; si asocias un
+servicio, suma los 285 días a la fecha del servicio; y si no hay datos previos,
+cuenta 285 días desde el diagnóstico. Ver
+[Cómo calcula el sistema la fecha probable de parto](./08-reproduccion.md#como-calcula-el-sistema-la-fecha-probable-de-parto).
+
 ## ¿Cómo registro las crías nacidas?
 
 Con el **parto**: si marcas "Crear registro del animal en el inventario", la
@@ -141,6 +149,38 @@ notificación, cantidad de avisos e intervalo. Ver [Programar recordatorios](./1
 
 Crea respaldos desde **Mi finca → Respaldos**; los archivos quedan guardados
 en tu Drive. Ver [Respaldos](./02-mi-finca.md#respaldos).
+
+## ¿Cómo recibo las alertas en mi celular por Telegram?
+
+Vincula tu Bot de Telegram desde **Mi finca → Telegram** (o la pestaña
+**Notificaciones / Telegram**) indicando tu Bot Token y Chat ID. Ver
+[Notificaciones por Telegram](./02-mi-finca.md#notificaciones-por-telegram).
+
+## ¿A qué hora llegan las alertas a mi celular por Telegram?
+
+Llegan a la **Hora matutina de avisos** configurada en **Mi finca → Configuración general**
+(por defecto **07:00 a. m.**) para que recibas los recordatorios temprano en la casa
+con señal antes de salir al campo. Ver
+[A qué hora salen los avisos de una fecha](./10-alertas.md#a-que-hora-salen-los-avisos-de-una-fecha).
+
+## ¿Con cuántos días de anticipación avisa el sistema un parto o una vacuna?
+
+El sistema emite **tres avisos escalonados de parto** (15 días, 7 días y 1 día antes)
+y **un aviso previo de vacunación** (1 día antes para alistar biológicos y veterinario).
+Todos los días son editables desde **Mi finca → Configuración general**. Ver
+[Configuración general](./02-mi-finca.md#configuracion-general).
+
+## ¿Cómo registro una raza nueva que no está en el catálogo?
+
+Al registrar un animal o una compra por lote, selecciona la opción **Otro** en
+el selector de raza y escribe el nombre: el sistema creará la raza
+automáticamente al guardar. Ver [Registrar un animal](./03-animales.md#registrar-un-animal).
+
+## ¿Dónde veo los controles de garrapatas o baños de un lote?
+
+En la ficha del lote, en la sección **Controles ectoparasitarios del lote**,
+donde se detallan las fechas, niveles de infestación y productos aplicados. Ver
+[Registrar control ectoparasitario en el lote](./05-lotes.md#registrar-control-ectoparasitario-en-el-lote).
 
 ## ¿Puedo proteger la aplicación con un PIN?
 

@@ -408,8 +408,8 @@ button.text-link { background: none; border: 0; padding: 0; cursor: pointer; fon
 .agregar-filas-quick button { min-height: 34px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 999px; background: white; color: var(--green-700); font-size: .78rem; font-weight: 750; cursor: pointer; }
 .agregar-filas-quick button:hover { background: var(--green-50); border-color: var(--green-300); }
 .ingreso-lote-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 14px; border: 1px dashed #c9ddc9; border-radius: 12px; background: #fbfdfb; }
-.ingreso-lote-toolbar-label { color: var(--muted); font-size: .78rem; font-weight: 750; }
-.ingreso-lote-toolbar select, .ingreso-lote-toolbar input[type="number"] { min-height: 38px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 9px; background: white; color: var(--ink); font: inherit; font-size: .84rem; }
+.ingreso-lote-toolbar select, .ingreso-lote-toolbar input { min-height: 38px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 9px; background: white; color: var(--ink); font: inherit; font-size: .84rem; }
+.ingreso-lote-toolbar input[type="text"] { min-width: 175px; flex: 0 1 205px; }
 .ingreso-lote-toolbar input[type="number"] { width: 110px; }
 .count-badge { display: inline-grid; min-width: 26px; min-height: 26px; place-items: center; padding: 0 7px; border-radius: 999px; color: var(--green-800); background: var(--green-50); font-size: .78rem; font-variant-numeric: tabular-nums; }
 .ingreso-lote-tip { display: flex; align-items: baseline; gap: 10px; padding: 12px 14px; border: 1px solid #cfe3d6; border-radius: 10px; color: var(--muted); background: #f6faf7; font-size: .84rem; line-height: 1.45; }

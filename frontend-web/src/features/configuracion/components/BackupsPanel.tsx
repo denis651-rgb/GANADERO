@@ -13,7 +13,6 @@ import { formatDate } from '@/shared/utils/date'
 import { formatBytes } from '@/shared/utils/bytes'
 import { useToast } from '@/shared/toast/useToast'
 
-const FRECUENCIA_LABEL: Record<BackupSettings['frecuencia'], string> = { DIARIA: 'Diaria', SEMANAL: 'Semanal', MENSUAL: 'Mensual' }
 const ESTADO_LABEL: Record<BackupInfo['estado'], string> = {
   CREANDO: 'Creando…', CREADO_LOCALMENTE: 'Guardado localmente', COPIANDO_A_CARPETA_EXTERNA: 'Copiando a la carpeta externa…',
   COPIADO_A_CARPETA_EXTERNA: 'Copiado a la carpeta externa', ERROR_DE_COPIA: 'Error al copiar', INTEGRIDAD_INVALIDA: 'Integridad inválida',
@@ -116,7 +115,7 @@ export function BackupsPanel() {
     <div className="section-heading"><h4>Resumen</h4></div>
     <div className="metric-grid">
       <Card className="metric-card"><div><span>Último respaldo</span><strong>{ultimoRespaldo ? formatDate(ultimoRespaldo.fechaCreacion) : 'Ninguno'}</strong></div></Card>
-      <Card className="metric-card"><div><span>Próximo respaldo</span><strong>{form?.automatico ? `${FRECUENCIA_LABEL[form.frecuencia]} a las ${form.hora}` : 'Desactivado'}</strong></div></Card>
+      <Card className="metric-card"><div><span>Respaldo automático</span><strong>{form?.automatico ? 'Al iniciar la app' : 'Desactivado'}</strong></div></Card>
       <Card className="metric-card"><div><span>Copia externa</span><strong>{form?.destinoExterno ? 'Configurada' : 'Sin configurar'}</strong></div></Card>
       <Card className="metric-card"><div><span>Último error</span><strong>{ultimoErrorRespaldo ?? 'Ninguno'}</strong></div></Card>
     </div>
@@ -125,17 +124,9 @@ export function BackupsPanel() {
     <div className="section-heading"><h4>Configuración</h4></div>
     {settingsQuery.isPending && <LoadingState message="Cargando configuración…" />}
     {form && <form className="form-grid" onSubmit={(event) => { event.preventDefault(); guardarConfig.mutate(form) }}>
-      <Field label="Respaldo automático">
-        <label className="checkbox-line"><input type="checkbox" checked={form.automatico} onChange={(event) => setForm({ ...form, automatico: event.target.checked })} /> Activar</label>
+      <Field label="Respaldo automático" hint="Genera una copia de seguridad automáticamente al abrir la aplicación cada día.">
+        <label className="checkbox-line"><input type="checkbox" checked={form.automatico} onChange={(event) => setForm({ ...form, automatico: event.target.checked })} /> Activar respaldo automático al iniciar</label>
       </Field>
-      <Field label="Frecuencia">
-        <select value={form.frecuencia} disabled={!form.automatico} onChange={(event) => setForm({ ...form, frecuencia: event.target.value as BackupSettings['frecuencia'] })}>
-          <option value="DIARIA">Diaria</option>
-          <option value="SEMANAL">Semanal</option>
-          <option value="MENSUAL">Mensual</option>
-        </select>
-      </Field>
-      <Field label="Hora"><input type="time" value={form.hora} disabled={!form.automatico} onChange={(event) => setForm({ ...form, hora: event.target.value })} /></Field>
       <Field label="Carpeta local" hint="Se guarda siempre dentro de la carpeta de datos de Ganadero."><input value={form.destinoLocal} readOnly /></Field>
       <Field label="Carpeta sincronizada (Google Drive)" hint="Ej. G:\Mi unidad\Ganadero\Respaldos">
         <div className="picker-selected">

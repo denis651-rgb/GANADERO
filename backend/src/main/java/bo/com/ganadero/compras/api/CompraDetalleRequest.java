@@ -23,12 +23,13 @@ public record CompraDetalleRequest(@Size(max = 60) String codigoSolicitado, @Siz
                                    String categoriaManualMotivo, @PositiveOrZero BigDecimal precioOverride,
                                    BigDecimal pesoIngresoKg, TipoPeso tipoPeso, @Size(max = 60) String metodoPeso,
                                    UUID propiedadId, UUID potreroId, UUID loteGanaderoId,
-                                   @Size(max = 500) String observaciones) {
+                                   @Size(max = 500) String observaciones,
+                                   @Size(max = 160) String razaNueva) {
     public CompraDetalleCommand command() {
         return new CompraDetalleCommand(codigoSolicitado, nombre, sexo, razaId, proposito, fechaNacimiento,
                 fechaNacimientoEstimada, edadDeclaradaValor, edadDeclaradaUnidad, fechaReferenciaEdad,
                 fuenteEdadDeclarada, observacionEstimacion, categoriaActualId, categoriaManualMotivo,
                 precioOverride, pesoIngresoKg, tipoPeso, metodoPeso, propiedadId, potreroId, loteGanaderoId,
-                observaciones);
+                observaciones, razaNueva);
     }
 }

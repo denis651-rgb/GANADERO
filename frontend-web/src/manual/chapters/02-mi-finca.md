@@ -80,36 +80,20 @@ el servicio) conviene recibir el aviso.
 ### Procedimiento
 
 1. Abre **Mi finca** → **Configuración general**.
-2. Ajusta la **Unidad de superficie** y los campos de días de alerta según
-   necesites:
-   - **Días de alerta antes del parto**: con cuánta anticipación aparece el
-     aviso de **Parto próximo**, contando desde la fecha probable de parto
-     calculada tras un diagnóstico de gestación positivo.
-   - **Días sin pesaje para alertar**: cuántos días pueden pasar sin
-     registrar un pesaje a un animal antes de que aparezca el aviso
-     **Pesaje atrasado**.
-   - **Días de alerta de destete**: con cuánta anticipación aparece el aviso
-     **Destete próximo**, contando desde la fecha estimada de destete de
-     cada cría.
-   - **Días para diagnóstico post-servicio**: cuántos días después de
-     registrar un servicio (monta o inseminación) el sistema recomienda
-     hacer el diagnóstico de gestación y muestra el aviso correspondiente.
-   - **Días de gestación estimada**: cuánto dura una gestación en tu
-     operación. Se usa para calcular la fecha probable de parto cuando
-     registras un diagnóstico positivo.
-   - **Hora de los avisos**: a qué hora del día salen los avisos que nacen
-     de una fecha sin hora (parto probable, destete, fin de un retiro y
-     próxima vacunación declarada). Por defecto es **08:00**; los días de
-     anticipación de arriba se cuentan desde esa fecha. Ver
-     [A qué hora salen los avisos de una fecha](./10-alertas.md#a-que-hora-salen-los-avisos-de-una-fecha).
-3. Ajusta cómo se guardan las fotografías:
-   - **Calidad de imagen (1-100)**: qué tan comprimida queda cada foto
-     nueva al subirla. Un número más bajo ocupa menos espacio pero se ve
-     con menos nitidez; un número más alto conserva más detalle y pesa más.
-   - **Comprimir fotos al subirlas**: si está marcada, cada foto que subas
-     (por ejemplo en la ficha de un animal) se reduce de tamaño según la
-     **Calidad de imagen**. Si la desmarcas, las fotos se guardan tal como
-     las tomó la cámara, sin reducir su peso.
+2. Ajusta la **Hora matutina de los avisos**, los días de alertas de reproducción y sanidad según necesites:
+   - **Hora matutina de los avisos**: a qué hora del día salen las alertas proyectadas y se envían a Telegram (por defecto **07:00 a. m.**). Te permite recibir los avisos temprano en la casa con señal antes de salir al campo.
+   - **1er aviso preparto (días antes)**: primer aviso para trasladar a la vaca con tiempo al potrero o lote de maternidad (por defecto **15 días** antes).
+   - **2do aviso preparto (días antes)**: aviso intermedio para verificar ubre y condición corporal en maternidad (por defecto **7 días** antes).
+   - **3er aviso preparto (días antes)**: aviso de parición inminente para alistar kit neonatal y vigilar el corral (por defecto **1 día** antes).
+   - **Anticipación de avisos de vacunas (días antes)**: días previos para recibir el recordatorio de vacunas y preparar biológicos, termos con frío y llamar al veterinario o peones (por defecto **1 día** antes).
+   - **Días post-servicio para diagnóstico**: cuántos días después de registrar un servicio (monta o inseminación) el sistema recomienda hacer el diagnóstico de gestación (por defecto **30 días**).
+   - **Días de gestación estimada**: cuánto dura una gestación promedio en tu operación (por defecto **285 días**). Se usa para calcular la fecha probable de parto tras un diagnóstico positivo.
+   - **Días de alerta de destete**: con cuánta anticipación aparece el aviso de separación de la cría (por defecto **7 días** antes).
+   - **Días sin pesaje para alertar**: cuántos días pueden pasar sin registrar pesaje antes del aviso de pesaje atrasado (por defecto **60 días**).
+3. Ajusta cómo se guardan las fotografías y preferencias:
+   - **Calidad de imagen (1-100)**: qué tan comprimida queda cada foto nueva al subirla (por defecto **80**).
+   - **Comprimir fotos al subirlas**: reduce el peso de las imágenes al guardarlas.
+   - **Unidad de superficie**: **Hectáreas (HA)**, **Metros cuadrados (M2)** o **Acres**.
 4. Escribe el **Nombre de usuario** que quieres ver en la aplicación.
 5. Presiona **Guardar configuración**.
 
@@ -301,6 +285,50 @@ fallan pueden reenviarse con **Reintentar errores**.
 > Las actividades con modalidad **Manual** no generan eventos. Para que una
 > actividad llegue al calendario debe ser **Por edad**, **Periódica** o de
 > **Fecha programada**.
+
+## Notificaciones por Telegram
+
+### Para qué sirve
+
+Recibir alertas sanitarias, reproductivas y recordatorios de la finca
+directamente en tu teléfono celular a través de Telegram, manteniéndote
+informado al instante sobre partos próximos, tratamientos, vacunaciones y
+revisiones del hato sin depender de tener la aplicación abierta en la
+computadora.
+
+### Antes de comenzar
+
+- Tener instalada la aplicación Telegram en tu teléfono o computadora.
+- Crear tu bot personal en Telegram a través de `@BotFather` para obtener el **Bot
+  Token**.
+- Conocer tu **Chat ID** de Telegram (obteniéndolo desde `@userinfobot` o
+  creando un grupo con tu equipo de campo).
+
+### Procedimiento
+
+1. Abre **Mi finca** → **Telegram** (o la pestaña **Notificaciones / Telegram**).
+2. Marca la casilla **Habilitar notificaciones por Telegram**.
+3. En **Bot Token**, escribe o pega el token provisto por BotFather.
+4. En **Chat ID**, escribe el identificador de tu chat personal o del grupo de
+   la estancia.
+5. Selecciona los tipos de eventos a notificar: **Alertas sanitarias**,
+   **Alertas reproductivas** y **Recordatorios programados**.
+6. Presiona **Guardar configuración**.
+7. Presiona **Probar conexión** para enviar un mensaje de prueba y verificar que
+   el bot responde correctamente.
+
+### Ejemplo
+
+La estancia "El Roble" crea el bot de Telegram y vincula el chat del grupo de
+trabajadores de campo. Al activarlo, cada alerta de parto próximo, pesaje
+atrasado o vacunación de aftosa pendiente se envía automáticamente al grupo de
+Telegram a las 08:00 o en cuanto se genera la alerta.
+
+### Resultado esperado
+
+El panel muestra el estado de conexión activo y las alertas configuradas. Las
+notificaciones se despachan a Telegram en los horarios programados con formato
+claro y organizado.
 
 ## Problemas frecuentes
 

@@ -1,4 +1,4 @@
-﻿import { useDeferredValue, useMemo, useState } from 'react'
+import { useDeferredValue, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRightLeft, Bug, Plus, Search, Trash2 } from 'lucide-react'
@@ -7,6 +7,11 @@ import type { ModoIngreso } from '@/features/lotes/api'
 import { listAnimals, listRazas } from '@/features/animales/api'
 import { listPropiedades } from '@/features/propiedades/api'
 import { listAllPotreros } from '@/features/potreros/api'
+import {
+  listControlesEctoparasitarios,
+  NIVEL_CARGA_PARASITARIA_LABELS,
+  TIPO_ECTOPARASITO_LABELS,
+} from '@/features/sanidad/api'
 import { ControlEctoparasitarioModal } from '@/features/sanidad/components/ControlEctoparasitarioModal'
 import { MoverLoteWizard } from '@/features/lotes/components/MoverLoteWizard'
 import { LoteMovimientosPanel } from '@/features/lotes/components/LoteMovimientosPanel'
@@ -52,6 +57,11 @@ export function LoteDetailPage() {
   const lote = useQuery({ queryKey: ['lote', id], queryFn: () => getLote(id), enabled: Boolean(id) })
   const miembros = useQuery({ queryKey: ['lote-miembros', id, true], queryFn: () => listMembresias(id, true), enabled: Boolean(id) })
   const historicos = useQuery({ queryKey: ['lote-miembros', id, false], queryFn: () => listMembresias(id, false), enabled: Boolean(id) })
+  const ectoparasitarios = useQuery({
+    queryKey: ['sanidad-control-ecto', undefined, id],
+    queryFn: () => listControlesEctoparasitarios({ loteGanaderoId: id }),
+    enabled: Boolean(id),
+  })
   const catalogs = useQuery({ queryKey: ['lote-catalogs'], queryFn: async () => {
     const [propiedades, potreros, razas] = await Promise.all([listPropiedades(), listAllPotreros(), listRazas()])
     return { propiedades, potreros, razas }
@@ -184,6 +194,59 @@ export function LoteDetailPage() {
       })}</tbody></table></div>}
     </Card>
     {historicos.data && historicos.data.some((item) => item.fechaSalida) && <Card><h3>Historial de entradas y salidas</h3><div className="table-wrapper"><table><caption className="visually-hidden">Historial de animales del lote</caption><thead><tr><th scope="col">Animal</th><th scope="col">Ingreso</th><th scope="col">Salida</th><th scope="col">Motivo de ingreso</th><th scope="col">Motivo de salida</th></tr></thead><tbody>{historicos.data.filter((item) => item.fechaSalida).map((item) => { const animal = { codigo: item.animalCodigo, nombre: item.animalNombre }; return <tr key={item.id}><td><strong>{animal.nombre?.trim() || animal.codigo || 'Animal sin nombre'}</strong></td><td>{new Date(item.fechaIngreso).toLocaleString('es-BO')}</td><td>{item.fechaSalida ? new Date(item.fechaSalida).toLocaleString('es-BO') : '—'}</td><td>{item.motivoIngreso ?? '—'}</td><td>{item.motivoSalida ?? '—'}</td></tr> })}</tbody></table></div></Card>}
+    <Card>
+      <div className="filter-heading">
+        <span><Bug size={18} aria-hidden="true" />Controles ectoparasitarios del lote</span>
+        {value.estado === 'ACTIVO' && (
+          <Button variant="secondary" onClick={() => setShowControlEcto(true)}>
+            <Bug size={16} aria-hidden="true" />
+            Registrar control
+          </Button>
+        )}
+      </div>
+      {ectoparasitarios.isPending && <LoadingState message="Cargando controles ectoparasitarios…" />}
+      {ectoparasitarios.data?.length === 0 && (
+        <EmptyState
+          title="Sin controles ectoparasitarios"
+          description="No se han registrado controles ni tratamientos contra ectoparásitos para este lote."
+        />
+      )}
+      {ectoparasitarios.data && ectoparasitarios.data.length > 0 && (
+        <div className="table-wrapper">
+          <table>
+            <caption className="visually-hidden">Controles ectoparasitarios del lote</caption>
+            <thead>
+              <tr>
+                <th scope="col">Fecha</th>
+                <th scope="col">Tipo de parásito</th>
+                <th scope="col">Nivel de infestación</th>
+                <th scope="col">Tratamiento</th>
+                <th scope="col">Producto / Principio activo</th>
+                <th scope="col">Observaciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ectoparasitarios.data.map((control) => (
+                <tr key={control.id}>
+                  <td>{formatDate(control.fecha)}</td>
+                  <td><strong>{TIPO_ECTOPARASITO_LABELS[control.tipo] ?? control.tipo}</strong></td>
+                  <td>{NIVEL_CARGA_PARASITARIA_LABELS[control.nivelCarga] ?? control.nivelCarga}</td>
+                  <td>
+                    <span className={`badge ${control.tratado ? 'badge-success' : 'badge-neutral'}`}>
+                      {control.tratado ? 'Tratado' : 'Sin tratamiento'}
+                    </span>
+                  </td>
+                  <td>
+                    {[control.producto, control.principioActivo].filter(Boolean).join(' · ') || '—'}
+                  </td>
+                  <td>{control.observaciones || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
     <LoteMovimientosPanel key={id} loteId={id} />
     {value.estado === 'CERRADO' && <Alert tone="info">Este lote está cerrado y no admite más animales.</Alert>}
 

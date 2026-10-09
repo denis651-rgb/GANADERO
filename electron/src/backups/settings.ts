@@ -12,8 +12,8 @@ export interface UltimoRespaldoInfo {
 export interface BackupSettings {
   version: 1
   automatico: boolean
-  frecuencia: Frecuencia
-  hora: string
+  frecuencia?: Frecuencia
+  hora?: string
   destinoLocal: string
   destinoExterno: string | null
   retencionDiarios: number
@@ -63,7 +63,7 @@ export function esRaizDeUnidad(rutaAbsoluta: string): boolean {
 }
 
 export function validarSettings(input: BackupSettings): string | null {
-  if (!HORA_VALIDA.test(input.hora)) return 'La hora debe tener el formato HH:mm (24 horas).'
+  if (input.hora && !HORA_VALIDA.test(input.hora)) return 'La hora debe tener el formato HH:mm (24 horas).'
   if (input.retencionDiarios < 0 || input.retencionSemanales < 0 || input.retencionMensuales < 0) {
     return 'Los valores de retención no pueden ser negativos.'
   }

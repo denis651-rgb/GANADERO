@@ -84,8 +84,8 @@ export interface BackupInfo {
 export interface BackupSettings {
   version: 1
   automatico: boolean
-  frecuencia: BackupFrecuencia
-  hora: string
+  frecuencia?: BackupFrecuencia
+  hora?: string
   destinoLocal: string
   destinoExterno: string | null
   retencionDiarios: number

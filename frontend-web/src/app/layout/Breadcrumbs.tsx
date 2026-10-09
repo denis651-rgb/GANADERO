@@ -7,8 +7,6 @@ import { getLote } from '@/features/lotes/api'
 const EXTRA_LABELS: Record<string, string> = {
   '/animales/nuevo': 'Nuevo animal',
   '/animales/ingreso-lote': 'Ingreso de lote',
-  '/animales/qr/imprimir': 'Imprimir QR',
-  '/qr/escanear': 'Escanear QR',
 }
 
 const STATIC_LABELS: Record<string, string> = { ...EXTRA_LABELS }

@@ -1,10 +1,10 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Beef, CircleCheck, ChevronLeft, ChevronRight, Eye, Layers, Mars, Plus, Printer, Search, SlidersHorizontal, Venus } from 'lucide-react'
-import { getAnimalesResumen, listAnimals, listCategorias, listIdentificadores, listRazas } from '@/features/animales/api'
+import { Beef, CircleCheck, ChevronLeft, ChevronRight, Eye, Layers, Mars, Plus, Search, SlidersHorizontal, Venus } from 'lucide-react'
+import { getAnimalesResumen, listAnimals, listCategorias, listRazas } from '@/features/animales/api'
 import type { AnimalSummary, AnimalState } from '@/features/animales/types'
-import { calcularEdadMeses, formatearEdadMeses } from '@/features/animales/edad'
+import { calcularEdadMeses, formatearEdadDetallada, formatearEdadMeses } from '@/features/animales/edad'
 import { reclasificarCategoriasEdad } from '@/features/configuracion/categoriasEdadApi'
 import { listPropiedades } from '@/features/propiedades/api'
 import { listAllPotreros } from '@/features/potreros/api'
@@ -17,7 +17,6 @@ import { PageHeader } from '@/shared/components/PageHeader'
 import { MobileEntityCard } from '@/shared/components/MobileEntityCard'
 import { Alert } from '@/shared/components/Alert'
 import { normalizeApiError } from '@/shared/api/errors'
-import { printRoute } from '@/features/animales/qr/print-utils'
 
 const UNIDAD_EDAD_LABELS: Record<string, string> = { DIAS: 'días', MESES: 'meses', ANIOS: 'años' }
 const states: AnimalState[] = ['ACTIVO', 'VENDIDO', 'MUERTO', 'PERDIDO', 'TRANSFERIDO', 'DESCARTADO']
@@ -33,9 +32,6 @@ export function AnimalesPage() {
   const [propertyId, setPropertyId] = useState('')
   const [paddockId, setPaddockId] = useState('')
   const [category, setCategory] = useState('')
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [printing, setPrinting] = useState(false)
-  const [printError, setPrintError] = useState('')
   const size = 10
   const todayStr = new Date().toISOString().slice(0, 10)
   const filters = { search: deferredSearch, estado, sexo, propiedadId: propertyId, potreroId: paddockId, categoria: category, page, size }
@@ -85,48 +81,15 @@ export function AnimalesPage() {
 
   const edadLabel = (a: AnimalSummary) => {
     if (a.fechaNacimiento) {
-      const meses = calcularEdadMeses(a.fechaNacimiento, todayStr)
-      if (meses != null) return formatearEdadMeses(meses)
+      const edadDetallada = formatearEdadDetallada(a.fechaNacimiento, todayStr)
+      if (edadDetallada) return edadDetallada
     }
     if (a.edadDeclaradaValor != null) return `${a.edadDeclaradaValor} ${UNIDAD_EDAD_LABELS[a.edadDeclaradaUnidad ?? 'MESES']}`
     return '—'
   }
 
-  const toggleSelected = (id: string) => {
-    setSelected((current) => {
-      const next = new Set(current)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  const printSelected = async () => {
-    setPrinting(true)
-    setPrintError('')
-    try {
-      const items = (
-        await Promise.all([...selected].map(async (animalId) => {
-          const identifiers = await listIdentificadores(animalId)
-          const qr = identifiers.find((item) => item.tipo === 'QR' && item.estado === 'ACTIVO')
-          if (!qr) return null
-          const animal = query.data?.content.find((item) => item.id === animalId)
-          return { animalId, identifierId: qr.id, codigo: animal?.codigo ?? qr.valor }
-        }))
-      ).filter((item): item is { animalId: string; identifierId: string; codigo: string } => item !== null)
-      if (items.length === 0) {
-        setPrintError('Ninguno de los animales seleccionados tiene un QR activo. Genera los QRs desde la ficha del animal.')
-        return
-      }
-      navigate(printRoute(items))
-    } finally {
-      setPrinting(false)
-    }
-  }
-
   return <div className="page-stack">
     <PageHeader eyebrow="Ganado" title="Animales" description="Consulta, filtra y administra el historial del hato." actions={<>
-      <Button variant="secondary" loading={printing} disabled={selected.size === 0} onClick={() => void printSelected()}><Printer size={18} />Imprimir QR ({selected.size})</Button>
       <Link className="button button-secondary" to="/animales/ingreso-lote"><Layers size={18} aria-hidden="true" />Ingreso por lote de compra</Link>
       <Link className="button button-primary" to="/animales/nuevo"><Plus size={18} aria-hidden="true" />Nuevo animal</Link>
     </>} />
@@ -158,7 +121,6 @@ export function AnimalesPage() {
     </div>
     <Card>
       <div className="filter-heading"><span><SlidersHorizontal size={18} />Filtros</span>{displayData && <strong>{displayData.totalElements} animales</strong>}</div>
-      {printError && <Alert tone="danger">{printError}</Alert>}
       <div className="animal-filters">
         <label className="search-box"><Search size={18} aria-hidden="true" /><input type="search" aria-label="Buscar animales" value={search} onChange={(event) => { setSearch(event.target.value); resetPage() }} placeholder="Código o nombre…" /></label>
         <select aria-label="Filtrar por estado" value={estado} onChange={(event) => { setEstado(event.target.value as AnimalState | ''); resetPage() }}><option value="">Todos los estados</option>{states.map((value) => <option key={value}>{value}</option>)}</select>
@@ -176,7 +138,6 @@ export function AnimalesPage() {
             <caption className="visually-hidden">Animales que coinciden con los filtros</caption>
             <thead>
               <tr>
-                <th scope="col" className="table-select-col"><input type="checkbox" aria-label="Seleccionar todos de la página" checked={displayData.content.every((animal) => selected.has(animal.id))} onChange={(event) => setSelected(event.target.checked ? new Set(displayData.content.map((animal) => animal.id)) : new Set())} /></th>
                 <th scope="col">Nombre</th>
                 <th scope="col">Sexo</th>
                 <th scope="col">Edad</th>
@@ -190,7 +151,6 @@ export function AnimalesPage() {
               {displayData.content.map((animal) => {
                 const breed = breedNames.get(animal.razaPrincipalId)
                 return <tr key={animal.id}>
-                  <td><input type="checkbox" aria-label={`Seleccionar ${animal.codigo}`} checked={selected.has(animal.id)} onChange={() => toggleSelected(animal.id)} /></td>
                   <td>
                     <span className="animal-name">{animal.nombre || animal.codigo}</span>
                     {breed && <span className="table-secondary">{breed}</span>}
@@ -217,7 +177,6 @@ export function AnimalesPage() {
                 subtitle={<>{breed ?? 'Sin raza'} · {animal.sexo}</>}
                 status={<span className={`status-badge status-${animal.estado.toLowerCase()}`}>{animal.estado}</span>}
                 metadata={<>{category && <span>{category}</span>}<span>{locationLabel(animal)}</span><span>{edadLabel(animal)}</span></>}
-                selection={<input type="checkbox" aria-label={`Seleccionar ${animal.codigo}`} checked={selected.has(animal.id)} onChange={() => toggleSelected(animal.id)} />}
                 action={<Link className="button button-ghost" to={`/animales/${animal.id}`}>Ver animal →</Link>}
               />
             })}

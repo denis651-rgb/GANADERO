@@ -31,7 +31,7 @@ public class FirebaseConfig {
         try {
             File credentialsFile = resolveCredentialsFile();
             if (credentialsFile == null || !credentialsFile.exists() || !credentialsFile.canRead()) {
-                log.info("Firebase: No se encontró archivo de credenciales. El Relay Cloud funcionará en modo local/desconectado hasta que se configure.");
+                log.info("⚠️ Firebase: No se encontró archivo de credenciales. El Relay Cloud funcionará en modo local/desconectado hasta que se configure.");
                 return Optional.empty();
             }
 
@@ -48,11 +48,11 @@ public class FirebaseConfig {
                 }
 
                 Firestore firestore = FirestoreClient.getFirestore(app);
-                log.info("Firebase: Conexión establecida con éxito con Firestore Relay desde {}", credentialsFile.getAbsolutePath());
+                log.info("✅ Firebase: Conexión establecida con éxito con Firestore Relay desde {}", credentialsFile.getAbsolutePath());
                 return Optional.of(firestore);
             }
         } catch (Exception e) {
-            log.warn("Firebase: Error al inicializar Firebase Admin SDK ({}). La sincronización Cloud queda pausada.", e.getMessage());
+            log.error("❌ Firebase: Error al inicializar Firebase Admin SDK ({}). La sincronización Cloud queda pausada.", e.getMessage());
             return Optional.empty();
         }
     }
@@ -71,21 +71,35 @@ public class FirebaseConfig {
 
         String appData = System.getenv("APPDATA");
         if (appData != null && !appData.isBlank()) {
-            Path p = Paths.get(appData, "Ganadero", "credentials", "firebase-service-account.json");
-            if (p.toFile().exists()) return p.toFile();
+            File found = buscarEnCarpeta(Paths.get(appData, "Ganadero", "credentials").toFile());
+            if (found != null) return found;
         }
 
         String userHome = System.getProperty("user.home");
         if (userHome != null && !userHome.isBlank()) {
-            Path p = Paths.get(userHome, ".ganadero", "credentials", "firebase-service-account.json");
-            if (p.toFile().exists()) return p.toFile();
+            File found = buscarEnCarpeta(Paths.get(userHome, ".ganadero", "credentials").toFile());
+            if (found != null) return found;
         }
 
-        File localRel = new File("credentials/firebase-service-account.json");
-        if (localRel.exists()) return localRel;
+        File foundLocal = buscarEnCarpeta(new File("credentials"));
+        if (foundLocal != null) return foundLocal;
 
         File localRoot = new File("firebase-service-account.json");
         if (localRoot.exists()) return localRoot;
+
+        return null;
+    }
+
+    private File buscarEnCarpeta(File folder) {
+        if (folder == null || !folder.exists() || !folder.isDirectory()) return null;
+        File exact = new File(folder, "firebase-service-account.json");
+        if (exact.exists()) return exact;
+
+        File[] jsonFiles = folder.listFiles((dir, name) -> name.toLowerCase().endsWith(".json") && name.toLowerCase().contains("firebase"));
+        if (jsonFiles != null && jsonFiles.length > 0) return jsonFiles[0];
+
+        File[] anyJson = folder.listFiles((dir, name) -> name.toLowerCase().endsWith(".json"));
+        if (anyJson != null && anyJson.length > 0) return anyJson[0];
 
         return null;
     }

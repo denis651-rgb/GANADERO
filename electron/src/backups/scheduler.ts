@@ -96,9 +96,8 @@ export function startBackupScheduler(manager: BackupManager): BackupSchedulerHan
     const settings = await loadSettings()
     await limpiarPartsHuerfanos(settings.destinoLocal)
     if (!settings.automatico) return
-    const claveActual = periodoKeyActual(settings.frecuencia)
+    const claveActual = periodoKeyActual(settings.frecuencia || 'DIARIA')
     if (settings.ultimoRespaldo?.periodoKey === claveActual) return
-    if (horaBoliviaHHmm(new Date()) < settings.hora) return
 
     try {
       await manager.createNow()

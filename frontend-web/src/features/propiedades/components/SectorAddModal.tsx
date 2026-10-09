@@ -26,7 +26,6 @@ export function SectorAddModal({ open, loading, error, onClose, onSubmit }: Sect
   return <Modal open={open} title="Añadir sector" description="Registra un nuevo sector dentro de la propiedad seleccionada." onClose={onClose}>
     <form className="page-stack" onSubmit={submit}>
       {normalized && <Alert tone="danger">{normalized.message}</Alert>}
-      <Field label="Código" hint="Se asigna al guardar"><input value="Automático · PRP-###-SEC-###" readOnly aria-label="Código automático de sector" /></Field>
       <Field label="Nombre" required><input name="nombre" required maxLength={160} /></Field>
       <Field label="Descripción"><input name="descripcion" /></Field>
       <div className="form-actions">

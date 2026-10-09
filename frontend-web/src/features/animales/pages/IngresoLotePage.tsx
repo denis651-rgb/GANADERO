@@ -51,12 +51,33 @@ function categoriaDeFila(fila: AnimalRow, categorias: CategoriaAnimal[] | undefi
   return categoriaSugerida(categorias, fila.sexo, nacimiento, fechaIngreso)
 }
 
+export function generarNombreCorrelativo(patron: string, index: number): string {
+  const trimmed = patron.trim()
+  if (!trimmed) return ''
+  const match = trimmed.match(/^(.*?)(\d+)$/)
+  if (match) {
+    const prefix = match[1]
+    const numStr = match[2]
+    const startNum = Number.parseInt(numStr, 10)
+    const digitsLength = numStr.length
+    const currentNum = startNum + index
+    const padded = String(currentNum).padStart(digitsLength, '0')
+    return `${prefix}${padded}`
+  }
+  const separator = /[ \-_/]$/.test(trimmed) ? '' : ' '
+  return `${trimmed}${separator}${index + 1}`
+}
+
+const RAZA_OTRA = '__OTRA__'
+
 export function IngresoLotePage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const hoy = todayInBolivia()
 
   const [razaPrincipalId, setRazaPrincipalId] = useState('')
+  const [razaEsNueva, setRazaEsNueva] = useState(false)
+  const [razaNueva, setRazaNueva] = useState('')
   const [proposito, setProposito] = useState<'CARNE' | 'LECHE' | 'REPRODUCCION' | 'DOBLE_PROPOSITO'>('CARNE')
   const [propiedadActualId, setPropiedadActualId] = useState('')
   const [potreroActualId, setPotreroActualId] = useState('')
@@ -70,6 +91,7 @@ export function IngresoLotePage() {
   const [cuarentenaPotreroId, setCuarentenaPotreroId] = useState('')
   const [filas, setFilas] = useState<AnimalRow[]>(() => [filaVacia()])
   const [cantidadAgregar, setCantidadAgregar] = useState('1')
+  const [bulkNombre, setBulkNombre] = useState('')
   const [bulkSexo, setBulkSexo] = useState<'' | 'MACHO' | 'HEMBRA'>('')
   const [bulkPeso, setBulkPeso] = useState('')
   const [bulkTipoPeso, setBulkTipoPeso] = useState('ESTIMADO')
@@ -94,7 +116,7 @@ export function IngresoLotePage() {
     setFilas((prev) => prev.map((fila) => (fila.key === key ? { ...fila, [campo]: valor } : fila)))
   }
 
-  const hayBulk = Boolean(bulkSexo || bulkPeso || bulkEdadValor)
+  const hayBulk = Boolean(bulkNombre.trim() || bulkSexo || bulkPeso || bulkEdadValor)
 
   function agregarFilas(n: number) {
     const inicio = filas.length + 1
@@ -116,18 +138,25 @@ export function IngresoLotePage() {
 
   function aplicarLote() {
     if (!hayBulk) return
-    const cambios: Partial<AnimalRow> = {}
-    if (bulkSexo) cambios.sexo = bulkSexo
-    if (bulkPeso) {
-      cambios.pesoIngresoKg = bulkPeso
-      cambios.tipoPeso = bulkTipoPeso
-    }
-    if (bulkEdadValor) {
-      cambios.tipoNacimiento = 'EDAD_APROXIMADA'
-      cambios.edadDeclaradaValor = bulkEdadValor
-      cambios.edadDeclaradaUnidad = bulkEdadUnidad
-    }
-    setFilas((prev) => prev.map((fila) => ({ ...fila, ...cambios })))
+    setFilas((prev) =>
+      prev.map((fila, index) => {
+        const cambios: Partial<AnimalRow> = {}
+        if (bulkNombre.trim()) {
+          cambios.nombre = generarNombreCorrelativo(bulkNombre, index)
+        }
+        if (bulkSexo) cambios.sexo = bulkSexo
+        if (bulkPeso) {
+          cambios.pesoIngresoKg = bulkPeso
+          cambios.tipoPeso = bulkTipoPeso
+        }
+        if (bulkEdadValor) {
+          cambios.tipoNacimiento = 'EDAD_APROXIMADA'
+          cambios.edadDeclaradaValor = bulkEdadValor
+          cambios.edadDeclaradaUnidad = bulkEdadUnidad
+        }
+        return { ...fila, ...cambios }
+      })
+    )
   }
 
   useEffect(() => {
@@ -164,7 +193,8 @@ export function IngresoLotePage() {
         detalles: filas.map((fila) => ({
           nombre: fila.nombre || undefined,
           sexo: fila.sexo,
-          razaId: razaPrincipalId,
+          razaId: razaEsNueva ? undefined : (razaPrincipalId || undefined),
+          razaNueva: razaEsNueva ? (razaNueva.trim() || undefined) : undefined,
           proposito,
           categoriaActualId: categoriaDeFila(fila, catalogs.data?.categories, fechaIngreso)?.id ?? fila.categoriaActualId,
           categoriaManualMotivo: categoriaDeFila(fila, catalogs.data?.categories, fechaIngreso) ? undefined : (fila.categoriaManualMotivo || undefined),
@@ -200,11 +230,16 @@ export function IngresoLotePage() {
       setCreados(nuevos)
       void queryClient.invalidateQueries({ queryKey: ['animals'] })
       void queryClient.invalidateQueries({ queryKey: ['compras'] })
+      void queryClient.invalidateQueries({ queryKey: ['animal-form-catalogs'] })
     },
   })
 
   function submit() {
     setFormError(null)
+    if (razaEsNueva ? !razaNueva.trim() : !razaPrincipalId) {
+      setFormError('Indica la raza común del lote.')
+      return
+    }
     if (modalidad === 'POR_TROPA' && algunOverride && !todosConOverride) {
       setFormError('En una compra por tropa con ajustes manuales, todos los animales deben tener un precio asignado.')
       return
@@ -222,7 +257,65 @@ export function IngresoLotePage() {
       <Card>
         <div className="form-section-title"><h2>Datos comunes del lote</h2></div>
         <form className="form-grid" onSubmit={(event) => { event.preventDefault(); submit() }}>
-          <Field label="Raza" required><select required value={razaPrincipalId} onChange={(event) => setRazaPrincipalId(event.target.value)}><option value="">Selecciona…</option>{catalogs.data?.breeds.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
+          <Field label="Raza" required>
+            {razaEsNueva ? (
+              <input
+                required
+                placeholder="Escribe la nueva raza…"
+                value={razaNueva}
+                autoFocus
+                onChange={(event) => {
+                  setRazaNueva(event.target.value)
+                  if (event.target.value === '') {
+                    setRazaEsNueva(false)
+                    setRazaPrincipalId('')
+                  }
+                }}
+                onBlur={(event) => {
+                  if (!event.target.value.trim()) {
+                    setRazaEsNueva(false)
+                    setRazaNueva('')
+                    setRazaPrincipalId('')
+                  }
+                }}
+              />
+            ) : (
+              <select
+                required
+                value={razaPrincipalId}
+                onChange={(event) => {
+                  if (event.target.value === RAZA_OTRA) {
+                    setRazaEsNueva(true)
+                    setRazaPrincipalId('')
+                    setRazaNueva('')
+                  } else {
+                    setRazaPrincipalId(event.target.value)
+                  }
+                }}
+              >
+                <option value="">Selecciona…</option>
+                {catalogs.data?.breeds.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.nombre}
+                  </option>
+                ))}
+                <option value={RAZA_OTRA}>Otro…</option>
+              </select>
+            )}
+            {razaEsNueva && (
+              <button
+                type="button"
+                className="button button-ghost button-small"
+                onClick={() => {
+                  setRazaEsNueva(false)
+                  setRazaNueva('')
+                  setRazaPrincipalId('')
+                }}
+              >
+                Elegir de la lista
+              </button>
+            )}
+          </Field>
           <Field label="Propósito" required><select value={proposito} onChange={(event) => setProposito(event.target.value as typeof proposito)}><option value="CARNE">Carne</option><option value="LECHE">Leche</option><option value="REPRODUCCION">Reproducción</option><option value="DOBLE_PROPOSITO">Doble propósito</option></select></Field>
           <Field label="Propiedad" required><select required value={propiedadActualId} onChange={(event) => { setPropiedadActualId(event.target.value); setPotreroActualId(''); setCuarentenaPotreroId('') }}><option value="">Selecciona…</option>{catalogs.data?.properties.filter((item) => item.activo).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
           <Field label="Potrero" required hint="Debe pertenecer a la propiedad seleccionada."><select required value={potreroActualId} onChange={(event) => setPotreroActualId(event.target.value)}><option value="">Selecciona…</option>{potrerosDeLaPropiedad.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Field>
@@ -247,6 +340,7 @@ export function IngresoLotePage() {
 
         <div className="form-full ingreso-lote-toolbar">
           <span className="ingreso-lote-toolbar-label">Aplicar a todas las filas:</span>
+          <input aria-label="Nombre o prefijo correlativo a aplicar en lote" type="text" placeholder="Nombre (ej. LTN-01)" value={bulkNombre} onChange={(event) => setBulkNombre(event.target.value)} maxLength={150} />
           <select aria-label="Sexo a aplicar en lote" value={bulkSexo} onChange={(event) => setBulkSexo(event.target.value as '' | 'MACHO' | 'HEMBRA')}><option value="">Sexo —</option><option value="HEMBRA">Hembra</option><option value="MACHO">Macho</option></select>
           <input aria-label="Peso a aplicar en lote (kg)" type="number" min="0.1" step="0.1" placeholder="Peso (kg)" value={bulkPeso} onChange={(event) => setBulkPeso(event.target.value)} />
           <select aria-label="Tipo de peso a aplicar en lote" value={bulkTipoPeso} onChange={(event) => setBulkTipoPeso(event.target.value)}><option value="ESTIMADO">Estimado</option><option value="MEDIDO">Medido</option></select>

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { AlertCircle, AlertTriangle, Beef, Boxes, ChevronRight, Info, MapPin, QrCode, Route, Scale } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Beef, Boxes, ChevronRight, Info, MapPin, Route, Scale } from 'lucide-react'
 import {
   getDashboardResumen,
   type DashboardDistribucion,
@@ -116,7 +116,6 @@ export function DashboardPage() {
         {can('ANIMAL_CREAR') && <Link to="/animales/nuevo" className="dp-quick-tile"><span className="dp-qt-icon"><Beef size={18} aria-hidden="true" /></span><div><strong>Registrar animal</strong><small>Agregar una ficha al hato</small></div><ChevronRight size={17} aria-hidden="true" className="dp-qt-chev" /></Link>}
         {can('PESAJE_REGISTRAR') && <Link to="/pesajes" className="dp-quick-tile"><span className="dp-qt-icon"><Scale size={18} aria-hidden="true" /></span><div><strong>Registrar pesaje</strong><small>Control individual o por lote</small></div><ChevronRight size={17} aria-hidden="true" className="dp-qt-chev" /></Link>}
         {can('MOVIMIENTO_CREAR') && <Link to="/movimientos" className="dp-quick-tile"><span className="dp-qt-icon"><Route size={18} aria-hidden="true" /></span><div><strong>Crear movimiento</strong><small>Trasladar animales con control</small></div><ChevronRight size={17} aria-hidden="true" className="dp-qt-chev" /></Link>}
-        {can('ANIMAL_VER') && <Link to="/qr/escanear" className="dp-quick-tile"><span className="dp-qt-icon"><QrCode size={18} aria-hidden="true" /></span><div><strong>Escanear QR</strong><small>Abrir rápidamente una ficha</small></div><ChevronRight size={17} aria-hidden="true" className="dp-qt-chev" /></Link>}
       </div>
     </section>
 

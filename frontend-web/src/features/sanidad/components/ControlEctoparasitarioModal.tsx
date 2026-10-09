@@ -61,7 +61,7 @@ export function ControlEctoparasitarioModal({ animalId, loteGanaderoId, destinoL
   return <Modal open title="Registrar control ectoparasitario" onClose={onClose} wide description={`Checklist de control ectoparasitario para ${destinoLabel}.`}>
     <form className="form-grid" onSubmit={(event) => { event.preventDefault(); crear.mutate(event.currentTarget) }}>
       <Field label="Tipo" required><select name="tipo" required defaultValue="GARRAPATA">{(Object.keys(TIPO_ECTOPARASITO_LABELS) as TipoEctoparasito[]).map((tipo) => <option key={tipo} value={tipo}>{TIPO_ECTOPARASITO_LABELS[tipo]}</option>)}</select></Field>
-      <Field label="Nivel de carga" required><select name="nivelCarga" required defaultValue="BAJO">{(Object.keys(NIVEL_CARGA_PARASITARIA_LABELS) as NivelCargaParasitaria[]).map((nivel) => <option key={nivel} value={nivel}>{NIVEL_CARGA_PARASITARIA_LABELS[nivel]}</option>)}</select></Field>
+      <Field label={loteGanaderoId ? 'Nivel de infestación del lote' : 'Nivel de infestación'} required><select name="nivelCarga" required defaultValue="BAJO">{(Object.keys(NIVEL_CARGA_PARASITARIA_LABELS) as NivelCargaParasitaria[]).map((nivel) => <option key={nivel} value={nivel}>{NIVEL_CARGA_PARASITARIA_LABELS[nivel]}</option>)}</select></Field>
       <Field label="Fecha" required><input name="fecha" type="date" required /></Field>
       <Field label="Tratado en este registro"><input name="tratado" type="checkbox" /></Field>
       <Field label="Producto"><input name="producto" maxLength={200} /></Field>

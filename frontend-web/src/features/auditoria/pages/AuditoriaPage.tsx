@@ -49,7 +49,7 @@ export function AuditoriaPage() {
   const error = query.error ?? propiedades.error
 
   return <div className="page-stack">
-    <PageHeader eyebrow="Seguridad" title="Auditoría" description="Trazabilidad de acciones, cambios y correlación de solicitudes." />
+    <PageHeader eyebrow="Mi finca" title="Auditoría" description="Trazabilidad de acciones, cambios y correlación de solicitudes." />
     {error && <Alert tone="danger">{normalizeApiError(error).message}</Alert>}
     <Card>
       <div className="filter-heading"><span><ClipboardList size={18} />Filtros</span>{query.data && <strong>{query.data.totalElements} registros</strong>}</div>

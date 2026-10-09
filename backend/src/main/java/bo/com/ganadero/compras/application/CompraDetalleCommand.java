@@ -19,5 +19,18 @@ public record CompraDetalleCommand(String codigoSolicitado, String nombre, SexoA
                                    String observacionEstimacion, UUID categoriaActualId, String categoriaManualMotivo,
                                    BigDecimal precioOverride, BigDecimal pesoIngresoKg, TipoPeso tipoPeso,
                                    String metodoPeso, UUID propiedadId, UUID potreroId, UUID loteGanaderoId,
-                                   String observaciones) {
+                                   String observaciones, String razaNueva) {
+    public CompraDetalleCommand(String codigoSolicitado, String nombre, SexoAnimal sexo, UUID razaId,
+                               PropositoAnimal proposito, LocalDate fechaNacimiento, Boolean fechaNacimientoEstimada,
+                               Integer edadDeclaradaValor, UnidadEdadDeclarada edadDeclaradaUnidad,
+                               LocalDate fechaReferenciaEdad, FuenteEdadDeclarada fuenteEdadDeclarada,
+                               String observacionEstimacion, UUID categoriaActualId, String categoriaManualMotivo,
+                               BigDecimal precioOverride, BigDecimal pesoIngresoKg, TipoPeso tipoPeso,
+                               String metodoPeso, UUID propiedadId, UUID potreroId, UUID loteGanaderoId,
+                               String observaciones) {
+        this(codigoSolicitado, nombre, sexo, razaId, proposito, fechaNacimiento, fechaNacimientoEstimada,
+                edadDeclaradaValor, edadDeclaradaUnidad, fechaReferenciaEdad, fuenteEdadDeclarada,
+                observacionEstimacion, categoriaActualId, categoriaManualMotivo, precioOverride,
+                pesoIngresoKg, tipoPeso, metodoPeso, propiedadId, potreroId, loteGanaderoId, observaciones, null);
+    }
 }

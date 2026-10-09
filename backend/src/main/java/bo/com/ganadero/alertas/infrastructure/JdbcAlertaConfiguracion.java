@@ -19,12 +19,18 @@ public class JdbcAlertaConfiguracion implements AlertaConfiguracionPort {
 
     public AlertaConfiguracion obtener(UUID empresaId) {
         return jdbc.sql("""
-                        select dias_alerta_preparto, dias_alerta_destete,
-                               dias_diagnostico_post_servicio, dias_gestacion_estimada, hora_avisos
+                        select dias_alerta_preparto, coalesce(dias_alerta_preparto_2, 7) as dias_alerta_preparto_2,
+                               coalesce(dias_alerta_preparto_3, 1) as dias_alerta_preparto_3,
+                               coalesce(dias_alerta_vacunacion, 1) as dias_alerta_vacunacion,
+                               dias_alerta_destete, dias_diagnostico_post_servicio,
+                               dias_gestacion_estimada, hora_avisos
                         from configuracion
                         """)
                 .query((rs, rowNum) -> new AlertaConfiguracion(
                         rs.getInt("dias_alerta_preparto"),
+                        rs.getInt("dias_alerta_preparto_2"),
+                        rs.getInt("dias_alerta_preparto_3"),
+                        rs.getInt("dias_alerta_vacunacion"),
                         rs.getInt("dias_alerta_destete"),
                         rs.getInt("dias_diagnostico_post_servicio"),
                         rs.getInt("dias_gestacion_estimada"),

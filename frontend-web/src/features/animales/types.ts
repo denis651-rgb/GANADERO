@@ -75,7 +75,8 @@ export interface CreateAnimalInput {
   fechaNacimiento?: string
   proposito: 'CARNE' | 'LECHE' | 'REPRODUCCION' | 'DOBLE_PROPOSITO'
   origen: 'NACIDO' | 'COMPRADO' | 'TRANSFERIDO'
-  razaPrincipalId: string
+  razaPrincipalId?: string
+  razaNueva?: string
   categoriaActualId: string
   propiedadActualId: string
   potreroActualId: string

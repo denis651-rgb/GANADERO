@@ -27,6 +27,60 @@ export function calcularEdadMeses(fechaNacimiento?: string, referencia?: string)
   return Math.max(0, meses)
 }
 
+export function calcularEdadDesglosada(fechaNacimiento?: string, referencia?: string) {
+  if (!fechaNacimiento || !referencia || fechaNacimiento > referencia) return undefined
+  const [anioNacimiento, mesNacimiento, diaNacimiento] = fechaNacimiento.split('-').map(Number)
+  const [anioReferencia, mesReferencia, diaReferencia] = referencia.split('-').map(Number)
+
+  let dias: number
+  let mesesTemp: number
+  let aniosTemp = anioReferencia - anioNacimiento
+
+  if (diaReferencia >= diaNacimiento) {
+    dias = diaReferencia - diaNacimiento
+    mesesTemp = mesReferencia - mesNacimiento
+  } else {
+    const diasEnMesAnterior = new Date(Date.UTC(anioReferencia, mesReferencia - 1, 0)).getUTCDate()
+    dias = diaReferencia + diasEnMesAnterior - diaNacimiento
+    mesesTemp = mesReferencia - 1 - mesNacimiento
+  }
+
+  if (mesesTemp < 0) {
+    mesesTemp += 12
+    aniosTemp -= 1
+  }
+
+  const mesesTotales = Math.max(0, aniosTemp * 12 + mesesTemp)
+  return {
+    anios: Math.floor(mesesTotales / 12),
+    meses: mesesTotales % 12,
+    mesesTotales,
+    dias,
+  }
+}
+
+export function formatearEdadDetallada(fechaNacimiento?: string, referencia?: string): string | undefined {
+  const desglose = calcularEdadDesglosada(fechaNacimiento, referencia)
+  if (!desglose) return undefined
+
+  if (desglose.mesesTotales >= 12) {
+    const anios = desglose.anios
+    const m = desglose.meses
+    return `${anios} año${anios > 1 ? 's' : ''}${m ? ` ${m} m` : ''}`
+  }
+
+  if (desglose.mesesTotales > 0) {
+    const mesTxt = `${desglose.mesesTotales} mes${desglose.mesesTotales > 1 ? 'es' : ''}`
+    if (desglose.dias > 0) {
+      const diaTxt = `${desglose.dias} día${desglose.dias > 1 ? 's' : ''}`
+      return `${mesTxt} y ${diaTxt}`
+    }
+    return mesTxt
+  }
+
+  return `${desglose.dias} día${desglose.dias === 1 ? '' : 's'}`
+}
+
 export function formatearEdadMeses(edadMeses: number): string {
   if (edadMeses >= 12) {
     const anios = Math.floor(edadMeses / 12)

@@ -64,7 +64,7 @@ describe('BackupsPanel', () => {
   it('carga la configuración y el historial', async () => {
     renderPanel(mockBridge())
     await screen.findByText(backup.nombreArchivo)
-    expect(screen.getByText('Diaria a las 20:00')).toBeInTheDocument()
+    expect(screen.getByText('Al iniciar la app')).toBeInTheDocument()
   })
 
   it('guarda la configuración al enviar el formulario', async () => {
@@ -74,7 +74,7 @@ describe('BackupsPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar configuración' }))
 
-    await waitFor(() => expect(bridge.saveSettings).toHaveBeenCalledWith(expect.objectContaining({ hora: '20:00' })))
+    await waitFor(() => expect(bridge.saveSettings).toHaveBeenCalledWith(expect.objectContaining({ automatico: true })))
   })
 
   it('crea un respaldo al hacer click en "Crear respaldo ahora"', async () => {

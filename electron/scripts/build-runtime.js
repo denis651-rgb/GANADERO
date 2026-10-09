@@ -16,9 +16,17 @@ const MODULES = [
   'java.management',
   'java.instrument',
   'java.security.jgss',
+  'java.security.sasl',
   'java.compiler', // Spring Data AOT repository processor
+  'java.net.http', // Cliente HTTP (Telegram, servicios externos)
+  'java.xml',
+  'java.rmi',
+  'java.logging',
   'jdk.unsupported',
   'jdk.crypto.ec',
+  'jdk.crypto.mscapi',
+  'jdk.localedata',
+  'jdk.management',
   'jdk.zipfs',
 ]
 

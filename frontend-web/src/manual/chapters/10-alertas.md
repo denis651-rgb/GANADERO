@@ -86,24 +86,17 @@ pendientes** cuenta filas, no animales.
 
 ### A qué hora salen los avisos de una fecha
 
-Algunos avisos nacen de una **fecha sin hora**: el parto probable, el destete,
-el fin de un retiro de carne o de leche y la próxima vacunación que declaraste
-en el historial de un animal. Esos avisos salen a la **Hora de los avisos**
-(por defecto **08:00**, hora de Bolivia) del día que corresponde, y no a la
-medianoche, cuando nadie los vería.
+Todos los avisos proyectados (partos probables, destetes, diagnósticos recomendados, fin de retiros y vacunaciones programadas) salen a la **Hora matutina de los avisos** (por defecto **07:00 a. m.** o configurada por la finca) del día que corresponde, y no a la medianoche ni a horas de la tarde.
 
-- Los **días de anticipación** siguen siendo los de **Configuración general**.
-  Por ejemplo, con **Días de alerta antes del parto** en *15* y un parto
-  probable el 30/08, el aviso sale el 15/08 a las 08:00.
-- Si el día del aviso ya pasó cuando registras el dato (por ejemplo, un parto
-  probable a solo 3 días con 15 días de anticipación), el aviso aparece
-  enseguida, sin esperar a la hora de avisos.
-- Para cambiarla, ve a **Mi finca** → **Configuración general**, edita **Hora
-  de los avisos** y presiona **Guardar configuración**. El cambio vale para los
-  avisos que se programen desde ese momento; los que ya estaban programados
-  conservan su hora.
-- Los recordatorios que programas tú, los pesajes atrasados y las actividades
-  del calendario sanitario usan su propia hora y no cambian.
+- **Ventaja en el campo:** El ganadero recibe los avisos en su celular temprano en la casa cuando tiene señal, antes de salir a los potreros donde suele no haber cobertura.
+- **Partos escalonados:** Al confirmar un diagnóstico positivo, el sistema genera automáticamente tres avisos preparto a la hora matutina:
+  1. **15 días antes:** Traslado al potrero o lote de maternidad.
+  2. **7 días antes:** Seguimiento y condición corporal en maternidad.
+  3. **1 día antes:** Parición inminente para alistar kit neonatal y vigilar el corral.
+- **Anticipación de vacunas (1 día antes):** Te avisa un día antes a las 07:00 a. m. para comprar biológicos, alistar la cadena de frío (termos/hieleras) y citar al personal o veterinario.
+- **Diagnóstico post-servicio (30 días):** Sale a las 07:00 a. m. del día 30 post-inseminación/monta.
+- **Filtrado en Telegram:** Solo se envían al celular las alertas operativas críticas (partos, celos, vacunas y tratamientos con retiro). Sugerencias menores (como cuarentena por compra o pesajes informativos) quedan únicamente en el panel web para evitar saturar el teléfono.
+- Para cambiar la hora o los días de anticipación, ve a **Mi finca** → **Configuración general**, edita los campos y presiona **Guardar configuración**.
 
 ## Atender y resolver alertas
 

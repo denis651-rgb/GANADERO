@@ -132,4 +132,52 @@ describe('NuevoAnimalPage', () => {
     await screen.findByText('Selecciona o registra el proveedor de la compra.')
     expect(crearCompra).not.toHaveBeenCalled()
   })
+
+  it('permite ingresar una raza nueva con la opción Otro y enviarla en el registro', async () => {
+    createAnimal.mockClear()
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={client}><MemoryRouter><NuevoAnimalPage /></MemoryRouter></QueryClientProvider>)
+    await screen.findByText('Nelore')
+
+    for (const label of ['Categoría', 'Propiedad', 'Potrero']) {
+      fireEvent.change(screen.getByLabelText(label), { target: { value: catalogId } })
+    }
+    fireEvent.change(screen.getByLabelText('Fecha de nacimiento'), { target: { value: '2026-01-10' } })
+
+    // Seleccionar Otro... en Raza
+    fireEvent.change(screen.getByLabelText('Raza'), { target: { value: '__OTRA__' } })
+
+    // Debe transformarse en input de texto
+    const inputRaza = screen.getByPlaceholderText('Escribe la nueva raza…')
+    expect(inputRaza).toBeInTheDocument()
+    fireEvent.change(inputRaza, { target: { value: 'Senepol Puro' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar animal' }))
+    await waitFor(() => expect(createAnimal).toHaveBeenCalledWith(expect.objectContaining({
+      razaNueva: 'Senepol Puro',
+      razaPrincipalId: undefined,
+    })))
+  })
+
+  it('vuelve al selector de raza si el usuario borra por completo el texto escrito', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={client}><MemoryRouter><NuevoAnimalPage /></MemoryRouter></QueryClientProvider>)
+    await screen.findByText('Nelore')
+
+    // Seleccionar Otro...
+    fireEvent.change(screen.getByLabelText('Raza'), { target: { value: '__OTRA__' } })
+    const inputRaza = screen.getByPlaceholderText('Escribe la nueva raza…')
+    expect(inputRaza).toBeInTheDocument()
+
+    // Escribir algo
+    fireEvent.change(inputRaza, { target: { value: 'Brahman Rojo' } })
+    expect(inputRaza).toHaveValue('Brahman Rojo')
+
+    // Borrar todo
+    fireEvent.change(inputRaza, { target: { value: '' } })
+
+    // Vuelve al selector
+    expect(screen.queryByPlaceholderText('Escribe la nueva raza…')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Raza')).toBeInTheDocument()
+  })
 })

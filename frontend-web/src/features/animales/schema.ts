@@ -18,7 +18,8 @@ export const createAnimalSchema = z.object({
   pesoIngresoEstimado: z.boolean().optional(),
   proposito: z.enum(['CARNE', 'LECHE', 'REPRODUCCION', 'DOBLE_PROPOSITO']),
   origen: z.enum(['NACIDO', 'COMPRADO', 'TRANSFERIDO']),
-  razaPrincipalId: backendUuid('Selecciona una raza válida.'),
+  razaPrincipalId: backendUuid('Selecciona una raza válida.').optional(),
+  razaNueva: z.string().trim().max(160).optional(),
   categoriaActualId: backendUuid('Selecciona una categoría válida.'),
   categoriaManualMotivo: z.string().trim().max(300).optional(),
   propiedadActualId: backendUuid('Selecciona una propiedad válida.'),
@@ -30,6 +31,9 @@ export const createAnimalSchema = z.object({
   fuenteEdad: z.enum(['PROVEEDOR', 'ESTIMACION_CAMPO']).optional(),
   observacionEstimacion: z.string().trim().max(500).optional(),
 }).superRefine((animal, context) => {
+  if (!animal.razaPrincipalId && (!animal.razaNueva || animal.razaNueva.trim() === '')) {
+    context.addIssue({ code: 'custom', path: ['razaPrincipalId'], message: 'Selecciona una raza o ingresa una nueva.' })
+  }
   if (animal.origen === 'NACIDO' && !animal.fechaNacimiento && !animal.edadDeclaradaValor) {
     context.addIssue({ code: 'custom', path: ['fechaNacimiento'], message: 'Indica la fecha o la edad aproximada del animal nacido en la finca.' })
   }

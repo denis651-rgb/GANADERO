@@ -201,6 +201,66 @@ dejan de integrar el lote, la ocupación disminuye y cada salida queda en el
 > El animal retirado queda sin lote asignado; puede volver a agregarse cuando
 > quieras siguiendo el procedimiento anterior.
 
+## Registrar control ectoparasitario en el lote
+
+### Para qué sirve
+
+Registrar una evaluación o un tratamiento sanitario colectivo (como baños por
+aspersión, inmersión o pour-on contra garrapatas, moscas de los cuernos,
+piojos o tórsalos) para todos los integrantes del lote al mismo tiempo, sin
+tener que ingresar animal por animal.
+
+### Antes de comenzar
+
+- Tener el lote en estado **ACTIVO**.
+- Conocer el tipo de parásito evaluado, el nivel de infestación y, si se aplicó
+  tratamiento o baño, el producto y principio activo utilizado.
+
+### Procedimiento
+
+1. En la ficha del lote **ACTIVO**, presiona el botón **Registrar control
+   ectoparasitario** en la cabecera superior.
+2. En **Tipo**, elige el parásito evaluado (**Garrapata**, **Mosca de los
+   cuernos**, **Tórsalo**, **Piojos** u **Otro**). Viene marcado *Garrapata*.
+3. En **Nivel de infestación del lote**, selecciona la intensidad observada:
+   **Bajo**, **Medio** o **Alto**.
+4. En **Fecha**, indica el día del control (no puede ser una fecha futura).
+5. Si aplicaste un baño o tratamiento durante la visita, marca la casilla
+   **Tratado en este registro**.
+6. En **Producto** y **Principio activo** (opcionales), escribe el nombre
+   comercial y el componente químico del antiparasitario aplicado.
+7. Si el principio activo coincide con alguno usado en los últimos controles del
+   lote, el sistema muestra un aviso de alerta ámbar sugiriendo rotar el
+   principio activo para prevenir resistencia parasitaria.
+8. En **Observaciones**, anota detalles del manejo (por ejemplo: método de
+   aspersión, áreas corporales más afectadas o fecha recomendada para la
+   siguiente inspección).
+9. Presiona **Guardar control**.
+
+### Ejemplo
+
+En el **Lote Toros Nelore** (LOT-2024-0001, 30 toros) se realiza una revisión en
+el corral: se detecta carga media de mosca de los cuernos y se realiza un baño
+por aspersión a todos los toros. En la ficha del lote se presiona **Registrar
+control ectoparasitario**, se elige tipo *Mosca de los cuernos*, nivel *Medio*,
+fecha del día, se marca **Tratado en este registro**, producto *Bayticol*,
+principio activo *Flumetrina*, y en observaciones "Baño general por aspersión en
+corral; revisar en 14 días".
+
+### Resultado esperado
+
+El control queda registrado y se muestra de inmediato en la sección **Controles
+ectoparasitarios del lote** dentro de la misma ficha, detallando la fecha, el
+parásito, el nivel de infestación, el estado de tratamiento (`Tratado` o `Sin
+tratamiento`) y el producto utilizado. El sistema computa los principios
+activos empleados para alertar futuras rotaciones químicas y mantener la salud
+preventiva del grupo.
+
+> Registrar el control desde el lote aplica la evaluación y el registro sanitario
+> a nivel grupal. Para registrar controles clínicos individuales con hallazgos
+> específicos por animal, utiliza la sección **Controles** en
+> [Sanidad](./09-sanidad.md).
+
 ## Mover el lote
 
 ### Para qué sirve

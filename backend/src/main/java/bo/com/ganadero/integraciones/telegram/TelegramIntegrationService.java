@@ -94,15 +94,15 @@ public class TelegramIntegrationService {
         }
 
         String texto = String.format(
-            "🐮 *Prueba de Conexión - GANADERO*\n\n" +
+            "🐮 <b>Prueba de Conexión - GANADERO</b>\n\n" +
             "✅ ¡El Bot de Telegram se ha configurado exitosamente!\n\n" +
-            "Las alertas de *Sanidad*, *Vacunaciones*, *Celos* y *Partos programados* se notificarán por este medio.\n\n" +
-            "📅 _Fecha de prueba:_ `%s`\n" +
-            "🖥 _Origen:_ `App de Escritorio GANADERO`",
-            FORMATO_FECHA.format(Instant.now())
+            "Las alertas de <b>Sanidad</b>, <b>Vacunaciones</b>, <b>Celos</b> y <b>Partos programados</b> se notificarán por este medio.\n\n" +
+            "📅 <i>Fecha de prueba:</i> <code>%s</code>\n" +
+            "🖥 <i>Origen:</i> <code>App de Escritorio GANADERO</code>",
+            escapeHtml(FORMATO_FECHA.format(Instant.now()))
         );
 
-        return enviarTextoATelegram(botToken, chatId, texto);
+        return enviarTextoATelegram(botToken, chatId, texto, true);
     }
 
     public ResultadoEnvioTelegram enviarAlertaEjemplo(UUID empresaId, String tipoEjemplo) {
@@ -110,41 +110,41 @@ public class TelegramIntegrationService {
         validarConfiguracion(config);
 
         String texto;
-        String fechaHoy = FORMATO_FECHA.format(Instant.now());
+        String fechaHoy = escapeHtml(FORMATO_FECHA.format(Instant.now()));
 
         if ("PARTO".equalsIgnoreCase(tipoEjemplo)) {
             texto = String.format(
-                "🐮 *ALERTA REPRODUCTIVA: Parto Estimado*\n\n" +
-                "🏷 *Hembra:* `VACA-204` (Lote Maternidad)\n" +
-                "🤰 *Evento:* Cumplimiento de 283 días de gestación\n" +
-                "📅 *Fecha:* `%s`\n" +
-                "⚠️ *Recomendación:* Trasladar al corral de parición y alistar kit neonatal.\n\n" +
-                "_Sistema GANADERO Desktop (Alerta Real)_",
+                "🐮 <b>ALERTA REPRODUCTIVA: Parto Estimado</b>\n\n" +
+                "🏷 <b>Hembra:</b> <code>VACA-204</code> (Lote Maternidad)\n" +
+                "🤰 <b>Evento:</b> Cumplimiento de 283 días de gestación\n" +
+                "📅 <b>Fecha:</b> <code>%s</code>\n" +
+                "⚠️ <b>Recomendación:</b> Trasladar al corral de parición y alistar kit neonatal.\n\n" +
+                "<i>Sistema GANADERO Desktop (Alerta Real)</i>",
                 fechaHoy
             );
         } else if ("TRATAMIENTO".equalsIgnoreCase(tipoEjemplo)) {
             texto = String.format(
-                "💊 *ALERTA DE TRATAMIENTO: Aplicación Pendiente*\n\n" +
-                "🏷 *Animal:* `TORO-05` (Potrero 3)\n" +
-                "💊 *Medicamento:* Oxitetraciclina L.A. (Segunda dosis)\n" +
-                "📅 *Fecha:* `%s`\n" +
-                "⛔ *Retiro en Carne:* 28 días de restricción activa\n\n" +
-                "_Sistema GANADERO Desktop (Alerta Real)_",
+                "💊 <b>ALERTA DE TRATAMIENTO: Aplicación Pendiente</b>\n\n" +
+                "🏷 <b>Animal:</b> <code>TORO-05</code> (Potrero 3)\n" +
+                "💊 <b>Medicamento:</b> Oxitetraciclina L.A. (Segunda dosis)\n" +
+                "📅 <b>Fecha:</b> <code>%s</code>\n" +
+                "⛔ <b>Retiro en Carne:</b> 28 días de restricción activa\n\n" +
+                "<i>Sistema GANADERO Desktop (Alerta Real)</i>",
                 fechaHoy
             );
         } else {
             texto = String.format(
-                "💉 *ALERTA SANITARIA: Vacunación Programada*\n\n" +
-                "🏷 *Animal:* `VACA-1042` (Hato Reproductoras)\n" +
-                "💉 *Vacuna:* Fiebre Aftosa (Bivalente O/A)\n" +
-                "📅 *Fecha Programada:* `%s`\n" +
-                "⚠️ *Dosis:* 2 ml vía subcutánea en tabla del cuello\n\n" +
-                "_Sistema GANADERO Desktop (Alerta Real)_",
+                "💉 <b>ALERTA SANITARIA: Vacunación Programada</b>\n\n" +
+                "🏷 <b>Animal:</b> <code>VACA-1042</code> (Hato Reproductoras)\n" +
+                "💉 <b>Vacuna:</b> Fiebre Aftosa (Bivalente O/A)\n" +
+                "📅 <b>Fecha Programada:</b> <code>%s</code>\n" +
+                "⚠️ <b>Dosis:</b> 2 ml vía subcutánea en tabla del cuello\n\n" +
+                "<i>Sistema GANADERO Desktop (Alerta Real)</i>",
                 fechaHoy
             );
         }
 
-        return enviarTextoATelegram(config.botToken(), config.chatIdPrincipal(), texto);
+        return enviarTextoATelegram(config.botToken(), config.chatIdPrincipal(), texto, true);
     }
 
     public int despacharAlertasReales(UUID empresaId) {
@@ -158,6 +158,11 @@ public class TelegramIntegrationService {
 
         int enviadas = 0;
         for (OutboxAlerta alerta : alertas) {
+            if (alerta.subtipo() != null && (alerta.subtipo().contains("CUARENTENA") || alerta.subtipo().contains("REVISION_SANITARIA_INGRESO") || alerta.subtipo().contains("MOVIMIENTO") || alerta.subtipo().contains("PESAJE"))) {
+                outboxRepository.marcarSincronizado(alerta.id());
+                continue;
+            }
+
             String fechaTexto = alerta.fechaProgramada() != null
                     ? FORMATO_FECHA.format(alerta.fechaProgramada())
                     : FORMATO_FECHA.format(Instant.now());
@@ -170,21 +175,21 @@ public class TelegramIntegrationService {
             String mensaje = alerta.mensaje() != null ? alerta.mensaje() : "Actividad sanitaria o reproductiva programada.";
 
             String texto = String.format(
-                "*%s*\n\n" +
-                "📅 *Fecha:* `%s`\n" +
-                "🏷 *Animal:* `%s`\n" +
-                "📋 *Módulo:* %s (%s)\n\n" +
+                "<b>%s</b>\n\n" +
+                "📅 <b>Fecha:</b> <code>%s</code>\n" +
+                "🏷 <b>Animal:</b> <code>%s</code>\n" +
+                "📋 <b>Módulo:</b> %s (%s)\n\n" +
                 "%s\n\n" +
-                "_Sistema GANADERO Desktop_",
-                titulo,
-                fechaTexto,
-                codigoAnimal,
-                modulo,
-                subtipo,
-                mensaje
+                "<i>Sistema GANADERO Desktop</i>",
+                escapeHtml(titulo),
+                escapeHtml(fechaTexto),
+                escapeHtml(codigoAnimal),
+                escapeHtml(modulo),
+                escapeHtml(subtipo),
+                escapeHtml(mensaje)
             );
 
-            ResultadoEnvioTelegram res = enviarTextoATelegram(config.botToken(), config.chatIdPrincipal(), texto);
+            ResultadoEnvioTelegram res = enviarTextoATelegram(config.botToken(), config.chatIdPrincipal(), texto, true);
             if (res.exito()) {
                 outboxRepository.marcarSincronizado(alerta.id());
                 enviadas++;
@@ -202,12 +207,21 @@ public class TelegramIntegrationService {
         }
     }
 
-    private ResultadoEnvioTelegram enviarTextoATelegram(String botToken, String chatId, String texto) {
+    private String escapeHtml(String text) {
+        if (text == null) return "";
+        return text.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;");
+    }
+
+    private ResultadoEnvioTelegram enviarTextoATelegram(String botToken, String chatId, String texto, boolean usarHtml) {
         try {
             Map<String, Object> body = new HashMap<>();
             body.put("chat_id", chatId);
             body.put("text", texto);
-            body.put("parse_mode", "Markdown");
+            if (usarHtml) {
+                body.put("parse_mode", "HTML");
+            }
 
             String jsonPayload = gson.toJson(body);
             String url = "https://api.telegram.org/bot" + botToken + "/sendMessage";
@@ -231,6 +245,14 @@ public class TelegramIntegrationService {
                         desc = root.get("description").getAsString();
                     }
                 } catch (Exception ignored) {}
+
+                // Si falló por parsing de entidades HTML, reintentar automáticamente en texto plano sin parse_mode
+                if (usarHtml && desc != null && desc.toLowerCase().contains("can't parse entities")) {
+                    log.warn("Reintentando envío a Telegram en texto plano debido a error de parseo: {}", desc);
+                    String textoPlano = texto.replaceAll("<[^>]*>", "");
+                    return enviarTextoATelegram(botToken, chatId, textoPlano, false);
+                }
+
                 log.warn("Telegram API error {}: {}", resp.statusCode(), desc);
                 return new ResultadoEnvioTelegram(false, "Telegram API error: " + desc, resp.statusCode());
             }

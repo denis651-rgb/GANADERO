@@ -207,10 +207,12 @@ public class ReproduccionService {
         UUID id = command.id() != null ? command.id() : UUID.randomUUID();
         UUID clienteUuid = command.clienteUuid() != null ? command.clienteUuid() : id;
         AlertaConfiguracion configuracion = configuracion(user.empresaId());
+        LocalDate fechaDiagLocal = fecha.atZone(ZONA_NEGOCIO).toLocalDate().plusDays(configuracion.diasDiagnosticoPostServicio());
+        Instant fechaDiagRecomendada = fechaDiagLocal.atStartOfDay(ZONA_NEGOCIO).toInstant();
         Servicio value = new Servicio(id, user.empresaId(), command.hembraId(), command.celoId(),
                 fecha, command.tipoServicio(), command.machoId(), command.codigoSemen(), command.proveedorSemen(),
                 command.tecnicoId(), numeroIntento,
-                fecha.plusSeconds(configuracion.diasDiagnosticoPostServicio() * 86400L), command.observaciones(),
+                fechaDiagRecomendada, command.observaciones(),
                 property,
                 command.potreroId() != null ? command.potreroId() : animal.potreroActualId(),
                 command.loteId() != null ? command.loteId() : animal.loteActualId(),
@@ -220,9 +222,9 @@ public class ReproduccionService {
         if (saved.celoId() != null) {
             motor().ifPresent(m -> m.resolverPorOrigen(user.empresaId(), "CELO", saved.celoId()));
         }
-        motor().ifPresent(m -> m.programar(new ProgramarAlertaCommand(user.empresaId(), saved.hembraId(),
-                TipoAlerta.DIAGNOSTICO_PENDIENTE, saved.fechaDiagnosticoRecomendada(), "SERVICIO", saved.id(),
-                metadataAnimal(animal, Map.of("fechaDiagnostico", saved.fechaDiagnosticoRecomendada().toString())))));
+        motor().ifPresent(m -> m.programar(ProgramarAlertaCommand.alDia(user.empresaId(), saved.hembraId(),
+                TipoAlerta.DIAGNOSTICO_PENDIENTE, fechaDiagLocal, fechaDiagRecomendada, "SERVICIO", saved.id(),
+                metadataAnimal(animal, Map.of("fechaDiagnostico", fechaDiagLocal.toString())))));
         publicarServicio(user, saved);
         audit(user, AuditActions.REGISTRAR_SERVICIO, saved.id());
         return saved;
@@ -287,17 +289,35 @@ public class ReproduccionService {
                 clienteUuid, command.idempotencyKey(), EstadoRegistroReproduccion.ACTIVO,
                 null, null, null, null, 0);
         DiagnosticoGestacion saved = registros.createDiagnostico(value, user.userId());
-        if (saved.resultado() == ResultadoGestacion.POSITIVO) gestaciones.confirmar(user, animal, saved);
+        if (saved.resultado() == ResultadoGestacion.POSITIVO) {
+            gestaciones.confirmar(user, animal, saved);
+            var serviciosPendientes = registros.serviciosDeAnimal(animal.id(), user.empresaId()).stream()
+                    .filter(s -> s.estado() == EstadoServicio.PENDIENTE_DIAGNOSTICO || s.estado() == EstadoServicio.REGISTRADO)
+                    .toList();
+            for (var serv : serviciosPendientes) {
+                motor().ifPresent(m -> m.resolverPorOrigen(user.empresaId(), "SERVICIO", serv.id()));
+                if (servicio == null) {
+                    registros.updateServicioEstado(serv.id(), user.empresaId(), EstadoServicio.GESTACION_CONFIRMADA, user.userId());
+                }
+            }
+        }
         boolean gestacionAbierta = gestaciones.asociarDiagnostico(user, saved);
         UUID servicioDiagnosticadoId = servicio == null ? null : servicio.id();
         if (servicioDiagnosticadoId != null) motor().ifPresent(m -> m.resolverPorOrigen(user.empresaId(), "SERVICIO", servicioDiagnosticadoId));
         if (saved.resultado() == ResultadoGestacion.POSITIVO && saved.fechaProbableParto() != null) {
-            int dias = configuracion(user.empresaId()).diasAlertaPreparto();
-            Instant objetivo=saved.fechaProbableParto().atStartOfDay(ZONA_NEGOCIO).toInstant();
-            // El aviso sale `dias` antes del parto, a la hora de avisos configurada (no a medianoche).
-            motor().ifPresent(m -> m.programar(ProgramarAlertaCommand.alDia(user.empresaId(),saved.animalId(),TipoAlerta.PARTO_PROXIMO,
-                    saved.fechaProbableParto().minusDays(dias),objetivo,"GESTACION",saved.id(),
-                    metadataAnimal(animal, Map.of("fechaProbableParto", objetivo.toString())))));
+            AlertaConfiguracion config = configuracion(user.empresaId());
+            Instant objetivo = saved.fechaProbableParto().atStartOfDay(ZONA_NEGOCIO).toInstant();
+            int[] diasAvisos = { config.diasAlertaPreparto(), config.diasAlertaPreparto2(), config.diasAlertaPreparto3() };
+            for (int dias : diasAvisos) {
+                if (dias > 0) {
+                    LocalDate fechaAviso = saved.fechaProbableParto().minusDays(dias);
+                    motor().ifPresent(m -> m.programar(ProgramarAlertaCommand.alDia(
+                            user.empresaId(), saved.animalId(), TipoAlerta.PARTO_PROXIMO,
+                            fechaAviso, objetivo, "GESTACION", saved.id(),
+                            metadataAnimal(animal, Map.of("fechaProbableParto", objetivo.toString(), "diasAnticipacion", String.valueOf(dias)))
+                    )));
+                }
+            }
         }
         if (servicio != null) {
             EstadoServicio estado = switch (saved.resultado()) {

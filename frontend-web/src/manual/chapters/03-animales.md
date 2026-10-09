@@ -2,7 +2,7 @@
 
 El módulo **Animales** reúne todo lo que tiene que ver con el hato: dar de
 alta cada animal, revisar su ficha y su historial, cambiar su estado cuando
-sale del servicio, identificarlo (aretes, chips, código QR) y guardar su
+sale del servicio, identificarlo (aretes, chips RFID, tatuajes) y guardar su
 genealogía y sus fotografías. Es uno de los módulos que más se usan en el
 día a día.
 
@@ -25,7 +25,8 @@ de esa ficha.
 - Tener una propiedad **ACTIVA** y, si es posible, el potrero donde quedará
   el animal (registrado en **Potreros** y en estado **DISPONIBLE** u
   **OCUPADO**).
-- Saber la raza del animal (el catálogo de razas ya viene cargado).
+- Saber la raza del animal (puedes elegir una del catálogo o escribir una nueva
+  directamente en el formulario).
 - Para animales comprados: los datos del proveedor y el precio pagado.
 - Decidir si conoces la fecha de nacimiento o solo la edad aproximada.
 
@@ -45,10 +46,12 @@ de esa ficha.
 4. En **Clasificación**, elige el **Propósito** (**Carne**, **Leche**,
    **Reproducción** o **Doble propósito**) y el **Origen** (**Nacido**,
    **Comprado** o **Transferido**).
-5. Elige la **Raza**. La **Categoría** se asigna sola según sexo y edad y
-   se muestra fija; si no conoces la edad, selecciónala tú y, si es una
-   excepción manual como **Buey**, completa el **Motivo de la categoría
-   manual** (queda anotado en el historial del animal).
+5. En **Raza**, selecciona una existente del listado o elige **Otro** para
+   escribir el nombre de una nueva raza (el sistema la creará automáticamente al
+   guardar). La **Categoría** se asigna sola según sexo y edad y se muestra
+   fija; si no conoces la edad, selecciónala tú y, si es una excepción manual
+   como **Buey**, completa el **Motivo de la categoría manual** (queda anotado en
+   el historial del animal).
 6. En **Ubicación**, elige la **Propiedad** y el **Potrero**.
 7. En **Información adicional**, revisa el **Ingreso al hato** (en animales
    nacidos en la finca coincide con el nacimiento) o completa la **Fecha de
@@ -106,9 +109,10 @@ los animales.
 ### Procedimiento
 
 1. En **Animales**, presiona **Ingreso por lote de compra**.
-2. En **Datos comunes del lote**, elige la **Raza**, el **Propósito**, la
-   **Propiedad**, el **Potrero** y la **Fecha de ingreso** (no puede ser
-   futura).
+2. En **Datos comunes del lote**, elige la **Raza** (puedes seleccionar una del
+   catálogo o elegir **Otro** para escribir una nueva que se creará al
+   guardar), el **Propósito**, la **Propiedad**, el **Potrero** y la **Fecha de
+   ingreso** (no puede ser futura).
 3. En **Proveedor y precios**, selecciona o registra el proveedor, elige la
    **Modalidad de precio** y completa:
    - **Por unidad**: escribe el **Precio unitario** (se aplica a todos).
@@ -264,20 +268,16 @@ con su motivo aparece en la **Línea de tiempo**.
 > estado operativo del animal. Ambos quedan en el historial. Un cambio hecho
 > por error se puede volver a **ACTIVO** desde la misma sección.
 
-## Identificadores y código QR
+## Identificadores
 
 ### Para qué sirve
 
-Asociar al animal los identificadores físicos (arete, chip RFID, tatuaje u
-otro) y generar su **código QR** firmado, para verificarlo con la cámara e
-imprimir las etiquetas del hato.
+Asociar al animal los identificadores físicos del establecimiento (arete, chip RFID, tatuaje u otro) para llevar su identificación oficial en el hato.
 
 ### Antes de comenzar
 
 - El animal debe estar **ACTIVO**.
 - Tener a mano el número de cada identificador (arete, RFID, tatuaje).
-- Para imprimir o escanear: una impresora de etiquetas QR y el acceso
-  **Escanear QR** desde el **Panel principal**.
 
 ### Procedimiento
 
@@ -286,43 +286,21 @@ imprimir las etiquetas del hato.
    (**ARETE**, **RFID**, **TATUAJE** u **OTRO**), **Valor**,
    **Observaciones** (opcional) y marca **Identificador principal** si será
    el de referencia del animal. Presiona **Guardar identificador**.
-3. Presiona **Generar QR** y, en la ventana, marca **Marcar como
-   identificador principal** si quieres que el QR sea la referencia. Presiona
-   **Generar QR**. El código se genera y firma en el servidor; no se asigna
-   manualmente.
-4. Desde la tabla de identificadores puedes:
-   - **Ver QR**: abre la tarjeta del código con su contenido técnico.
+3. Desde la tabla de identificadores puedes:
    - **Hacer principal**: cambiar el identificador de referencia.
-   - **Reemplazar QR**: generar un QR nuevo con nueva firma (el anterior
-     queda retirado e inválido). Pide un **Motivo del reemplazo** de al
-     menos 5 caracteres.
    - **Retirar**: quitar el identificador del animal con su **Motivo del
-     retiro** (también mínimo 5 caracteres).
-5. En la lista de **Animales**, marca con la casilla a los animales que
-   quieras imprimir y presiona **Imprimir QR ({cantidad})**.
-6. Para verificar un QR en campo, usa el acceso del **Panel principal**:
-   **Escanear QR** abre la cámara y confirma que el código corresponde a un
-   animal activo.
+     retiro** (mínimo 5 caracteres).
 
 ### Ejemplo
 
 Lucera (ANI-000142) recibe el arete **BR-0051**: se asigna con tipo **ARETE**,
-valor **BR-0051**, marcado como **Identificador principal**. Después se
-presiona **Generar QR** marcando **Marcar como identificador principal**. Para
-la señalización de la finca, en **Animales** se selecciona a Lucera y se
-presiona **Imprimir QR (1)**.
+valor **BR-0051**, marcado como **Identificador principal**.
 
 ### Resultado esperado
 
 La pestaña **Identificadores** lista cada identificador con su **Tipo**,
 **Valor**, **Estado** (**ACTIVO** o **RETIRADO**), fechas de **Asignación** y
-**Retiro**, y el de referencia lleva la marca **Principal**. El QR activo se
-verifica con el escáner y se imprime desde la lista.
-
-> El QR no contiene datos sensibles y solo es válido mientras esté **ACTIVO**:
-> al reemplazarlo o retirarlo deja de funcionar. Solo los animales **ACTIVOS**
-> pueden generar QR; para los demás el botón no está disponible (los botones
-> de la tabla solo operan sobre filas en estado **ACTIVO**).
+**Retiro**, y el de referencia lleva la marca **Principal**.
 
 ## Genealogía
 
@@ -343,7 +321,12 @@ existe, su **Registro genealógico**.
 2. Presiona **Registrar progenitor**.
 3. Elige el **Tipo de progenitor**: **Madre** o **Padre**.
 4. Completa el progenitor:
-   - Con ficha en el sistema: elige **Animal progenitor** de la lista.
+   - Con ficha en el sistema: escribe en el buscador de **Animal progenitor**.
+     El sistema filtra en tiempo real a medida que escribes (por nombre,
+     código/arete, raza o potrero), mostrando solo hembras si elegiste **Madre**
+     o machos si elegiste **Padre**, identificando a cada uno con su nombre,
+     código, raza, categoría y potrero. Haz clic en el animal deseado para
+     seleccionarlo.
    - Sin ficha: marca **Progenitor externo (sin ficha en el sistema)** y
      completa **Nombre externo**, **Raza** y **Registro genealógico**.
 5. Presiona **Guardar parentesco**.
@@ -414,7 +397,7 @@ auditoría y en la **Línea de tiempo**.
 ### No encuentro un animal al buscarlo
 
 La búsqueda en **Animales** revisa el código, el nombre, la raza y el valor
-de los identificadores (**ARETE**, **RFID**, tatuaje o QR). Si no aparece,
+de los identificadores (**ARETE**, **RFID** o tatuaje). Si no aparece,
 revisa los filtros de estado, sexo, propiedad o potrero: el animal puede
 estar en un estado distinto al que filtras.
 
@@ -437,23 +420,10 @@ Si el origen es **Comprado**, la operación genera una compra, y una compra
 necesita proveedor. Selecciónalo en **Datos de la compra** (o regístralo como
 nuevo) y vuelve a intentar.
 
-### El botón de generar QR no me deja
+### No me deja retirar un identificador
 
-El código QR solo se genera para animales **ACTIVOS**. Si el animal está en
-otro estado (por ejemplo **DESCARTADO**), primero vuelve a **ACTIVO** desde
-**Cambiar estado** y luego genera el QR desde la pestaña **Identificadores**.
-
-### Al imprimir QRs me avisa que ninguno tiene QR activo
-
-La impresión toma las casillas marcadas en **Animales**. Si un animal no
-tiene QR activo, se salta; cuando ninguno lo tiene, la aplicación avisa.
-Genera los QRs desde la ficha de cada animal antes de imprimir.
-
-### No me deja reemplazar o retirar un identificador
-
-El **Motivo del reemplazo** y el **Motivo del retiro** deben tener al menos
-5 caracteres. Escribe un motivo real, por ejemplo "Arete roto, se repone con
-BR-0052".
+El **Motivo del retiro** debe tener al menos 5 caracteres. Escribe un motivo
+real, por ejemplo "Arete roto, se repone con BR-0052".
 
 ### Cambié el estado por error
 

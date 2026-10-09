@@ -46,6 +46,7 @@ export interface CompraDetalleInput {
   nombre?: string
   sexo: 'MACHO' | 'HEMBRA'
   razaId?: string
+  razaNueva?: string
   proposito?: string
   fechaNacimiento?: string
   fechaNacimientoEstimada?: boolean

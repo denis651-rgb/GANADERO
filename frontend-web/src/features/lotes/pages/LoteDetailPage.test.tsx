@@ -25,6 +25,14 @@ vi.mock('@/features/animales/api', () => ({
 }))
 vi.mock('@/features/propiedades/api', () => ({ listPropiedades: vi.fn().mockResolvedValue([{ id: 'p-1', nombre: 'Finca' }]) }))
 vi.mock('@/features/potreros/api', () => ({ listAllPotreros: vi.fn().mockResolvedValue([{ id: 'pt-1', propiedadId: 'p-1', nombre: 'Corral', activo: true }]) }))
+vi.mock('@/features/sanidad/api', async () => {
+  const actual = await vi.importActual<typeof import('@/features/sanidad/api')>('@/features/sanidad/api')
+  return {
+    ...actual,
+    listControlesEctoparasitarios: vi.fn().mockResolvedValue([]),
+    getPrincipiosActivosRecientes: vi.fn().mockResolvedValue([]),
+  }
+})
 vi.mock('@/shared/toast/useToast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 
 function renderPage() {
@@ -106,4 +114,31 @@ it('muestra la apertura y el cierre del lote tal como se guardaron, sin correrlo
   expect(screen.getByText('31/03/2024')).toBeInTheDocument()
   expect(screen.queryByText('31/12/2023')).not.toBeInTheDocument()
   expect(screen.queryByText('30/03/2024')).not.toBeInTheDocument()
+})
+
+it('muestra los controles ectoparasitarios registrados para el lote', async () => {
+  const { listControlesEctoparasitarios } = await import('@/features/sanidad/api')
+  vi.mocked(listControlesEctoparasitarios).mockResolvedValueOnce([
+    {
+      id: 'ecto-1',
+      empresaId: 'emp-1',
+      loteGanaderoId: 'l-1',
+      tipo: 'GARRAPATA',
+      nivelCarga: 'MEDIO',
+      tratado: true,
+      producto: 'Bayticol',
+      principioActivo: 'Flumetrina',
+      fecha: '2026-09-10',
+      observaciones: 'Baño por aspersión en corral',
+      version: 0,
+    },
+  ])
+  renderPage()
+
+  const tabla = await screen.findByRole('table', { name: 'Controles ectoparasitarios del lote' })
+  expect(within(tabla).getByText('Garrapata')).toBeInTheDocument()
+  expect(within(tabla).getByText('Medio')).toBeInTheDocument()
+  expect(within(tabla).getByText('Tratado')).toBeInTheDocument()
+  expect(within(tabla).getByText('Bayticol · Flumetrina')).toBeInTheDocument()
+  expect(within(tabla).getByText('Baño por aspersión en corral')).toBeInTheDocument()
 })

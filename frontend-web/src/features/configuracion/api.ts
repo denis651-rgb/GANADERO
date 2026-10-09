@@ -7,11 +7,14 @@ export interface Configuracion {
   unidadPeso: string
   unidadSuperficie: string
   diasAlertaPreparto: number
+  diasAlertaPreparto2: number
+  diasAlertaPreparto3: number
+  diasAlertaVacunacion: number
   diasSinPesaje: number
   diasAlertaDestete: number
   diasDiagnosticoPostServicio: number
   diasGestacionEstimada: number
-  /** Hora del día (HH:mm, zona del negocio) a la que salen los avisos que nacen de una fecha sin hora. */
+  /** Hora del día (HH:mm, zona del negocio) a la que salen los avisos matutinos. */
   horaAvisos: string
   comprimirImagenes: boolean
   calidadImagen: number
